@@ -50,11 +50,11 @@ public:
     void subscribe_on_connect(std::function<void(int)> cb);
 
 private:
-    void read_callback(); // channel 的回调处理函数。Acceptor 只需要处理连接事件
-
     void create_fd();
     void bind_address();
     void start_listen();
+
+    void read_callback(); // channel 的回调处理函数。Acceptor 只需要处理连接事件
 
     void publish_on_connect(int connFd);
 };

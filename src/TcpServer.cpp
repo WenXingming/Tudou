@@ -56,7 +56,13 @@ void TcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
-    connections.erase(fd);
+    auto findIt = connections.find(fd);
+    if (findIt != connections.end()) {
+        connections.erase(findIt);
+    }
+    else {
+        LOG::LOG_ERROR("TcpServer::remove_connection(). connection not found, fd: %d", fd);
+    }
 }
 
 void TcpServer::subscribe_message(MessageCallback cb) {

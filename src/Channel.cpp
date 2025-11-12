@@ -29,10 +29,14 @@ Channel::Channel(EventLoop* _loop, int _fd, uint32_t _event, uint32_t _revent,
     , closeCallback(std::move(_closeCallback))
     , errorCallback(std::move(_errorCallback)) {
 
+    // 更新到 poller 的 channels。构造函数和析构函数太好用了，无需记忆和害怕忘记调用， RAII 就是好
+    update_to_register();
 }
 
 Channel::~Channel() {
-
+    // 析构时从 poller 的 channels 中删除。构造函数和析构函数太好用了，无需记忆和害怕忘记调用， RAII 就是好
+    // 不可以在析构函数中调用，channels 本来就是持有智能指针！
+    // remove_in_register();
 }
 
 void Channel::publish_events(Timestamp receiveTime) {
@@ -60,35 +64,39 @@ void Channel::publish_events_with_guard(Timestamp receiveTime) {
 
 void Channel::enable_reading() {
     this->event |= Channel::kReadEvent;
-    update();
+    update_to_register(); // 必须调用，因为需要维护 epoll fd。避免外部忘记调用
 }
 
 void Channel::disable_reading() {
     this->event &= ~Channel::kReadEvent;
-    update();
+    update_to_register();
 }
 
 void Channel::enable_writing() {
     event |= kWriteEvent;
-    update();
+    update_to_register();
 }
 
 void Channel::disable_writing() {
     event &= ~kWriteEvent;
-    update();
+    update_to_register();
 }
 
 void Channel::disable_all() {
     event = kNoneEvent;
-    update();
+    update_to_register();
 }
 
 void Channel::set_revent(uint32_t _revent) {
     revent = _revent;
 }
 
-void Channel::update() {
+void Channel::update_to_register() {
     loop->update_channel(this);
+}
+
+void Channel::remove_in_register() {
+    loop->remove_channel(this);
 }
 
 void Channel::subscribe_on_read(std::function<void()> cb) {

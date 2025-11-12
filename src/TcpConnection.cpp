@@ -33,7 +33,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
     channel->subscribe_on_write([this]() { this->write_callback(); });
     channel->subscribe_on_close([this]() { this->close_callback(); });
     channel->subscribe_on_error([this]() { this->error_callback(); });
-    channel->update();
+    // channel->update_to_register();
 }
 
 TcpConnection::~TcpConnection() {
@@ -42,13 +42,13 @@ TcpConnection::~TcpConnection() {
     assert(retClose != -1);
 }
 
-Buffer* TcpConnection::get_input_buffer() {
-    return this->readBuffer.get();
-}
+// Buffer* TcpConnection::get_input_buffer() {
+//     return this->readBuffer.get();
+// }
 
-Buffer* TcpConnection::get_output_buffer() {
-    return this->writeBuffer.get();
-}
+// Buffer* TcpConnection::get_output_buffer() {
+//     return this->writeBuffer.get();
+// }
 
 void TcpConnection::read_callback() {
     int savedErrno = 0;
@@ -69,7 +69,7 @@ void TcpConnection::write_callback() {
     int savedErrno = 0;
     ssize_t n = writeBuffer->write_to_fd(this->connectFd, &savedErrno);
     if (n > 0) {
-        if (writeBuffer->readable_bytes() == 0) {
+        if (writeBuffer->readable_bytes_size() == 0) {
             channel->disable_writing();
         }
     }
@@ -80,14 +80,14 @@ void TcpConnection::write_callback() {
 
 void TcpConnection::close_callback() {
     channel->disable_all();
-    loop->remove_channel(this->channel.get());
+    channel->remove_in_register();
 
     this->publish_close();
 }
 
 void TcpConnection::error_callback() {
     channel->disable_all();
-    loop->remove_channel(this->channel.get());
+    channel->remove_in_register();
 
     this->publish_close();
 }

@@ -67,14 +67,12 @@ public:
     ~TcpConnection();
 
     int get_fd() const { return this->connectFd; }
-    Buffer* get_input_buffer();
-    Buffer* get_output_buffer();
+    // Buffer* get_input_buffer();
+    // Buffer* get_output_buffer();
 
     // 由于没有 master 注册中心。所以发布的类需要同时处理订阅...，本类就是 master
-    // TcpConnection <==> 业务层
-    void subscribe_message(MessageCallback _cb);
-    // TcpConnection <==> TcpServer
-    void subscribe_close(CloseCallback _cb);
+    void subscribe_message(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
+    void subscribe_close(CloseCallback _cb); // TcpConnection <==> TcpServer
 
     void send(const std::string& msg);
     std::string recv();

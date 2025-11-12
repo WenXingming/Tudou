@@ -13,7 +13,7 @@
  *   |                   |     (CONTENT)    |                  |
  *   +-------------------+------------------+------------------+
  *   |                   |                  |                  |
- *   0   <=   readerIndex   <=   writerIndex   <=   size
+ *   0      <=      readerIndex   <=   writerIndex     <=     size
  *   @endcode
  *
  * - 写入后自动成为可读数据（writerIndex 前移）；读取仅推进 readerIndex；retrieve_all 可重置。
@@ -52,19 +52,20 @@ private:
 private:
     void make_space(size_t len);
 
-    size_t prependable_bytes() const;
+    size_t prependable_bytes_size() const;
 
-    const char* readable_ptr() const;       // 读指针
-    void retrieve(size_t len);              // 维护 index：读走 len 个字节
-    void retrieve_all();                    // 维护 index：清空
+    const char* readable_start_ptr() const;       // 读指针
+    void retrieve_readIndex(size_t len);              // 维护 index：读走 len 个字节
+    void retrieve_all_index();                    // 维护 index：清空
     std::string retrieve_as_string(size_t len);              // 读走 len 个字节
     std::string retrieve_all_as_string();
 
 public:
     explicit Buffer(size_t initSize = kInitialSize);
+    ~Buffer();
 
-    size_t readable_bytes() const;
-    size_t writable_bytes() const;
+    size_t readable_bytes_size() const;
+    size_t writable_bytes_size() const;
 
     std::string read_from_buffer();
     void write_to_buffer(const char* data, size_t len);

@@ -6,9 +6,12 @@
  * @details
  *
  * 说明：
- * - 封装一个 Poller（如 EpollPoller），负责注册/取消/修改文件描述符的事件并等待就绪事件。（持有 poller 的唯一所有权（std::unique_ptr），在 EventLoop 析构时自动释放）
- * - 提供 loop() 方法进入事件循环，持续调用 poller 获取 Active Channels
- * - 对获取到的 Active Channels，调用其 publish_events() 方法，触发相应的事件回调
+ * - 封装一个 Poller 如 EpollPoller（持有 poller 的唯一所有权（std::unique_ptr），在 EventLoop 析构时自动释放）
+ * -
+ * - 提供事件循环 loop() 方法，持续监听和分发事件：
+ * -    1. 持续调用 poller->poll(timeoutMs) 获取 Active Channels
+ * -    2. 对获取到的 Active Channels，调用其 publish_events() 方法，触发相应的事件回调
+ *
  * - 对外暴露 update_channel()/remove_channel() 方法，用于 Channel 向 EventLoop 注册或取消自身。
  *
  * 线程模型与约定：

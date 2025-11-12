@@ -10,7 +10,7 @@
  *  - 保存该 fd 在可读/可写/关闭/错误等情况下需要触发的回调函数。
  *  - 在事件发生时（EventLoop 从 Poller 得到活动事件并设置 revent），
  *    调用 publish_event，按 revent 分发并触发相应的回调。
- *  - 当对感兴趣事件做修改（enable/disable）时，通过 update 通知 EventLoop/ Poller 更新注册信息。
+ *  - 当对感兴趣事件做修改（enable/disable）时，通过 update_to_register 通知 EventLoop/ Poller 更新注册信息。
  *
  * 重要注意点：
  *  - Channel 不拥有 fd（不负责 close）；仅做事件/回调的绑定与分发。
@@ -23,6 +23,8 @@
  *  3. 调用 enable_reading/enable_writing 等修改感兴趣事件。
  *  4. EventLoop 在 poller 返回活动 events 时，设置 revent 并调用 publish_event。
  *
+ * 核心函数：
+ *  - publish_events()：事件发生后进行回调。
  */
 
 #pragma once
@@ -64,6 +66,7 @@ public:
     void publish_events(Timestamp receiveTime);
 
     // 没有办法，没有 master 注册中心，只能把订阅函数 callback 存在本类里，所以也需要提供公开接口
+    // 这里好像还真不好用注册中心，因为 Acceptor、TcpConnection 对于 readCallback 传入的回调函数不同
     void subscribe_on_read(std::function<void()> cb);
     void subscribe_on_write(std::function<void()> cb);
     void subscribe_on_close(std::function<void()> cb);
@@ -82,11 +85,14 @@ public:
     // poller 监听到事件后设置此值
     void set_revent(uint32_t _revent);
 
-    // 当改变 channel 的 event 后，需要在 poller 里面更改（更新） channel。何时被调用：调用 enable_reading 等函数改变 event 后
-    void update();
+    // 当改变 channel 的 event 后，需要在 poller 里面更改（更新） epoll fd。何时被调用：调用 enable_reading 等函数改变 event 后
+    // 当创建 channel 后，需要在 poller 里面更新 channels
+    void update_to_register();
+    void remove_in_register();
 
 private:
-    void publish_events_with_guard(Timestamp receiveTime); // 根据事件调用回调函数。何时被调用：被 publish_events() 调用
+    // 根据事件调用回调函数。何时被调用：被 publish_events() 调用
+    void publish_events_with_guard(Timestamp receiveTime);
 
     // 事件发生了就需要 publish。没有 master 注册中心，所以发布时直接本地自己触发回调 callback
     void publish_read();

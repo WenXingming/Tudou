@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 #include <functional>
+#include <unordered_map>
 
 class EventLoop;
 class Acceptor;
@@ -45,7 +46,7 @@ private:
     EventLoop* loop;
 
     std::unique_ptr<Acceptor> acceptor;
-    std::map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
+    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
 
     MessageCallback messageCallback;
 
