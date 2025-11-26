@@ -17,78 +17,74 @@
 #include "../base/Log.h"
 
  // 构造缓冲区，预留 prepend 区域并初始化读写索引。
-Buffer::Buffer(size_t initSize)
-    : buffer(kCheapPrepend + kInitialSize)
+Buffer::Buffer(size_t initialSize)
+    : buffer(kCheapPrepend + initialSize)
     , readIndex(kCheapPrepend)
-    , writeIndex(kCheapPrepend) {}
+    , writeIndex(kCheapPrepend) {
 
-Buffer::~Buffer() {}
+    assert(readable_bytes() == 0);
+    assert(writable_bytes() == initialSize);
+    assert(prependable_bytes() == kCheapPrepend);
+}
 
-// 返回当前可读字节数（readable 区域长度）。
-size_t Buffer::readable_bytes_size() const {
+Buffer::~Buffer() {
+
+}
+
+size_t Buffer::readable_bytes() const {
     return writeIndex - readIndex;
 }
 
-// 返回当前可写字节数（writable 区域长度）。
-size_t Buffer::writable_bytes_size() const {
+size_t Buffer::writable_bytes() const {
     return buffer.size() - writeIndex;
 }
 
-// 返回预留区域大小（prependable 区域长度）。
-size_t Buffer::prependable_bytes_size() const {
+size_t Buffer::prependable_bytes() const {
     return readIndex - 0;
 }
 
-// 获取 readable 区域起始指针。
 const char* Buffer::readable_start_ptr() const {
     return buffer.data() + readIndex;
 }
 
-// 从缓冲区读取 len 字节后推进 readIndex；若读完则重置。
-void Buffer::retrieve_readIndex(size_t len) {
-    if (len < readable_bytes_size()) { // 应用只读取了可读缓冲区的一部分
+// 从缓冲区读取 len 字节后维护 readIndex
+void Buffer::maintain_read_index(size_t len) {
+    if (len < readable_bytes()) { // 应用只读取了可读缓冲区的一部分
         readIndex += len;
     }
-    else {
-        retrieve_all_index();
+    else { // 应用读取了所有可读数据, 直接重置
+        maintain_all_index();
     }
 }
 
-// 将读写索引重置为初始位置，清空缓冲区。
-void Buffer::retrieve_all_index() {
+// 将读写索引重置为初始位置，清空缓冲区
+void Buffer::maintain_all_index() {
     readIndex = kCheapPrepend;
     writeIndex = kCheapPrepend;
 }
 
-// 读取 len 字节为字符串并消费对应数据。
-std::string Buffer::retrieve_as_string(size_t len) {
-    if (len > readable_bytes_size()) {
-        LOG::LOG_ERROR("Buffer::retrieve_as_string(). len > readable_bytes_size");
+// 读取 len 字节为字符串并消费对应数据
+std::string Buffer::read_from_buffer(size_t len) {
+    if (len > readable_bytes()) {
+        LOG::LOG_ERROR("Buffer::read_from_buffer(). len > readable_bytes");
     }
 
-    len = std::min(len, readable_bytes_size());
     std::string str(readable_start_ptr(), len);
-    retrieve_readIndex(len);
+    maintain_read_index(len);
     return std::move(str);
 }
 
-// 读取全部可读数据为字符串并清空。
-std::string Buffer::retrieve_all_as_string() {
-    int readableBytes = readable_bytes_size();
-    return retrieve_as_string(readableBytes);
-}
-
-// 读取全部可读数据为字符串但不更新索引。
+// 读取全部可读数据
 std::string Buffer::read_from_buffer() {
-    auto readablePtr = readable_start_ptr();
-    auto readableBytes = readable_bytes_size();
-    std::string str(readablePtr, readableBytes);
+    int readableBytes = readable_bytes();
+    std::string str(read_from_buffer(readableBytes));
+    maintain_read_index(readableBytes); // 其实 read_from_buffer 已经维护过了。为了保证语义清晰，再次调用
     return std::move(str);
 }
 
 // 写入原始数据到缓冲区，不够空间时扩容或整理。
 void Buffer::write_to_buffer(const char* data, size_t len) {
-    if (len > writable_bytes_size()) {
+    if (writable_bytes() < len) {
         make_space(len); // 环形缓冲区：要么扩容要么调整
     }
     std::copy(data, data + len, buffer.begin() + writeIndex);
@@ -102,14 +98,14 @@ void Buffer::write_to_buffer(const std::string& str) {
 
 // 通过搬移或扩容确保有 len 字节可写空间。
 void Buffer::make_space(size_t len) {
-    if (writable_bytes_size() + prependable_bytes_size() - kCheapPrepend < len) { // 环形缓冲区
+    if (writable_bytes() + prependable_bytes() < len + kCheapPrepend) { // 环形缓冲区
         buffer.resize(writeIndex + len);
     }
     else { // 调整缓冲区
-        int readableBytes = readable_bytes_size();
+        int readableBytes = readable_bytes();
         std::copy(buffer.begin() + readIndex, buffer.begin() + writeIndex, buffer.begin() + kCheapPrepend);
         readIndex = kCheapPrepend;
-        writeIndex = readIndex + readableBytes /* readable_bytes_size() */; // 不可直接调用
+        writeIndex = readIndex + readableBytes; // 不可直接调用 readable_bytes()，正在维护 index
     }
 }
 
@@ -117,10 +113,10 @@ void Buffer::make_space(size_t len) {
  * 从 fd 上读取数据，注意 events 是 LT 模式，数据没有读完也不会丢失。没有使用 while 读
  * 使用 readv，buffer 不会太小也不会太大，完美利用内存
  */
-// 从 fd 读取数据写入缓冲区的 writable 区域，并根据读取量调整索引。readBuffer 调用此函数
+ // 从 fd 读取数据写入缓冲区的 writable 区域，并根据读取量调整索引。readBuffer 调用此函数
 ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
     char extraBuf[65536];
-    size_t writableBytes = writable_bytes_size();
+    size_t writableBytes = writable_bytes();
 
     struct iovec vec[2];
     vec[0].iov_base = buffer.data() + writeIndex;
@@ -148,13 +144,13 @@ ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
 // 将缓冲区可读数据写入 fd，并根据写入量调整索引。writeBuffer 调用此函数
 ssize_t Buffer::write_to_fd(int fd, int* savedErrno) {
     auto readablePtr = readable_start_ptr();
-    auto readableBytes = readable_bytes_size();
+    auto readableBytes = readable_bytes();
     ssize_t n = ::write(fd, readablePtr, readableBytes);
     if (n < 0) {
         *savedErrno = errno;
     }
     else {
-        retrieve_readIndex(n);
+        maintain_read_index(n);
     }
     return n;
 }

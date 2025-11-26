@@ -62,5 +62,5 @@ public:
     void start();
 
     // TcpConnection 发布。不是 TcpServer 发布，Server 只是作为消息传递中间商
-    void subscribe_message(MessageCallback cb);
+    void set_message_callback(MessageCallback cb);
 };

@@ -47,7 +47,7 @@ void Channel::publish_events_with_guard(Timestamp receiveTime) {
     LOG::LOG_DEBUG("poller find event, channel publish event: %d", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
-        this->publish_close();
+        this->handle_close();
         return;
     }
     if (revent & (EPOLLERR)) {
@@ -141,12 +141,12 @@ void Channel::publish_write() {
     }
 }
 
-void Channel::publish_close() {
+void Channel::handle_close() {
     if (this->closeCallback) {
         this->closeCallback();
     }
     else {
-        LOG::LOG_ERROR("Channel::publish_close(). no closeCallback.");
+        LOG::LOG_ERROR("Channel::handle_close(). no closeCallback.");
     }
 }
 

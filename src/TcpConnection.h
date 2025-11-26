@@ -7,8 +7,8 @@
  *
  * 职责：
  * - 封装已建立连接的 fd（connectFd）及其 Channel（持有），处理读/写/关闭/错误事件。
- * - 维护读写 Buffer，向上提供 send()/recv()，并通过回调对接业务层与 TcpServer。
- * - 对外暴露 subscribe_message()/subscribe_close() 以设置回调，实现与上层解耦。
+ * - 维护读写 Buffer，向上提供 send()/receive()，并通过回调对接业务层与 TcpServer。
+ * - 对外暴露 set_message_callback()/set_close_callback() 以设置回调，实现与上层解耦。
  *
  * 线程模型与约定：
  * - 与所属 EventLoop 线程绑定；除可封装为投递的接口外，方法应在该线程调用。
@@ -53,29 +53,27 @@ private:
     CloseCallback closeCallback; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
 
 private:
-    // 处理 channel 事件的回调函数。没有设置 error call_back()
+    // 处理 channel 事件的上层回调函数
     void read_callback();
     void write_callback();
     void close_callback();
     void error_callback();
 
-    void publish_message();
-    void publish_close();
+    // 触发上层回调
+    void handle_message();
+    void handle_close();
 
 public:
     TcpConnection(EventLoop* _loop, int _sockfd);
     ~TcpConnection();
 
     int get_fd() const { return this->connectFd; }
-    // Buffer* get_input_buffer();
-    // Buffer* get_output_buffer();
 
-    // 由于没有 master 注册中心。所以发布的类需要同时处理订阅...，本类就是 master
-    void subscribe_message(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
-    void subscribe_close(CloseCallback _cb); // TcpConnection <==> TcpServer
+    void set_message_callback(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
+    void set_close_callback(CloseCallback _cb); // TcpConnection <==> TcpServer
 
     void send(const std::string& msg);
-    std::string recv();
+    std::string receive();
 
     /* void shutdown(); */
 };

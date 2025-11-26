@@ -97,6 +97,6 @@ private:
     // 事件发生了就需要 publish。没有 master 注册中心，所以发布时直接本地自己触发回调 callback
     void publish_read();
     void publish_write();
-    void publish_close();
+    void handle_close();
     void publish_error();
 };

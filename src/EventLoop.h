@@ -24,13 +24,13 @@
 #include <memory>
 #include "../base/NonCopyable.h"
 
-class Poller;
+class EpollPoller;
 class Channel;
 class Timestamp;
 class EventLoop : NonCopyable {
 private:
-    std::unique_ptr<Poller> poller; // 拥有 poller。智能指针，自动析构
-    const int pollTimeoutMs; // poller 默认的超时时间
+    std::unique_ptr<EpollPoller> poller; // 拥有 poller。智能指针，自动析构
+    const int pollTimeoutMs;
 
 public:
     EventLoop();

@@ -15,11 +15,11 @@
 #include "../base/Timestamp.h"
 #include "Channel.h"
 #include <assert.h>
+#include "EventLoop.h"
 
  // 构造函数，确保考虑到每一个成员的初始化（及初始化顺序）
 EpollPoller::EpollPoller(EventLoop* _loop)
-    : Poller(_loop)
-    , epollFd(epoll_create1(EPOLL_CLOEXEC))
+    : epollFd(epoll_create1(EPOLL_CLOEXEC))
     , eventListSize(16)
     , eventList(eventListSize)
     , channels() {

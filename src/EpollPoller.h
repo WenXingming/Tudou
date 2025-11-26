@@ -22,27 +22,28 @@
  *
  */
 
-#include "Poller.h"
 #include <vector>
 #include <sys/epoll.h>
 #include <unordered_map>
 
-class EpollPoller : public Poller {
+class EventLoop;
+class Channel;
+class EpollPoller {
 private:
     int epollFd;
     const size_t eventListSize = 16; // 初始事件数组大小；声明顺序保证先初始化此常量
     std::vector<epoll_event> eventList; // 存放 epoll_wait 返回的就绪事件列表
     std::unordered_map<int, Channel*> channels; // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
 
+public:
+    explicit EpollPoller(EventLoop* _loop); // 构造时创建 epoll fd
+    ~EpollPoller();
+
+    std::vector<Channel*> poll(int timeoutMs);
+    void update_channel(Channel* channel);
+    void remove_channel(Channel* channel);
+
 private:
     std::vector<Channel*> get_activate_channels(int numEvents) const;
     void event_list_auto_resize(int numReady);
-
-public:
-    explicit EpollPoller(EventLoop* _loop); // 构造时创建 epoll fd
-    ~EpollPoller() override;
-
-    std::vector<Channel*> poll(int timeoutMs) override;
-    void update_channel(Channel* channel) override;
-    void remove_channel(Channel* channel) override;
 };

@@ -16,23 +16,22 @@
 
 #include "../base/Timestamp.h"
 #include "../base/Log.h"
-#include "Poller.h"
+#include "EpollPoller.h"
 #include "Channel.h"
 
 EventLoop::EventLoop()
-    : poller(Poller::new_default_poller(this))
+    : poller(new EpollPoller(this))
     , pollTimeoutMs(5000) {}
 
 EventLoop::~EventLoop() {}
 
-// 事件循环。Rector 模式：通过 poller（IO多路复用）获取活动的 channels，然后调用 channel 的 publish_events 进行事件分发回调
 void EventLoop::loop() {
     LOG::LOG_DEBUG("EventLoop start looping...");
     while (true) {
         LOG::LOG_DEBUG("EventLoop is looping...");
         // 使用 poller 监听发生事件的 channels
         std::vector<Channel*> activeChannels = poller->poll(pollTimeoutMs);
-        // 通知 channel 处理回调
+        // 通知 channel 进行事件分发处理回调
         for (auto channel : activeChannels) {
             channel->publish_events(Timestamp::now());
         }

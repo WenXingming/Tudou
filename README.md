@@ -100,7 +100,7 @@ classDiagram
             +subscribe_on_read(std::function cb)
             -publish_write()
             +subscribe_on_write(std::function cb)
-            -publish_close()
+            -handle_close()
             +subscribe_on_close(std::function cb)
             -publish_error()
             +subscribe_on_error(std::functioncb)
@@ -115,7 +115,7 @@ classDiagram
             
             -MessageCallback messageCallback
             
-            +subscribe_message(MessageCallback cb) // 中间者
+            +set_message_callback(MessageCallback cb) // 中间者
         }
         
         class Acceptor {
@@ -143,10 +143,10 @@ classDiagram
             -write_callback()
             -close_callback()
             
-            -publish_message()
-            -publish_close()
-            +subscribe_message(MessageCallback _cb)
-            +subscribe_close(CloseCallback _cb)
+            -handle_message()
+            -handle_close()
+            +set_message_callback(MessageCallback _cb)
+            +set_close_callback(CloseCallback _cb)
         }
 
         class Buffer {
@@ -256,13 +256,13 @@ graph TD
     Channel -.publish_read.-> Acceptor
     Channel -.publish_read.-> TcpConnection
     Channel -.publish_write.-> TcpConnection
-    Channel -.publish_close.-> TcpConnection
+    Channel -.handle_close.-> TcpConnection
     Channel -.publish_error.-> TcpConnection
     
     Acceptor -.publish_on_connect.-> TcpServer
-    TcpConnection -.publish_message(中介).-> TcpServer
-    TcpConnection -.publish_close.-> TcpServer
+    TcpConnection -.handle_message(中介).-> TcpServer
+    TcpConnection -.handle_close.-> TcpServer
     
-    TcpServer -.publish_message.-> 业务层
+    TcpServer -.handle_message.-> 业务层
 
 ```

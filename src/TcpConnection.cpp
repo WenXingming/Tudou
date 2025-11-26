@@ -54,7 +54,7 @@ void TcpConnection::read_callback() {
     int savedErrno = 0;
     ssize_t n = readBuffer->read_from_fd(this->connectFd, &savedErrno);
     if (n > 0) {
-        this->publish_message();
+        this->handle_message();
     }
     else if (n == 0) {
         this->close_callback();
@@ -69,7 +69,7 @@ void TcpConnection::write_callback() {
     int savedErrno = 0;
     ssize_t n = writeBuffer->write_to_fd(this->connectFd, &savedErrno);
     if (n > 0) {
-        if (writeBuffer->readable_bytes_size() == 0) {
+        if (writeBuffer->readable_bytes() == 0) {
             channel->disable_writing();
         }
     }
@@ -82,37 +82,37 @@ void TcpConnection::close_callback() {
     channel->disable_all();
     channel->remove_in_register();
 
-    this->publish_close();
+    this->handle_close();
 }
 
 void TcpConnection::error_callback() {
     channel->disable_all();
     channel->remove_in_register();
 
-    this->publish_close();
+    this->handle_close();
 }
 
-void TcpConnection::publish_message() {
+void TcpConnection::handle_message() {
     if (messageCallback) {
         messageCallback(shared_from_this());
     }
     else {
-        LOG::LOG_ERROR("TcpConnection::publish_message(). no messageCallback setted.");
+        LOG::LOG_ERROR("TcpConnection::handle_message(). no messageCallback setted.");
     }
 }
 
-void TcpConnection::publish_close() {
+void TcpConnection::handle_close() {
     if (closeCallback) {
         closeCallback(shared_from_this());
     }
-    else LOG::LOG_ERROR("TcpConnection::publish_close(). no closeCallback setted.");
+    else LOG::LOG_ERROR("TcpConnection::handle_close(). no closeCallback setted.");
 }
 
-void TcpConnection::subscribe_message(MessageCallback _cb) {
+void TcpConnection::set_message_callback(MessageCallback _cb) {
     this->messageCallback = std::move(_cb);
 }
 
-void TcpConnection::subscribe_close(CloseCallback _cb) {
+void TcpConnection::set_close_callback(CloseCallback _cb) {
     this->closeCallback = std::move(_cb);
 }
 
@@ -121,7 +121,7 @@ void TcpConnection::send(const std::string& msg) {
     channel->enable_writing();
 }
 
-std::string TcpConnection::recv() {
+std::string TcpConnection::receive() {
     std::string msg(readBuffer->read_from_buffer());
     return std::move(msg);
 }

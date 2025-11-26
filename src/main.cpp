@@ -50,12 +50,13 @@ void test_server() {
     InetAddress listenAddr = InetAddress(8080);
     TcpServer server(&loop, listenAddr, nullptr);
 
-    server.subscribe_message(
+    server.set_message_callback(
         [](const std::shared_ptr<TcpConnection>& conn) {
-            std::string msg(conn->recv());
-            // std::cout << "Received: " << msg << std::endl;
+            std::string msg(conn->receive());
+            std::cout << "Received: " << msg << std::endl;
             // 业务处理 ...
             // http 解析
+            // 发送文件 ../assets/homepage.html
             char writeBuffer[1024] = {};
             int writeLength = 1024;
             writeLength = sprintf(writeBuffer,

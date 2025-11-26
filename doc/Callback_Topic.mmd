@@ -9,33 +9,33 @@
 %%     %% 定义消息主题节点
 %%     publish_read((publish_read))
 %%     publish_write((publish_write))
-%%     publish_close_1((publish_close_1))
+%%     handle_close_1((handle_close_1))
 %%     publish_error((publish_error))
     
 %%     publish_on_connect((publish_on_connect))
-%%     publish_message((publish_message))
-%%     publish_close_2((publish_close_2))
+%%     handle_message((handle_message))
+%%     handle_close_2((handle_close_2))
     
 
 %%     %% 连接发布者到它们发布的主题
 %%     Channel -.-> publish_read
 %%     Channel -.-> publish_write
-%%     Channel -.-> publish_close_1
+%%     Channel -.-> handle_close_1
 %%     Channel -.-> publish_error
   
 %%     publish_read -.-> Acceptor
 %%     publish_read -.-> TcpConnection
 %%     publish_write -.-> TcpConnection
-%%     publish_close_1 -.->TcpConnection
+%%     handle_close_1 -.->TcpConnection
 %%     publish_error -.->TcpConnection
     
 %%     Acceptor -.-> publish_on_connect
-%%     TcpConnection -.-> publish_message
-%%     TcpConnection -.-> publish_close_2
+%%     TcpConnection -.-> handle_message
+%%     TcpConnection -.-> handle_close_2
     
 %%     publish_on_connect -.-> TcpServer
-%%     publish_message -.中介.-> TcpServer -.中介.-> 业务层
-%%     publish_close_2 -.-> TcpServer
+%%     handle_message -.中介.-> TcpServer -.中介.-> 业务层
+%%     handle_close_2 -.-> TcpServer
 
 %%{init: {
     "theme": "default",
@@ -55,11 +55,11 @@ graph TD
     Channel -.publish_read.-> Acceptor
     Channel -.publish_read.-> TcpConnection
     Channel -.publish_write.-> TcpConnection
-    Channel -.publish_close.-> TcpConnection
+    Channel -.handle_close.-> TcpConnection
     Channel -.publish_error.-> TcpConnection
     
     Acceptor -.publish_on_connect.-> TcpServer
-    TcpConnection -.publish_message(中介).-> TcpServer
-    TcpConnection -.publish_close.-> TcpServer
+    TcpConnection -.handle_message(中介).-> TcpServer
+    TcpConnection -.handle_close.-> TcpServer
     
-    TcpServer -.publish_message.-> 业务层
+    TcpServer -.handle_message.-> 业务层
