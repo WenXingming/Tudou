@@ -29,10 +29,10 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
     // 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）；并注册到 poller
     channel.reset(new Channel(_loop, _connFd, 0, 0, nullptr, nullptr, nullptr, nullptr));
     channel->enable_reading();
-    channel->subscribe_on_read(std::bind(&TcpConnection::read_callback, this));
-    channel->subscribe_on_write([this]() { this->write_callback(); });
-    channel->subscribe_on_close([this]() { this->close_callback(); });
-    channel->subscribe_on_error([this]() { this->error_callback(); });
+    channel->set_read_callback(std::bind(&TcpConnection::read_callback, this));
+    channel->set_write_callback([this]() { this->write_callback(); });
+    channel->set_close_callback([this]() { this->close_callback(); });
+    channel->set_error_callback([this]() { this->error_callback(); });
     // channel->update_to_register();
 }
 

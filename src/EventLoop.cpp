@@ -33,7 +33,7 @@ void EventLoop::loop() {
         std::vector<Channel*> activeChannels = poller->poll(pollTimeoutMs);
         // 通知 channel 进行事件分发处理回调
         for (auto channel : activeChannels) {
-            channel->publish_events(Timestamp::now());
+            channel->handle_events(Timestamp::now());
         }
     }
     LOG::LOG_DEBUG("EventLoop stop looping.");

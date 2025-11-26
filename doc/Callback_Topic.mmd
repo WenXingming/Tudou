@@ -7,33 +7,33 @@
 
 
 %%     %% 定义消息主题节点
-%%     publish_read((publish_read))
-%%     publish_write((publish_write))
+%%     handle_read((handle_read))
+%%     handle_write((handle_write))
 %%     handle_close_1((handle_close_1))
-%%     publish_error((publish_error))
+%%     handle_error((handle_error))
     
-%%     publish_on_connect((publish_on_connect))
+%%     handle_connect((handle_connect))
 %%     handle_message((handle_message))
 %%     handle_close_2((handle_close_2))
     
 
 %%     %% 连接发布者到它们发布的主题
-%%     Channel -.-> publish_read
-%%     Channel -.-> publish_write
+%%     Channel -.-> handle_read
+%%     Channel -.-> handle_write
 %%     Channel -.-> handle_close_1
-%%     Channel -.-> publish_error
+%%     Channel -.-> handle_error
   
-%%     publish_read -.-> Acceptor
-%%     publish_read -.-> TcpConnection
-%%     publish_write -.-> TcpConnection
+%%     handle_read -.-> Acceptor
+%%     handle_read -.-> TcpConnection
+%%     handle_write -.-> TcpConnection
 %%     handle_close_1 -.->TcpConnection
-%%     publish_error -.->TcpConnection
+%%     handle_error -.->TcpConnection
     
-%%     Acceptor -.-> publish_on_connect
+%%     Acceptor -.-> handle_connect
 %%     TcpConnection -.-> handle_message
 %%     TcpConnection -.-> handle_close_2
     
-%%     publish_on_connect -.-> TcpServer
+%%     handle_connect -.-> TcpServer
 %%     handle_message -.中介.-> TcpServer -.中介.-> 业务层
 %%     handle_close_2 -.-> TcpServer
 
@@ -52,13 +52,13 @@ graph TD
     TcpServer(TcpServer)
 
 
-    Channel -.publish_read.-> Acceptor
-    Channel -.publish_read.-> TcpConnection
-    Channel -.publish_write.-> TcpConnection
+    Channel -.handle_read.-> Acceptor
+    Channel -.handle_read.-> TcpConnection
+    Channel -.handle_write.-> TcpConnection
     Channel -.handle_close.-> TcpConnection
-    Channel -.publish_error.-> TcpConnection
+    Channel -.handle_error.-> TcpConnection
     
-    Acceptor -.publish_on_connect.-> TcpServer
+    Acceptor -.handle_connect.-> TcpServer
     TcpConnection -.handle_message(中介).-> TcpServer
     TcpConnection -.handle_close.-> TcpServer
     

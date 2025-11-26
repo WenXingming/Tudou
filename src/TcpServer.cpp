@@ -26,7 +26,7 @@ TcpServer::TcpServer(EventLoop* _loop, const InetAddress& _listenAddr, TcpServer
     , messageCallback(std::move(_messageCallback)) {
 
     // 设置 Acceptor 的回调函数。使用 bind 绑定成员函数作为回调
-    acceptor->subscribe_on_connect(
+    acceptor->set_connect_ballback(
         std::bind(&TcpServer::on_connect_callback, this, std::placeholders::_1) // 或者可以使用 lambda
     );
 }

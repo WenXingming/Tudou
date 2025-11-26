@@ -36,14 +36,14 @@ classDiagram
             -std::function closeCallback
             -std::function errorCallback
             
-            -publish_read()
-            +subscribe_on_read(std::function cb)
-            -publish_write()
-            +subscribe_on_write(std::function cb)
+            -handle_read()
+            +set_read_callback(std::function cb)
+            -handle_write()
+            +set_write_callback(std::function cb)
             -handle_close()
-            +subscribe_on_close(std::function cb)
-            -publish_error()
-            +subscribe_on_error(std::functioncb)
+            +set_close_callback(std::function cb)
+            -handle_error()
+            +set_error_callback(std::functioncb)
         }
     end
 
@@ -65,8 +65,8 @@ classDiagram
             -std::unique_ptr<Channel> channel
             
             -read_callback() // channel 的回调处理函数
-            -publish_on_connect(int connFd)
-            +subscribe_on_connect(std::function cb)
+            -handle_connect(int connFd)
+            +set_connect_ballback(std::function cb)
         }
 
         class TcpConnection {

@@ -39,26 +39,26 @@ Channel::~Channel() {
     // remove_in_register();
 }
 
-void Channel::publish_events(Timestamp receiveTime) {
-    publish_events_with_guard(receiveTime);
+void Channel::handle_events(Timestamp receiveTime) {
+    handle_events_with_guard(receiveTime);
 }
 
-void Channel::publish_events_with_guard(Timestamp receiveTime) {
-    LOG::LOG_DEBUG("poller find event, channel publish event: %d", revent);
+void Channel::handle_events_with_guard(Timestamp receiveTime) {
+    LOG::LOG_DEBUG("poller find event, channel handle event: %d", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
         this->handle_close();
         return;
     }
     if (revent & (EPOLLERR)) {
-        this->publish_error();
+        this->handle_error();
         return;
     }
     if (revent & (EPOLLIN | EPOLLPRI)) {
-        this->publish_read();
+        this->handle_read();
     }
     if (revent & EPOLLOUT) {
-        this->publish_write();
+        this->handle_write();
     }
 }
 
@@ -99,19 +99,19 @@ void Channel::remove_in_register() {
     loop->remove_channel(this);
 }
 
-void Channel::subscribe_on_read(std::function<void()> cb) {
+void Channel::set_read_callback(std::function<void()> cb) {
     this->readCallback = std::move(cb);
 }
 
-void Channel::subscribe_on_write(std::function<void()> cb) {
+void Channel::set_write_callback(std::function<void()> cb) {
     this->writeCallback = std::move(cb);
 }
 
-void Channel::subscribe_on_close(std::function<void()> cb) {
+void Channel::set_close_callback(std::function<void()> cb) {
     this->closeCallback = std::move(cb);
 }
 
-void Channel::subscribe_on_error(std::function<void()> cb) {
+void Channel::set_error_callback(std::function<void()> cb) {
     this->errorCallback = std::move(cb);
 }
 
@@ -123,21 +123,21 @@ uint32_t Channel::get_event() const {
     return event;
 }
 
-void Channel::publish_read() {
+void Channel::handle_read() {
     if (this->readCallback) {
         this->readCallback();
     }
     else {
-        LOG::LOG_ERROR("Channel::publish_read(). no readCallback.");
+        LOG::LOG_ERROR("Channel::handle_read(). no readCallback.");
     }
 }
 
-void Channel::publish_write() {
+void Channel::handle_write() {
     if (this->writeCallback) {
         this->writeCallback();
     }
     else {
-        LOG::LOG_ERROR("Channel::publish_write(). no writeCallback.");
+        LOG::LOG_ERROR("Channel::handle_write(). no writeCallback.");
     }
 }
 
@@ -150,11 +150,11 @@ void Channel::handle_close() {
     }
 }
 
-void Channel::publish_error() {
+void Channel::handle_error() {
     if (this->errorCallback) {
         this->errorCallback();
     }
     else {
-        LOG::LOG_ERROR("Channel::publish_error(). no errorCallback.");
+        LOG::LOG_ERROR("Channel::handle_error(). no errorCallback.");
     }
 }

@@ -29,7 +29,7 @@ void test_netlib() {
 
     Channel stdinChannel(&loop, 0, 0, 0, nullptr, nullptr, nullptr, nullptr); // fd = 0 (标准输入)
     stdinChannel.enable_reading();
-    stdinChannel.subscribe_on_read([&](/* Timestamp receivetime */) {
+    stdinChannel.set_read_callback([&](/* Timestamp receivetime */) {
         char buf[1024]{};
         ssize_t n = read(0, buf, sizeof(buf) - 1);
         if (n > 0) {

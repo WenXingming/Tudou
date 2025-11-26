@@ -46,7 +46,7 @@ std::vector<Channel*> EpollPoller::poll(int timeoutMs) {
         activeChannels.reserve(numReady);
         activeChannels = get_activate_channels(numReady);
 
-        event_list_auto_resize(numReady);
+        resize_event_list(numReady);
     }
 
     return std::move(activeChannels);
@@ -80,7 +80,7 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) const {
 
 /// @brief eventList 自动扩容和缩减
 /// @param numReady 
-void EpollPoller::event_list_auto_resize(int numReady) {
+void EpollPoller::resize_event_list(int numReady) {
     if (numReady == eventList.size()) {
         eventList.resize(eventList.size() * 1.5);
     }

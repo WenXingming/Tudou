@@ -45,5 +45,5 @@ public:
 
 private:
     std::vector<Channel*> get_activate_channels(int numEvents) const;
-    void event_list_auto_resize(int numReady);
+    void resize_event_list(int numReady);
 };

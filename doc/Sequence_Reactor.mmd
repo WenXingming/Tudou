@@ -26,8 +26,8 @@ sequenceDiagram
         deactivate Poller
         
         Poller->>EventLoop: active channels
-        EventLoop->>Channel: channel→publish_events()
-        Channel->> TcpAcceptor: publish_read()
-        Channel->> TcpConnection: publish_read()、close()...
+        EventLoop->>Channel: channel→handle_events()
+        Channel->> TcpAcceptor: handle_read()
+        Channel->> TcpConnection: handle_read()、close()...
     end
     EventLoop->>Poller: poller→poll()

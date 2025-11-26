@@ -96,14 +96,14 @@ classDiagram
             -std::function closeCallback
             -std::function errorCallback
             
-            -publish_read()
-            +subscribe_on_read(std::function cb)
-            -publish_write()
-            +subscribe_on_write(std::function cb)
+            -handle_read()
+            +set_read_callback(std::function cb)
+            -handle_write()
+            +set_write_callback(std::function cb)
             -handle_close()
-            +subscribe_on_close(std::function cb)
-            -publish_error()
-            +subscribe_on_error(std::functioncb)
+            +set_close_callback(std::function cb)
+            -handle_error()
+            +set_error_callback(std::functioncb)
         }
     end
 
@@ -125,8 +125,8 @@ classDiagram
             -std::unique_ptr<Channel> channel
             
             -read_callback() // channel 的回调处理函数
-            -publish_on_connect(int connFd)
-            +subscribe_on_connect(std::function cb)
+            -handle_connect(int connFd)
+            +set_connect_ballback(std::function cb)
         }
 
         class TcpConnection {
@@ -226,9 +226,9 @@ sequenceDiagram
     deactivate Poller
     
     Poller->>EventLoop: active channels
-	EventLoop->>Channel: channel→publish_events()
-	Channel->> TcpAcceptor: publish_read()
-	Channel->> TcpConnection: publish_read()、close()...
+	EventLoop->>Channel: channel→handle_events()
+	Channel->> TcpAcceptor: handle_read()
+	Channel->> TcpConnection: handle_read()、close()...
     end
 	EventLoop->>Poller: poller→poll()
 
@@ -253,13 +253,13 @@ graph TD
     TcpServer(TcpServer)
 
 
-    Channel -.publish_read.-> Acceptor
-    Channel -.publish_read.-> TcpConnection
-    Channel -.publish_write.-> TcpConnection
+    Channel -.handle_read.-> Acceptor
+    Channel -.handle_read.-> TcpConnection
+    Channel -.handle_write.-> TcpConnection
     Channel -.handle_close.-> TcpConnection
-    Channel -.publish_error.-> TcpConnection
+    Channel -.handle_error.-> TcpConnection
     
-    Acceptor -.publish_on_connect.-> TcpServer
+    Acceptor -.handle_connect.-> TcpServer
     TcpConnection -.handle_message(中介).-> TcpServer
     TcpConnection -.handle_close.-> TcpServer
     

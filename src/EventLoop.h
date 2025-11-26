@@ -10,7 +10,7 @@
  * -
  * - 提供事件循环 loop() 方法，持续监听和分发事件：
  * -    1. 持续调用 poller->poll(timeoutMs) 获取 Active Channels
- * -    2. 对获取到的 Active Channels，调用其 publish_events() 方法，触发相应的事件回调
+ * -    2. 对获取到的 Active Channels，调用其 handle_events() 方法，触发相应的事件回调
  *
  * - 对外暴露 update_channel()/remove_channel() 方法，用于 Channel 向 EventLoop 注册或取消自身。
  *

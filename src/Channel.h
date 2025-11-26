@@ -9,7 +9,7 @@
  *  - 表示某个 fd 对应的“感兴趣事件”（event）和 poller 返回的“发生事件”（revent）。
  *  - 保存该 fd 在可读/可写/关闭/错误等情况下需要触发的回调函数。
  *  - 在事件发生时（EventLoop 从 Poller 得到活动事件并设置 revent），
- *    调用 publish_event，按 revent 分发并触发相应的回调。
+ *    调用 handle_events，按 revent 分发并触发相应的回调。
  *  - 当对感兴趣事件做修改（enable/disable）时，通过 update_to_register 通知 EventLoop/ Poller 更新注册信息。
  *
  * 重要注意点：
@@ -19,12 +19,12 @@
  *
  * 用法概览：
  *  1. 创建 Channel 并传入所属的 EventLoop 和 fd。
- *  2. subscribe_on_* 注册对应事件的回调函数。
+ *  2. set_*_callback 注册对应事件的回调函数。
  *  3. 调用 enable_reading/enable_writing 等修改感兴趣事件。
- *  4. EventLoop 在 poller 返回活动 events 时，设置 revent 并调用 publish_event。
+ *  4. EventLoop 在 poller 返回活动 events 时，设置 revent 并调用 handle_events。
  *
  * 核心函数：
- *  - publish_events()：事件发生后进行回调。
+ *  - handle_events()：事件发生后进行回调。
  */
 
 #pragma once
@@ -42,7 +42,7 @@ private:
 
     int fd;             // 并不持有，无需负责 close
     uint32_t event;     // interesting events
-    uint32_t revent;    // received events types of poller, channel 调用 publish_events 时根据 revent 进行事件分发回调
+    uint32_t revent;    // received events types of poller, channel 调用 handle_events 时根据 revent 进行事件分发回调
 
     std::function<void()> readCallback; // 根据 revents 调用事件的回调函数。没有 master，所以存放在这里
     std::function<void()> writeCallback;
@@ -63,14 +63,13 @@ public:
     ~Channel();
 
     // 核心函数，事件发生后进行回调。何时被调用：EventLoop 事件循环中被调用（先通过 poller 返回 active channels）
-    void publish_events(Timestamp receiveTime);
+    void handle_events(Timestamp receiveTime);
 
-    // 没有办法，没有 master 注册中心，只能把订阅函数 callback 存在本类里，所以也需要提供公开接口
-    // 这里好像还真不好用注册中心，因为 Acceptor、TcpConnection 对于 readCallback 传入的回调函数不同
-    void subscribe_on_read(std::function<void()> cb);
-    void subscribe_on_write(std::function<void()> cb);
-    void subscribe_on_close(std::function<void()> cb);
-    void subscribe_on_error(std::function<void()> cb);
+    // 注册回调函数
+    void set_read_callback(std::function<void()> cb);
+    void set_write_callback(std::function<void()> cb);
+    void set_close_callback(std::function<void()> cb);
+    void set_error_callback(std::function<void()> cb);
 
     int get_fd() const;
     uint32_t get_event() const;
@@ -91,12 +90,12 @@ public:
     void remove_in_register();
 
 private:
-    // 根据事件调用回调函数。何时被调用：被 publish_events() 调用
-    void publish_events_with_guard(Timestamp receiveTime);
+    // 根据事件调用回调函数。何时被调用：被 handle_events() 调用
+    void handle_events_with_guard(Timestamp receiveTime);
 
-    // 事件发生了就需要 publish。没有 master 注册中心，所以发布时直接本地自己触发回调 callback
-    void publish_read();
-    void publish_write();
+    // 事件发生了就需要处理。没有 master 注册中心，所以处理时直接本地自己触发回调 callback
+    void handle_read();
+    void handle_write();
     void handle_close();
-    void publish_error();
+    void handle_error();
 };

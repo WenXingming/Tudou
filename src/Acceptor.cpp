@@ -34,7 +34,7 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr, std::functi
     // 注意：创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）；并注册到 poller
     this->channel.reset(new Channel(this->loop, this->listenFd, 0, 0,
         nullptr, nullptr, nullptr, nullptr));
-    this->channel->subscribe_on_read(std::bind(&Acceptor::read_callback, this));
+    this->channel->set_read_callback(std::bind(&Acceptor::read_callback, this));
     this->channel->enable_reading();
     // this->channel->update_to_register(); // 在构造函数、enable_xxx 内部调用了 update_to_register()，这样外部应该就不用调用了
 }
@@ -66,24 +66,25 @@ void Acceptor::read_callback() {
     int connFd = ::accept(this->listenFd, (sockaddr*)&clientAddr, &len);
     if (connFd >= 0) {
         LOG::LOG_DEBUG("ConnectFd %d is accepted.", connFd);
-        publish_on_connect(connFd); // 发布给上层 TcpServer，TcpServer 根据 connFd 创建 TcpConnection
+        
+        handle_connect(connFd); // 发布给上层 TcpServer，TcpServer 根据 connFd 创建 TcpConnection
     }
     else {
         LOG::LOG_ERROR("Acceptor::handle_read(). accept error, errno: %d", errno);
     }
 }
 
-void Acceptor::subscribe_on_connect(std::function<void(int)> cb) {
+void Acceptor::set_connect_ballback(std::function<void(int)> cb) {
     this->connectCallback = std::move(cb);
 }
 
 //@brief 发布新连接事件给上层 TcpServer, TcpServer 根据 connFd 创建 TcpConnection
-void Acceptor::publish_on_connect(int connFd) {
+void Acceptor::handle_connect(int connFd) {
     if (connectCallback) {
         connectCallback(connFd);
     }
     else {
-        LOG::LOG_ERROR("Acceptor::publish_on_connect(). No connectCallback setted.");
+        LOG::LOG_ERROR("Acceptor::handle_connect(). No connectCallback setted.");
         ::close(connFd);
     }
 }
