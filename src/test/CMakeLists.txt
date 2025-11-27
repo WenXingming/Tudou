@@ -13,6 +13,7 @@ set(source_dir_test ${CMAKE_CURRENT_SOURCE_DIR}/) # test 目录
 file(GLOB all_source_files #  CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
     ${source_dir_tudou}/*.cpp
     ${source_dir_http}/*.cpp
+    ${source_dir_http}/*.c
     ${source_dir_base}/*.cpp
     ${source_dir_test}/*.cpp
 )

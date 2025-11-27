@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "HttpContext.h"
 
 namespace tudou {
@@ -16,10 +18,24 @@ HttpContext::HttpContext() {
 }
 
 bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
+    // auto err = llhttp_execute(&parser, data, len);
+    // // llhttp_execute 消费的是全部 len，如果中途错误会返回错误码。
+    // if (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) {
+    //     nparsed = len;
+    //     return true;
+    // }
+
+    // nparsed = 0;
+    // return false;
     auto err = llhttp_execute(&parser, data, len);
-    // llhttp_execute 消费的是全部 len，如果中途错误会返回错误码。
-    nparsed = (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) ? len : 0;
-    return err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED;
+    if (err != HPE_OK && err != HPE_PAUSED && err != HPE_PAUSED_UPGRADE) {
+        std::cerr << "[HttpContext] llhttp error: "
+            << llhttp_errno_name(err) << " - "
+            << llhttp_get_error_reason(&parser) << std::endl;
+        return false;
+    }
+    nparsed = len;
+    return true;
 }
 
 void HttpContext::reset() {
