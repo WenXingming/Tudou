@@ -3,13 +3,13 @@
 #include "../tudou/EventLoop.h"
 #include "../tudou/TcpConnection.h"
 #include "../tudou/Buffer.h"
-#include "TestServer.h"
+#include "TestTcpServer.h"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 
-TestServer::TestServer(int _port, const std::string& _responseFilepath) : port(_port), responseFilepath(_responseFilepath) {
+TestTcpServer::TestTcpServer(int _port, const std::string& _responseFilepath) : port(_port), responseFilepath(_responseFilepath) {
     // loop = std::make_unique<EventLoop>(); # c++14 还是 17 支持
     loop.reset(new EventLoop());
     listenAddr.reset(new InetAddress(port /* port */, "127.0.0.1"));
@@ -82,9 +82,9 @@ TestServer::TestServer(int _port, const std::string& _responseFilepath) : port(_
     );
 }
 
-TestServer::~TestServer() {}
+TestTcpServer::~TestTcpServer() {}
 
-void TestServer::start() {
+void TestTcpServer::start() {
     server->start();
     loop->loop();
 }

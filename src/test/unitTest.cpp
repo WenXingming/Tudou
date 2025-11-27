@@ -17,7 +17,7 @@
 #include "../base/Log.h"
 
 #include "TestNetlib.h"
-#include "TestServer.h"
+#include "TestTcpServer.h"
 #include "TestHttpParser.h"
 
 int main() {
@@ -33,8 +33,8 @@ int main() {
 
     // 测试 TcpServer 服务器：网络库 + TcpServer
     // std::thread t2([]() {
-    //     TestServer testServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-    //     testServer.start();
+    //     TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+    //     testTcpServer.start();
     //     });
     // t2.join();
 
