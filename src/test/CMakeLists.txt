@@ -6,13 +6,15 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 编译生成可执行文件
-set(source_dir_1 ${CMAKE_CURRENT_SOURCE_DIR}/../tudou/)
-set(source_dir_2 ${CMAKE_CURRENT_SOURCE_DIR}/../base/)
-set(source_dir_3 ${CMAKE_CURRENT_SOURCE_DIR}/) # test 目录
+set(source_dir_tudou ${CMAKE_CURRENT_SOURCE_DIR}/../tudou/)
+set(source_dir_http ${CMAKE_CURRENT_SOURCE_DIR}/../http/)
+set(source_dir_base ${CMAKE_CURRENT_SOURCE_DIR}/../base/)
+set(source_dir_test ${CMAKE_CURRENT_SOURCE_DIR}/) # test 目录
 file(GLOB all_source_files #  CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
-    ${source_dir_1}/*.cpp
-    ${source_dir_2}/*.cpp
-    ${source_dir_3}/*.cpp
+    ${source_dir_tudou}/*.cpp
+    ${source_dir_http}/*.cpp
+    ${source_dir_base}/*.cpp
+    ${source_dir_test}/*.cpp
 )
 
 add_executable(unitTest ${all_source_files})
