@@ -37,7 +37,7 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    void loop(int timeoutMs = 5000);
+    void loop(int timeoutMs = 10000);
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
 

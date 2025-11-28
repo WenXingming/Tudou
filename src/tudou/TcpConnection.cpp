@@ -28,7 +28,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
     channel->set_write_callback([this]() { this->write_callback(); });
     channel->set_close_callback([this]() { this->close_callback(); });
     channel->set_error_callback([this]() { this->error_callback(); });
-    channel->update_to_register(); // 注册到 poller，和 fd 创建同步
+    channel->update_to_register(); // 注册到 poller，和 TcpConnection 创建同步
 
     // 初始化缓冲区, unique_ptr 自动管理内存
     readBuffer.reset(new Buffer());
@@ -37,9 +37,23 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
 
 TcpConnection::~TcpConnection() {
     channel->disable_all();
-    channel->remove_in_register(); // 注销 channel，channels 和 fd 销毁同步
+    channel->remove_in_register(); // 注销 channel，channels 和 TcpConnection 销毁同步
     int retClose = ::close(this->connectFd);
     assert(retClose != -1);
+}
+
+int TcpConnection::get_fd() const {
+    return this->connectFd;
+}
+
+void TcpConnection::set_message_callback(MessageCallback _cb) {
+    assert(_cb != nullptr);
+    this->messageCallback = std::move(_cb);
+}
+
+void TcpConnection::set_close_callback(CloseCallback _cb) {
+    assert(_cb != nullptr);
+    this->closeCallback = std::move(_cb);
 }
 
 // 从 fd 读数据到 readBuffer，然后触发上层回调处理数据
@@ -61,11 +75,9 @@ void TcpConnection::read_callback() {
 // 从 writeBuffer 写数据到 fd，写完了就取消对写事件的关注
 void TcpConnection::write_callback() {
     int savedErrno = 0;
-    // LOG::LOG_DEBUG("[TcpConnection] write_callback, readable=%zu", writeBuffer->readable_bytes());
-    ssize_t n = writeBuffer->write_to_fd(this->connectFd, &savedErrno);
-    // LOG::LOG_DEBUG("[TcpConnection] write_to_fd n=%zd errno=%d", n, savedErrno);
+    ssize_t n = writeBuffer->write_to_fd(connectFd, &savedErrno);
     if (n > 0) {
-        if (writeBuffer->readable_bytes() == 0) {
+        if (writeBuffer->readable_bytes() == 0) { // writeBuffer 里的数据写完了
             channel->disable_writing();
         }
     }
@@ -98,18 +110,7 @@ void TcpConnection::handle_close() {
     closeCallback(shared_from_this());
 }
 
-void TcpConnection::set_message_callback(MessageCallback _cb) {
-    assert(_cb != nullptr);
-    this->messageCallback = std::move(_cb);
-}
-
-void TcpConnection::set_close_callback(CloseCallback _cb) {
-    assert(_cb != nullptr);
-    this->closeCallback = std::move(_cb);
-}
-
 void TcpConnection::send(const std::string& msg) {
-    // LOG::LOG_DEBUG("[TcpConnection] send called, len=%zu", msg.size());
     writeBuffer->write_to_buffer(msg);
     channel->enable_writing();
 }

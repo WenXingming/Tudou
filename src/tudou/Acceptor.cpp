@@ -21,13 +21,24 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) : loop(_loo
     this->channel->enable_reading();
     this->channel->set_read_callback(std::bind(&Acceptor::read_callback, this));
     this->channel->update_to_register(); // 注册到 poller，和 fd 创建同步
+
+    // connectCallback 已经在声明时初始化为 nullptr
 }
 
 Acceptor::~Acceptor() {
-    assert(listenFd > 0);
-    ::close(this->listenFd); // listenFd 生命期应该由 Acceptor 管理（创建和销毁）
     this->channel->disable_all();
     this->channel->remove_in_register(); // 注销 channel，channels 和 fd 销毁同步
+
+    assert(listenFd > 0);
+    ::close(this->listenFd); // listenFd 生命期应该由 Acceptor 管理（创建和销毁）
+}
+
+int Acceptor::get_listen_fd() const {
+    return this->listenFd;
+}
+
+void Acceptor::set_connect_callback(std::function<void(int)> cb) {
+    this->connectCallback = std::move(cb);
 }
 
 void Acceptor::create_fd() {
@@ -57,11 +68,6 @@ void Acceptor::read_callback() {
     else {
         LOG::LOG_ERROR("Acceptor::handle_read(). accept error, errno: %d", errno);
     }
-}
-
-void Acceptor::set_connect_callback(std::function<void(int)> cb) {
-    assert(cb != nullptr);
-    this->connectCallback = std::move(cb);
 }
 
 void Acceptor::handle_connect(int connFd) {

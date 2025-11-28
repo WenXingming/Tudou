@@ -242,6 +242,7 @@ classDiagram
     TcpServer "1" *-- "1" Acceptor: owns
     TcpServer "1" *-- "n" TcpConnection: manages
 
+```
 
 ## Citation
 

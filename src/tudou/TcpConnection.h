@@ -45,16 +45,15 @@ public:
     TcpConnection(EventLoop* _loop, int _sockfd);
     ~TcpConnection();
 
-    int get_fd() const { return this->connectFd; }
-
+    int get_fd() const;
     void set_message_callback(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
     void set_close_callback(CloseCallback _cb); // TcpConnection <==> TcpServer
 
-    // 公开接口
+    // 公开接口，供上层业务层调用
     void send(const std::string& msg);
     std::string receive();
 
-    /* void shutdown(); */
+    // void shutdown(); // 暂时服务端不提供主动关闭连接接口
 
 private:
     // 处理 channel 事件的上层回调函数
@@ -73,7 +72,6 @@ private:
     std::unique_ptr<Channel> channel;
     std::unique_ptr<Buffer> readBuffer;
     std::unique_ptr<Buffer> writeBuffer;
-
     MessageCallback messageCallback{ nullptr }; // 业务层回调（类似于 ROS 发布话题）
     CloseCallback closeCallback{ nullptr }; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
 };

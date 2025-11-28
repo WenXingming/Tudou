@@ -15,12 +15,12 @@
 #include "../base/Log.h"
 #include "Channel.h"
 
-EpollPoller::EpollPoller() : epollFd(::epoll_create1(EPOLL_CLOEXEC)) {
+EpollPoller::EpollPoller() {
+    epollFd = ::epoll_create1(EPOLL_CLOEXEC);
     assert(epollFd > 0);
 }
 
 EpollPoller::~EpollPoller() {
-    assert(epollFd > 0);
     ::close(epollFd);
 }
 
@@ -36,27 +36,26 @@ int EpollPoller::get_poll_timeout_ms() const {
 /// @param timeoutMs
 /// @return
 std::vector<Channel*> EpollPoller::poll() {
-    LOG::LOG_DEBUG("Epoll is running... poller monitors channels's size is: %d", channels.size());
+    LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size());
+
+    int numReady = epoll_wait(epollFd
+        , eventList.data()
+        , static_cast<int>(eventList.size())
+        , pollTimeoutMs
+    );
+    assert(numReady >= 0); // 否则 Error, 说明 epoll_wait 出错
+    LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady);
 
     std::vector<Channel*> activeChannels;
-
-    int numReady = epoll_wait(epollFd, eventList.data(), static_cast<int>(eventList.size()), pollTimeoutMs);
-    if (numReady > 0) {
-        LOG::LOG_DEBUG("Epoll is running... activeChannels's size is: %d", numReady);
-        activeChannels.reserve(numReady);
-        activeChannels = get_activate_channels(numReady);
-        resize_event_list(numReady);
-    }
+    activeChannels = get_activate_channels(numReady);
+    resize_event_list(numReady);
 
     return std::move(activeChannels);
 }
 
-/// @brief 根据 epoll_wait 返回的就绪事件（存放在 eventList 中），找到对应的 channel 并设置 revent、维护 channels
-/// @param numReady
-/// @return 返回活动的 channels 列表：activeChannels
+// 根据 epoll_wait 返回的就绪事件（存放在 eventList 中），找到对应的 channel 并设置 revent、维护 channels
 std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) const {
     std::vector<Channel*> activeChannels;
-
     for (int i = 0; i < numReady; ++i) {
         const epoll_event& event = this->eventList[i];
         int fd = event.data.fd;
@@ -72,18 +71,18 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) const {
     return std::move(activeChannels);
 }
 
-/// @brief eventList 自动扩容和缩减
-/// @param numReady
+// eventList 自动扩容和缩减
 void EpollPoller::resize_event_list(int numReady) {
     if (numReady == eventList.size()) {
         eventList.resize(eventList.size() * 1.5);
     }
-    else if (numReady < eventList.size() * 0.25 && eventList.size() > eventListSize) {
+    else if (eventList.size() > eventListSize && numReady < eventList.size() * 0.25) {
         eventList.resize(eventList.size() * 0.5);
     }
+    else;
 }
 
-/// @brief 维护注册中心 epollfd、channels。使用 epoll_ctl(), 包括 add、del、mod
+// 维护注册中心 epollfd、channels。使用 epoll_ctl() 更新, 包括 EPOLL_CTL_ADD、EPOLL_CTL_MOD
 void EpollPoller::update_channel(Channel* channel) {
     int fd = channel->get_fd();
     auto event = channel->get_event();
@@ -102,17 +101,16 @@ void EpollPoller::update_channel(Channel* channel) {
     }
     else {
         int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_MOD, ev.data.fd, &ev);
-        assert(channels[fd] == channel);
-        channels[fd] = channel; // 思考是否需要？按理说二者相等，上面也进行了断言。实际上不需要，其他地方更改 channel
-        // 都是通过指针已经更改了原对象
         assert(epollCtlRet == 0);
+        assert(channels[fd] == channel);
     }
 }
 
+// 维护注册中心 epollfd、channels。使用 epoll_ctl() 删除, 包括 EPOLL_CTL_DEL
 void EpollPoller::remove_channel(Channel* channel) {
     int fd = channel->get_fd();
 
-    // epollfd、channels should be synchronous.
+    // epollfd、channels 应该同步。后续还有 channels 和 Acceptor/TcpConnection 之间的同步问题需要解决（如何保证同步？）
     int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
     channels.erase(fd);
     assert(epollCtlRet == 0);

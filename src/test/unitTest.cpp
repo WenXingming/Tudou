@@ -28,11 +28,11 @@ int main() {
     // std::cout << "Netlib test finished." << std::endl;
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
-    std::thread t2([]() {
-        TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-        testTcpServer.start(); });
-    t2.join();
-    std::cout << "TcpServer test finished." << std::endl;
+    // std::thread t2([]() {
+    //     TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+    //     testTcpServer.start(); });
+    // t2.join();
+    // std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
     // std::thread t3([]() {
@@ -44,12 +44,12 @@ int main() {
     // std::cout << "HttpParser test finished." << std::endl;
 
     // 测试 HttpServer 服务器：TcpServer + HttpServer
-    // std::thread t4([]() {
-    //     // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-    //     tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello.html");
-    //     testHttpServer.start();
-    //     });
-    // t4.join();
-    // std::cout << "HttpServer test finished." << std::endl;
+    std::thread t4([]() {
+        // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+        tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+        testHttpServer.start();
+        });
+    t4.join();
+    std::cout << "HttpServer test finished." << std::endl;
     return 0;
 }

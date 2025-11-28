@@ -24,8 +24,7 @@
  *  1. 创建 Channel 并传入所属的 EventLoop 和 fd。
  *  2. set_*_callback 注册对应事件的回调函数。
  *  3. 调用 enable_reading/enable_writing 等修改感兴趣事件。
- *  4. EventLoop 在 poller 返回活动 events 时，设置 revent 并调用
- * handle_events。
+ *  4. EventLoop 在 poller 返回活动 events 时，设置 revent 并调用 handle_events。
  *
  * 核心函数：
  *  - handle_events()：事件发生后进行回调。
@@ -52,10 +51,8 @@ public:
     void disable_reading();
     void disable_writing();
     void disable_all();
-
     uint32_t get_event() const;
 
-    // poller 监听到事件后设置此值
     void set_revent(uint32_t _revent);
 
     // 注册回调函数
@@ -64,11 +61,12 @@ public:
     void set_close_callback(std::function<void()> cb);
     void set_error_callback(std::function<void()> cb);
 
-    // 核心函数，事件发生后进行回调
-    void handle_events(Timestamp receiveTime);
-
+    // channel 借助依赖注入的 EventLoop 完成在 Poller 的注册、更新、删除操作
     void update_to_register();
     void remove_in_register();
+
+    // 核心函数，事件发生后进行回调
+    void handle_events(Timestamp receiveTime);
 
 private:
     void handle_events_with_guard(Timestamp receiveTime);
@@ -82,10 +80,10 @@ private:
     static const uint32_t kReadEvent;
     static const uint32_t kWriteEvent;
 
-    EventLoop* loop;             // 依赖注入
-    int fd;                      // 并不持有，无需负责 close。为了同步，因此 channel 不负责 remove_in_register
-    uint32_t event{ kNoneEvent };  // interesting events
-    uint32_t revent{ kNoneEvent }; // received events types of poller, channel 调用
+    EventLoop* loop;                // 依赖注入
+    int fd;                         // 并不持有，无需负责 close。为了同步，因此 channel 不负责 remove_in_register
+    uint32_t event{ kNoneEvent };   // interesting events
+    uint32_t revent{ kNoneEvent };  // received events types of poller, channel 调用
     std::function<void()> readCallback{ nullptr };
     std::function<void()> writeCallback{ nullptr };
     std::function<void()> closeCallback{ nullptr };

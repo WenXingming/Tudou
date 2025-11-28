@@ -20,12 +20,14 @@ const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
 const uint32_t Channel::kWriteEvent = EPOLLOUT;
 
 Channel::Channel(EventLoop* _loop, int _fd) : loop(_loop), fd(_fd) {
-    // 不在构造函数里调用。上层在创建 fd 时调用，上层保证 channels、fd 同步
+    // 不在构造函数里调用。上层在创建 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor/TcpConnection 同步
+    // Epoller 已经保证 channels 已经和 fd 同步。又有 fd 和 Acceptor/TcpConnection 同步
+    // 所以需要保证 channels 和 Acceptor / TcpConnection 同步
     // update_to_register();
 }
 
 Channel::~Channel() {
-    // 不在析构函数里调用？上层在销毁 fd 时调用，上层保证 channels、fd 同步
+    // 不在析构函数里调用。上层在销毁 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor/TcpConnection 同步
     // remove_in_register();
 }
 
@@ -35,7 +37,7 @@ int Channel::get_fd() const {
 
 void Channel::enable_reading() {
     this->event |= Channel::kReadEvent;
-    update_to_register(); // 必须调用，否则 poller 不知道 event 变化
+    update_to_register(); // 必须调用，否则 poller 不知道 event 变化。主要是使用 epoll_ctl 更新 epollFd 上的事件
 }
 
 void Channel::enable_writing() {
@@ -62,39 +64,9 @@ uint32_t Channel::get_event() const {
     return event;
 }
 
+// poller 监听到事件后设置此值
 void Channel::set_revent(uint32_t _revent) {
     revent = _revent;
-}
-
-void Channel::handle_events(Timestamp receiveTime) {
-    handle_events_with_guard(receiveTime);
-}
-
-void Channel::update_to_register() {
-    loop->update_channel(this);
-}
-
-void Channel::remove_in_register() {
-    loop->remove_channel(this);
-}
-
-void Channel::handle_events_with_guard(Timestamp receiveTime) {
-    // LOG::LOG_DEBUG("poller find event, channel handle event: %d", revent);
-
-    if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
-        this->handle_close();
-        return;
-    }
-    if (revent & (EPOLLERR)) {
-        this->handle_error();
-        return;
-    }
-    if (revent & (EPOLLIN | EPOLLPRI)) {
-        this->handle_read();
-    }
-    if (revent & EPOLLOUT) {
-        this->handle_write();
-    }
 }
 
 void Channel::set_read_callback(std::function<void()> cb) {
@@ -113,6 +85,37 @@ void Channel::set_error_callback(std::function<void()> cb) {
     this->errorCallback = std::move(cb);
 }
 
+void Channel::update_to_register() {
+    loop->update_channel(this);
+}
+
+void Channel::remove_in_register() {
+    loop->remove_channel(this);
+}
+
+void Channel::handle_events(Timestamp receiveTime) {
+    handle_events_with_guard(receiveTime);
+}
+
+void Channel::handle_events_with_guard(Timestamp receiveTime) {
+    // LOG::LOG_INFO("poller find event, channel handle event: %d", revent);
+
+    if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
+        this->handle_close();
+        return;
+    }
+    if (revent & (EPOLLERR)) {
+        this->handle_error();
+        return;
+    }
+    if (revent & (EPOLLIN | EPOLLPRI)) {
+        this->handle_read();
+    }
+    if (revent & EPOLLOUT) {
+        this->handle_write();
+    }
+}
+
 void Channel::handle_read() {
     assert(this->readCallback != nullptr);
     this->readCallback();
@@ -129,6 +132,9 @@ void Channel::handle_close() {
 }
 
 void Channel::handle_error() {
-    assert(this->errorCallback != nullptr);
+    if (!this->errorCallback) { // 不使用 assert，假如 listenFd 出错，仍然需要处理。服务器不能崩溃
+        LOG::LOG_ERROR("Channel::handle_error() but errorCallback is nullptr");
+        return;
+    }
     this->errorCallback();
 }

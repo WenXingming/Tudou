@@ -38,10 +38,7 @@ public:
     Acceptor(EventLoop* _loop, const InetAddress& _listenAddr);
     ~Acceptor();
 
-    int get_listen_fd() const {
-        return this->listenFd;
-    }
-
+    int get_listen_fd() const;
     void set_connect_callback(std::function<void(int)> cb);
 
 private:
@@ -50,7 +47,6 @@ private:
     void start_listen();
 
     void read_callback(); // channel 的回调处理函数。Acceptor 只需要处理连接事件
-
     void handle_connect(int connFd); // 触发上层回调
 
 private:
@@ -58,6 +54,5 @@ private:
     int listenFd;
     InetAddress listenAddr;
     std::unique_ptr<Channel> channel;
-
-    std::function<void(int)> connectCallback; // 上层 TcpServer 设置的回调函数（钩子）
+    std::function<void(int)> connectCallback{ nullptr }; // 上层 TcpServer 设置的回调函数（钩子）
 };

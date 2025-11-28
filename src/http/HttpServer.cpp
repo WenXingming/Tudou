@@ -92,37 +92,38 @@ namespace tudou {
     void HttpServer::handle_request(const std::shared_ptr<TcpConnection>& conn,
         HttpContext& ctx) {
         if (!httpCallback) {
-            // 默认返回 404
-            HttpResponse resp;
-            resp.set_status(404, "Not Found");
-            resp.set_close_connection(true);
-            resp.set_body("Not Found");
-            resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
-            resp.add_header("Content-Type", "text/plain");
-            conn->send(resp.package_to_string());
+            conn->send(generate_404_page()); // 默认返回 404
             // conn->shutdown();
             return;
         }
-
         const HttpRequest& req = ctx.get_request();
         HttpResponse resp;
-        httpCallback(req, resp);
+        this->httpCallback(req, resp); // 调用业务回调生成响应
 
         // 如果业务没设置 Content-Length，这里自动补一份
-        if (resp.get_headers().find("Content-Length") == resp.get_headers().end()) {
+        auto& headers = const_cast<HttpResponse::Headers&>(resp.get_headers());
+        auto findIt = headers.find("Content-Length");
+        if (findIt == headers.end()) {
             const std::string& body = resp.get_body();
-            const_cast<HttpResponse::Headers&>(resp.get_headers())["Content-Length"] =
-                std::to_string(body.size());
+            headers["Content-Length"] = std::to_string(body.size());
         }
-
         std::string response_str = resp.package_to_string();
-        // LOG::LOG_DEBUG("[HttpServer] Sending response: %s", response_str.c_str());
         conn->send(response_str);
 
 
         if (resp.get_close_connection()) {
             // conn->shutdown();
         }
+    }
+
+    std::string HttpServer::generate_404_page() {
+        HttpResponse resp;
+        resp.set_status(404, "Not Found");
+        resp.set_close_connection(true);
+        resp.set_body("Not Found");
+        resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
+        resp.add_header("Content-Type", "text/plain");
+        return std::move(resp.package_to_string());
     }
 
 } // namespace tudou
