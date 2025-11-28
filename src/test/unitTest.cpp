@@ -19,6 +19,7 @@
 #include "TestNetlib.h"
 #include "TestTcpServer.h"
 #include "TestHttpParser.h"
+#include "TestHttpServer.h"
 
 int main() {
     // 日志系统
@@ -39,11 +40,18 @@ int main() {
     // t2.join();
 
     // 测试 HTTP 报文解析器
-    std::thread t3([]() {
-        tudou::TestHttpParser testHttpParser;
-        int ret = testHttpParser.run_all();
-        assert(ret == 0);
+    // std::thread t3([]() {
+    //     tudou::TestHttpParser testHttpParser;
+    //     int ret = testHttpParser.run_all();
+    //     assert(ret == 0);
+    //     });
+    // t3.join();
+
+    // 测试 HttpServer 服务器：TcpServer + HttpServer
+    std::thread t4([]() {
+        tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+        testHttpServer.start();
         });
-    t3.join();
+    t4.join();
     return 0;
 }

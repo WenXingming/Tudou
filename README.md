@@ -109,7 +109,7 @@ classDiagram
 
     subgraph TCP 网络层
         class TcpServer {
-            -EventLoop* loop_
+            -EventLoop* loop
             -UniquePtr acceptor
             -ConnectionMap connections
             

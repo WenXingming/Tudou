@@ -48,6 +48,14 @@ void TcpServer::on_connect_callback(int connFd) {
     conn->set_close_callback(std::bind(&TcpServer::close_callback, this, std::placeholders::_1));
 
     connections[connFd] = conn;
+
+    // 触发上层回调
+    if (connectionCallback) {
+        connectionCallback(conn);
+    }
+    else {
+        LOG::LOG_ERROR("TcpServer::on_connect_callback(). No connection callback set.");
+    }
 }
 
 void TcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
@@ -63,6 +71,10 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     else {
         LOG::LOG_ERROR("TcpServer::remove_connection(). connection not found, fd: %d", fd);
     }
+}
+
+void TcpServer::set_connection_callback(ConnectionCallback cb) {
+    this->connectionCallback = cb;
 }
 
 void TcpServer::set_message_callback(MessageCallback cb) {

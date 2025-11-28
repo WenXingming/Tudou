@@ -34,6 +34,12 @@ class HttpContext {
 public:
     HttpContext();
 
+    // 禁止拷贝和移动构造。因为 llhttp_t 内部有指针，不能简单拷贝。
+    HttpContext(const HttpContext&) = delete;
+    HttpContext& operator=(const HttpContext&) = delete;
+    HttpContext(HttpContext&&) = delete;
+    HttpContext& operator=(HttpContext&&) = delete;
+
     // 返回是否解析成功（无语法错误）。
     bool parse(const char* data, size_t len, size_t& nparsed);
 

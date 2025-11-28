@@ -41,6 +41,7 @@ class Buffer;
 class InetAddress;
 class TcpServer {
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
 private:
     EventLoop* loop;
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
 
+    ConnectionCallback connectionCallback;
     MessageCallback messageCallback;
 
 private:
@@ -62,5 +64,6 @@ public:
     void start();
 
     // TcpConnection 发布。不是 TcpServer 发布，Server 只是作为消息传递中间商
+    void set_connection_callback(ConnectionCallback cb);
     void set_message_callback(MessageCallback cb);
 };
