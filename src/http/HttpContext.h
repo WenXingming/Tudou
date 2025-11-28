@@ -40,7 +40,7 @@ namespace tudou {
         HttpContext(HttpContext&&) = delete;
         HttpContext& operator=(HttpContext&&) = delete;
 
-        // 返回是否解析成功，nparsed 输出实际解析的字节数
+        // 关键函数：返回是否解析成功，nparsed 输出实际解析的字节数
         bool parse(const char* data, size_t len, size_t& nparsed);
 
         bool is_complete() const { return messageComplete; }

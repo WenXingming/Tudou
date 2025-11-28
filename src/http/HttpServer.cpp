@@ -58,7 +58,7 @@ namespace tudou {
         while (true) {
             std::string chunk = conn->receive();
             if (chunk.empty()) break;
-            data += chunk;
+            data.append(chunk);
         }
         // LOG::LOG_DEBUG("[HttpServer] data size = %zu", data.size());
         if (data.empty()) {

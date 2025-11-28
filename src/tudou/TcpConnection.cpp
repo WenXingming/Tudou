@@ -88,6 +88,7 @@ void TcpConnection::write_callback() {
 
 void TcpConnection::close_callback() {
     channel->disable_all();
+    // fd 生命期由 TcpConnection 管理（绑定），因此这里不关闭 fd。析构函数中关闭。
     // channel->remove_in_register();
 
     this->handle_close();
