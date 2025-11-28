@@ -6,6 +6,8 @@
 
 ## 系统架构图
 
+## Reactor 模块时序图
+
 ```mermaid
 
 %%{init: {
@@ -16,45 +18,109 @@
     }
 }}%%
 
-flowchart TD
-    subgraph AppBusiness[App 业务层]
-        onConn["onConnection(conn)"]
-        onMsg["onMessage(conn, buffer)"]
-        onWrite["onWriteComplete(conn)"]
+sequenceDiagram
+    title Reactor 反应堆时序图
+    autonumber
+
+    actor one(App线程/其他线程)
+    participant EventLoop
+    participant Poller
+    participant Channel
+    participant TcpAcceptor
+    participant TcpConnection
+
+    one(App线程/其他线程) ->> EventLoop: loop()
+    loop
+        EventLoop->>Poller: poll(timeoutMs)
+
+        activate Poller
+        Poller->>Poller: get_activate_channels()
+        deactivate Poller
+        
+        Poller->>EventLoop: active channels
+        EventLoop->>Channel: channel→handle_events()
+        Channel->> TcpAcceptor: handle_read()/callbacks...
+        Channel->> TcpConnection: handle_read()、close().../callbacks...
     end
-
-    subgraph NetLayer
-        TcpServer
-        Acceptor
-        TcpConnnection
-
-        %% Buffer
-        %% TcpServer --> Acceptor 
-        %% TcpServer --> TcpConnnection
-        %% TcpConnnection -.-> Buffer
-    end
-
-    subgraph Reactor
-        EventLoop
-        Poller
-        Channel
-    end
-
-    subgraph OS_Kernel
-        epoll["epoll / socket API"]
-    end
-
-    %% 应用层注册回调
-    %% AppBusiness -->|注册回调| TcpServer
-    AppBusiness -->|注册回调| NetLayer
-    NetLayer --> Reactor
-    Reactor --> OS_Kernel
-    %% TcpConnnection --> Channel --> EventLoop --> Poller --> epoll
-    %% AppBusiness --> NetLayer --> Reactor --> OS_Kernel
+    EventLoop->>Poller: poller→poll()
 
 ```
 
-## UML 类图
+## 整体时序图（Callback 回调流向）
+
+```mermaid
+
+%%{init: {
+    "theme": "default",
+    "themeVariables": {
+        "fontFamily": "Times New Roman",
+        "fontSize": "18px"
+    }
+}}%%
+sequenceDiagram
+    autonumber
+    title Tudou 网络库回调触发关系（精简版）
+
+    participant EventLoop
+    participant EpollPoller
+    participant Channel
+    participant Acceptor
+    participant TcpConnection
+    participant TcpServer
+    actor App as 上层应用
+
+    %% 新连接到来：从监听 fd 上的读事件一路触发到上层
+
+    EventLoop ->> EpollPoller: poll()
+    EpollPoller -->> EventLoop: activeChannels(listen-fd)
+    EventLoop ->> Channel: handle_events() on listen-fd
+    Channel ->> Acceptor: handle_read()  // readCallback
+
+    Acceptor ->> Acceptor: accept() 得到 connFd
+    Acceptor ->> TcpServer: connectCallback(connFd)
+    TcpServer ->> TcpConnection: 构造连接对象并注册回调
+    TcpServer ->> App: connectionCallback(conn)  // 通知上层有新连接
+
+    %% 有数据可读：从 conn-fd 上的读事件触发到应用层 message 回调
+
+    EventLoop ->> EpollPoller: poll()
+    EpollPoller -->> EventLoop: activeChannels(conn-fd, EPOLLIN)
+    EventLoop ->> Channel: handle_events() on conn-fd
+    Channel ->> TcpConnection: handle_read() -> read_callback()
+
+    TcpConnection ->> TcpConnection: readBuffer.read_from_fd()
+    TcpConnection ->> TcpConnection: handle_message()
+    TcpConnection ->> TcpServer: messageCallback(conn)
+    TcpServer ->> App: messageCallback(conn)  // 上层处理业务 / HTTP 请求
+
+    %% 上层发送响应：从 App 的 send 调用触发到底层写 fd
+
+    App ->> TcpConnection: send(response)
+    TcpConnection ->> TcpConnection: writeBuffer.write_to_buffer()
+    TcpConnection ->> Channel: enable_writing()
+
+    EventLoop ->> EpollPoller: poll()
+    EpollPoller -->> EventLoop: activeChannels(conn-fd, EPOLLOUT)
+    EventLoop ->> Channel: handle_events() on conn-fd (write)
+    Channel ->> TcpConnection: handle_write() -> write_callback()
+    TcpConnection ->> TcpConnection: writeBuffer.write_to_fd()
+
+    %% 连接关闭：从底层事件一路触发到上层的关闭回调
+
+    alt 对端关闭或出错
+        EventLoop ->> EpollPoller: poll()
+        EpollPoller -->> EventLoop: activeChannels(conn-fd, EPOLLIN/HUP/ERR)
+        EventLoop ->> Channel: handle_events()
+        Channel ->> TcpConnection: handle_close()/handle_error()
+        TcpConnection ->> TcpConnection: handle_close()
+        TcpConnection ->> TcpServer: closeCallback(conn)
+        TcpServer ->> TcpServer: remove_connection(conn)
+        TcpServer ->> App: connectionCallback(conn 关闭)  // 如果你选择在这里通知上层
+    end
+
+```
+
+## TcpServer 模块 UML 类图
 
 ```mermaid
 
@@ -158,8 +224,8 @@ classDiagram
             +write_to_buffer(const char* data, size_t len)
             +write_to_buffer(const std::string& str)
 
-            +ssize_t read_from_fd(int fd, int* savedErrno)
-            +ssize_t write_to_fd(int fd, int* savedErrno)
+            +read_from_fd(int fd, int* savedErrno) ssize_t 
+            +write_to_fd(int fd, int* savedErrno) ssize_t
         }
     end
 
@@ -176,96 +242,6 @@ classDiagram
     TcpServer "1" *-- "1" Acceptor: owns
     TcpServer "1" *-- "n" TcpConnection: manages
 
-```
-
-## Reactor 模块时序图
-
-```mermaid
-
-%% %% 示例：在代码块顶部配置主题变量
-%% %%{init: {'theme':'forest'}}%%
-%% sequenceDiagram
-
-%%     participant EventLoop
-%%     participant Poller
-%%     participant Channel
-%%     participant TcpAcceptor
-%%     participant TcpConnection
-	
-%% 	EventLoop->>Poller: 使用 poller 监听发生事件的 channels
-%% 	Poller->>EventLoop: 返回发生事件的 channels 给 eventLoop
-%% 	EventLoop->>Channel: eventloop 通知 channel 处理回调
-%% 	Channel->> TcpAcceptor: 根据事件进行回调
-%% 	Channel->> TcpConnection: 根据事件进行回调
-%% 	EventLoop->>Poller: 使用 poller 监听发生事件的 channels
-
-%%{init: {
-    "theme": "default",
-    "themeVariables": {
-        "fontFamily": "Times New Roman",
-        "fontSize": "20px"
-    }
-}}%%
-
-sequenceDiagram
-    title Reactor 反应堆时序图
-    
-    actor one
-    participant EventLoop
-    participant Poller
-    participant Channel
-    participant TcpAcceptor
-    participant TcpConnection
-	
-    one ->> EventLoop: loop()
-    loop
-	EventLoop->>Poller: poller→poll()
-
-    activate Poller
-    Poller->>Poller: get_activate_channels()
-    deactivate Poller
-    
-    Poller->>EventLoop: active channels
-	EventLoop->>Channel: channel→handle_events()
-	Channel->> TcpAcceptor: handle_read()
-	Channel->> TcpConnection: handle_read()、close()...
-    end
-	EventLoop->>Poller: poller→poll()
-
-```
-
-## Callback 流向图
-
-```mermaid
-
-%%{init: {
-    "theme": "default",
-    "themeVariables": {
-        "fontFamily": "Times New Roman",
-        "fontSize": "20px"
-    }
-}}%%
-graph TD
-    %% 定义发布者节点
-    Channel(Channel)
-    Acceptor(Acceptor)
-    TcpConnection(TcpConnection)
-    TcpServer(TcpServer)
-
-
-    Channel -.handle_read.-> Acceptor
-    Channel -.handle_read.-> TcpConnection
-    Channel -.handle_write.-> TcpConnection
-    Channel -.handle_close.-> TcpConnection
-    Channel -.handle_error.-> TcpConnection
-    
-    Acceptor -.handle_connect.-> TcpServer
-    TcpConnection -.handle_message(中介).-> TcpServer
-    TcpConnection -.handle_close.-> TcpServer
-    
-    TcpServer -.handle_message.-> 业务层
-
-```
 
 ## Citation
 
