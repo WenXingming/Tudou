@@ -126,7 +126,7 @@ classDiagram
             
             -read_callback() // channel 的回调处理函数
             -handle_connect(int connFd)
-            +set_connect_ballback(std::function cb)
+            +set_connect_callback(std::function cb)
         }
 
         class TcpConnection {
@@ -266,3 +266,13 @@ graph TD
     TcpServer -.handle_message.-> 业务层
 
 ```
+
+## Citation
+
+- https://github.com/chenshuo/muduo
+- https://github.com/nodejs/llhttp
+
+## References
+
+- 陈硕. 《Linux 多线程服务器编程：使用 muduo C++ 网络库》. 电子工业出版社, 2013.
+- [muduo 源码剖析 - bilibili](https://www.bilibili.com/video/BV1nu411Q7Gq?spm_id_from=333.788.videopod.sections&vd_source=5f255b90a5964db3d7f44633d085b6e4)

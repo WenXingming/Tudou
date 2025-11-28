@@ -22,24 +22,25 @@
 
 #pragma once
 #include <memory>
+
 #include "../base/NonCopyable.h"
+#include "../tudou/EpollPoller.h"
 
 class EpollPoller;
 class Channel;
 class Timestamp;
-class EventLoop : NonCopyable {
-private:
-    std::unique_ptr<EpollPoller> poller; // 拥有 poller。智能指针，自动析构
-    const int pollTimeoutMs;
 
+class EventLoop : NonCopyable {
 public:
     EventLoop();
-    ~EventLoop();
+    ~EventLoop() = default;
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    void loop();
-
+    void loop(int timeoutMs = 5000);
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
+
+private:
+    std::unique_ptr<EpollPoller> poller; // 拥有 poller。智能指针，自动析构
 };

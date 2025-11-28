@@ -7,44 +7,79 @@
  */
 
 #include "Channel.h"
-#include "EventLoop.h"
-#include "../base/Timestamp.h"
-#include "../base/Log.h"
+
 #include <sys/epoll.h>
+#include <assert.h>
 
-const int Channel::kNoneEvent = 0;
-const int Channel::kReadEvent = EPOLLIN | EPOLLPRI;
-const int Channel::kWriteEvent = EPOLLOUT;
+#include "../base/Log.h"
+#include "../base/Timestamp.h"
+#include "EventLoop.h"
 
-// 构造函数。把 fd、event、revent、readCallback 等都设置为参数可能更好，避免使用时忘记设置（提醒使用者）
-Channel::Channel(EventLoop* _loop, int _fd, uint32_t _event, uint32_t _revent,
-    std::function<void()> _readCallback, std::function<void()> _writeCallback,
-    std::function<void()> _closeCallback, std::function<void()> _errorCallback)
-    : loop(_loop)
-    , fd(_fd)
-    , event(_event)
-    , revent(_revent)
-    , readCallback(std::move(_readCallback))
-    , writeCallback(std::move(_writeCallback))
-    , closeCallback(std::move(_closeCallback))
-    , errorCallback(std::move(_errorCallback)) {
+const uint32_t Channel::kNoneEvent = 0;
+const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
+const uint32_t Channel::kWriteEvent = EPOLLOUT;
 
-    // 更新到 poller 的 channels。构造函数和析构函数太好用了，无需记忆和害怕忘记调用， RAII 就是好
-    update_to_register();
+Channel::Channel(EventLoop* _loop, int _fd) : loop(_loop), fd(_fd) {
+    // 不在构造函数里调用。上层在创建 fd 时调用，上层保证 channels、fd 同步
+    // update_to_register();
 }
 
 Channel::~Channel() {
-    // 析构时从 poller 的 channels 中删除。构造函数和析构函数太好用了，无需记忆和害怕忘记调用， RAII 就是好
-    // 不可以在析构函数中调用，channels 本来就是持有智能指针！
+    // 不在析构函数里调用？上层在销毁 fd 时调用，上层保证 channels、fd 同步
     // remove_in_register();
+}
+
+int Channel::get_fd() const {
+    return fd;
+}
+
+void Channel::enable_reading() {
+    this->event |= Channel::kReadEvent;
+    update_to_register(); // 必须调用，否则 poller 不知道 event 变化
+}
+
+void Channel::enable_writing() {
+    event |= kWriteEvent;
+    update_to_register();
+}
+
+void Channel::disable_reading() {
+    this->event &= ~Channel::kReadEvent;
+    update_to_register();
+}
+
+void Channel::disable_writing() {
+    event &= ~kWriteEvent;
+    update_to_register();
+}
+
+void Channel::disable_all() {
+    event = kNoneEvent;
+    update_to_register();
+}
+
+uint32_t Channel::get_event() const {
+    return event;
+}
+
+void Channel::set_revent(uint32_t _revent) {
+    revent = _revent;
 }
 
 void Channel::handle_events(Timestamp receiveTime) {
     handle_events_with_guard(receiveTime);
 }
 
+void Channel::update_to_register() {
+    loop->update_channel(this);
+}
+
+void Channel::remove_in_register() {
+    loop->remove_channel(this);
+}
+
 void Channel::handle_events_with_guard(Timestamp receiveTime) {
-    LOG::LOG_DEBUG("poller find event, channel handle event: %d", revent);
+    // LOG::LOG_DEBUG("poller find event, channel handle event: %d", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
         this->handle_close();
@@ -60,43 +95,6 @@ void Channel::handle_events_with_guard(Timestamp receiveTime) {
     if (revent & EPOLLOUT) {
         this->handle_write();
     }
-}
-
-void Channel::enable_reading() {
-    this->event |= Channel::kReadEvent;
-    update_to_register(); // 必须调用，因为需要维护 epoll fd。避免外部忘记调用
-}
-
-void Channel::disable_reading() {
-    this->event &= ~Channel::kReadEvent;
-    update_to_register();
-}
-
-void Channel::enable_writing() {
-    event |= kWriteEvent;
-    update_to_register();
-}
-
-void Channel::disable_writing() {
-    event &= ~kWriteEvent;
-    update_to_register();
-}
-
-void Channel::disable_all() {
-    event = kNoneEvent;
-    update_to_register();
-}
-
-void Channel::set_revent(uint32_t _revent) {
-    revent = _revent;
-}
-
-void Channel::update_to_register() {
-    loop->update_channel(this);
-}
-
-void Channel::remove_in_register() {
-    loop->remove_channel(this);
 }
 
 void Channel::set_read_callback(std::function<void()> cb) {
@@ -115,46 +113,22 @@ void Channel::set_error_callback(std::function<void()> cb) {
     this->errorCallback = std::move(cb);
 }
 
-int Channel::get_fd() const {
-    return fd;
-}
-
-uint32_t Channel::get_event() const {
-    return event;
-}
-
 void Channel::handle_read() {
-    if (this->readCallback) {
-        this->readCallback();
-    }
-    else {
-        LOG::LOG_ERROR("Channel::handle_read(). no readCallback.");
-    }
+    assert(this->readCallback != nullptr);
+    this->readCallback();
 }
 
 void Channel::handle_write() {
-    if (this->writeCallback) {
-        this->writeCallback();
-    }
-    else {
-        LOG::LOG_ERROR("Channel::handle_write(). no writeCallback.");
-    }
+    assert(this->writeCallback != nullptr);
+    this->writeCallback();
 }
 
 void Channel::handle_close() {
-    if (this->closeCallback) {
-        this->closeCallback();
-    }
-    else {
-        LOG::LOG_ERROR("Channel::handle_close(). no closeCallback.");
-    }
+    assert(this->closeCallback != nullptr);
+    this->closeCallback();
 }
 
 void Channel::handle_error() {
-    if (this->errorCallback) {
-        this->errorCallback();
-    }
-    else {
-        LOG::LOG_ERROR("Channel::handle_error(). no errorCallback.");
-    }
+    assert(this->errorCallback != nullptr);
+    this->errorCallback();
 }

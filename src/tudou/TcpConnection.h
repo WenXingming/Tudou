@@ -41,16 +41,20 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
-private:
-    EventLoop* loop;
+public:
+    TcpConnection(EventLoop* _loop, int _sockfd);
+    ~TcpConnection();
 
-    int connectFd;
-    std::unique_ptr<Channel> channel;
-    std::unique_ptr<Buffer> readBuffer;
-    std::unique_ptr<Buffer> writeBuffer;
+    int get_fd() const { return this->connectFd; }
 
-    MessageCallback messageCallback; // 业务层回调（类似于 ROS 发布话题）
-    CloseCallback closeCallback; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
+    void set_message_callback(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
+    void set_close_callback(CloseCallback _cb); // TcpConnection <==> TcpServer
+
+    // 公开接口
+    void send(const std::string& msg);
+    std::string receive();
+
+    /* void shutdown(); */
 
 private:
     // 处理 channel 事件的上层回调函数
@@ -63,17 +67,13 @@ private:
     void handle_message();
     void handle_close();
 
-public:
-    TcpConnection(EventLoop* _loop, int _sockfd);
-    ~TcpConnection();
+private:
+    EventLoop* loop;
+    int connectFd;
+    std::unique_ptr<Channel> channel;
+    std::unique_ptr<Buffer> readBuffer;
+    std::unique_ptr<Buffer> writeBuffer;
 
-    int get_fd() const { return this->connectFd; }
-
-    void set_message_callback(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
-    void set_close_callback(CloseCallback _cb); // TcpConnection <==> TcpServer
-
-    void send(const std::string& msg);
-    std::string receive();
-
-    /* void shutdown(); */
+    MessageCallback messageCallback{ nullptr }; // 业务层回调（类似于 ROS 发布话题）
+    CloseCallback closeCallback{ nullptr }; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
 };

@@ -66,7 +66,7 @@ classDiagram
             
             -read_callback() // channel 的回调处理函数
             -handle_connect(int connFd)
-            +set_connect_ballback(std::function cb)
+            +set_connect_callback(std::function cb)
         }
 
         class TcpConnection {

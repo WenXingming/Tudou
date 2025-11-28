@@ -1,41 +1,31 @@
-/**
- * @file EventLoop.h
- * @brief 事件循环（Reactor）核心类，驱动 I/O 事件的收集与回调执行。
- * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
- *
- */
-
 #include "EventLoop.h"
-#include <iostream>
+
 #include <assert.h>
-#include <thread>
-#include <unistd.h>      // 定义 syscall, pid_t
 #include <sys/eventfd.h>
 #include <sys/syscall.h> // 定义 SYS_gettid
+#include <unistd.h>
 
-#include "../base/Timestamp.h"
 #include "../base/Log.h"
-#include "EpollPoller.h"
+#include "../base/Timestamp.h"
 #include "Channel.h"
+#include "EpollPoller.h"
 
-EventLoop::EventLoop()
-    : poller(new EpollPoller(this))
-    , pollTimeoutMs(5000) {}
+EventLoop::EventLoop() : poller(new EpollPoller()) {
+}
 
-EventLoop::~EventLoop() {}
-
-void EventLoop::loop() {
+void EventLoop::loop(int timeoutMs) {
     LOG::LOG_DEBUG("EventLoop start looping...");
+    poller->set_poll_timeout_ms(timeoutMs);
+
     while (true) {
         LOG::LOG_DEBUG("EventLoop is looping...");
+
         // 使用 poller 监听发生事件的 channels
-        std::vector<Channel*> activeChannels = poller->poll(pollTimeoutMs);
+        std::vector<Channel*> activeChannels = poller->poll();
         // 通知 channel 进行事件分发处理回调
-        for (auto channel : activeChannels) {
-            channel->handle_events(Timestamp::now());
-        }
+        for (auto channel : activeChannels) { channel->handle_events(Timestamp::now()); }
     }
+
     LOG::LOG_DEBUG("EventLoop stop looping.");
 }
 

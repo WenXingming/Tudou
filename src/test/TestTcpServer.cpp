@@ -1,8 +1,8 @@
 #include "../base/InetAddress.h"
 #include "../tudou/TcpServer.h"
 #include "../tudou/EventLoop.h"
+#include "../tudou/EpollPoller.h"
 #include "../tudou/TcpConnection.h"
-#include "../tudou/Buffer.h"
 #include "TestTcpServer.h"
 
 #include <iostream>
@@ -10,20 +10,23 @@
 #include <sstream>
 
 TestTcpServer::TestTcpServer(int _port, const std::string& _responseFilepath) : port(_port), responseFilepath(_responseFilepath) {
-    // loop = std::make_unique<EventLoop>(); # c++14 还是 17 支持
     loop.reset(new EventLoop());
     listenAddr.reset(new InetAddress(port /* port */, "127.0.0.1"));
     server.reset(new TcpServer(
         loop.get(),
-        *listenAddr,
-        nullptr /* 先不设置回调，在下面单独设置 */
+        *listenAddr
     ));
-
+    server->set_connection_callback(
+        [](const std::shared_ptr<TcpConnection>& conn) {
+            std::cout << "New connection established. fd: " << conn->get_fd() << std::endl;
+        }
+    );
     server->set_message_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
             // 1. 接收数据
             std::string msg(conn->receive());
-            std::cout << "Received: " << msg << std::endl;
+            // std::cout << "Received: " << msg << std::endl;
+            std::cout << "Received message of length: " << msg.size() << " from fd: " << conn->get_fd() << std::endl;
 
             // 2. http 解析 + 业务逻辑处理
             //  - 简单业务逻辑就是不解析 http 报文，直接 echo 回去：conn->send(msg);
@@ -85,6 +88,5 @@ TestTcpServer::TestTcpServer(int _port, const std::string& _responseFilepath) : 
 TestTcpServer::~TestTcpServer() {}
 
 void TestTcpServer::start() {
-    server->start();
     loop->loop();
 }

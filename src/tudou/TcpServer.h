@@ -20,7 +20,7 @@
  *
  * 运行流程：
  * - start(): 启动监听（Acceptor 注册读事件）。
- * - on_connect_callback(): 接受连接并创建 TcpConnection，注册读/写/关闭/错误回调。
+ * - connect_callback(): 接受连接并创建 TcpConnection，注册读/写/关闭/错误回调。
  * - close_callback()/remove_connection(): 从映射中移除并清理。
  *
  * 错误处理：
@@ -43,27 +43,26 @@ class TcpServer {
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
-private:
-    EventLoop* loop;
-
-    std::unique_ptr<Acceptor> acceptor;
-    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
-
-    ConnectionCallback connectionCallback;
-    MessageCallback messageCallback;
-
-private:
-    void on_connect_callback(int sockfd); // Acceptor 的回调处理函数
-    void close_callback(const std::shared_ptr<TcpConnection>& conn); // TcpConnection 的回调函数
-    void remove_connection(const std::shared_ptr<TcpConnection>& conn);
-
 public:
-    TcpServer(EventLoop* _loop, const InetAddress& _listenAddr, TcpServer::MessageCallback _messageCallback);
+    TcpServer(EventLoop* _loop, const InetAddress& _listenAddr);
     ~TcpServer();
-
-    void start();
 
     // TcpConnection 发布。不是 TcpServer 发布，Server 只是作为消息传递中间商
     void set_connection_callback(ConnectionCallback cb);
     void set_message_callback(MessageCallback cb);
+
+private:
+    void connect_callback(int sockfd); // Acceptor 的回调处理函数
+    void message_callback(const std::shared_ptr<TcpConnection>& conn); // TcpConnection 的回调函数
+    void close_callback(const std::shared_ptr<TcpConnection>& conn); // TcpConnection 的回调函数
+
+    void remove_connection(const std::shared_ptr<TcpConnection>& conn);
+
+private:
+    EventLoop* loop;
+    std::unique_ptr<Acceptor> acceptor;
+    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
+
+    ConnectionCallback connectionCallback{ nullptr };
+    MessageCallback messageCallback{ nullptr };
 };

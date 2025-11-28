@@ -6,15 +6,9 @@
  * @project: https://github.com/WenXingming/Tudou.git
  */
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <unistd.h>
 #include <cassert>
 #include <thread>
-
-#include "../base/Timestamp.h"
-#include "../base/Log.h"
+#include <unistd.h>
 
 #include "TestNetlib.h"
 #include "TestTcpServer.h"
@@ -31,13 +25,14 @@ int main() {
     //     testNetlib.start();
     //     });
     // t1.join();
+    // std::cout << "Netlib test finished." << std::endl;
 
-    // 测试 TcpServer 服务器：网络库 + TcpServer
-    // std::thread t2([]() {
-    //     TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-    //     testTcpServer.start();
-    //     });
-    // t2.join();
+    // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
+    std::thread t2([]() {
+        TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+        testTcpServer.start(); });
+    t2.join();
+    std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
     // std::thread t3([]() {
@@ -46,12 +41,15 @@ int main() {
     //     assert(ret == 0);
     //     });
     // t3.join();
+    // std::cout << "HttpParser test finished." << std::endl;
 
     // 测试 HttpServer 服务器：TcpServer + HttpServer
-    std::thread t4([]() {
-        tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-        testHttpServer.start();
-        });
-    t4.join();
+    // std::thread t4([]() {
+    //     // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+    //     tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello.html");
+    //     testHttpServer.start();
+    //     });
+    // t4.join();
+    // std::cout << "HttpServer test finished." << std::endl;
     return 0;
 }

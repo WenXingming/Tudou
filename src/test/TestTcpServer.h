@@ -15,6 +15,12 @@ class InetAddress;
 class TcpServer;
 
 class TestTcpServer {
+public:
+    TestTcpServer(int _port = 8080, const std::string& _responseFilepath = "/home/wxm/Tudou/assets/homepage.html");
+    ~TestTcpServer();
+
+    void start();
+
 private:
     std::unique_ptr<EventLoop> loop;
     std::unique_ptr<InetAddress> listenAddr;
@@ -22,9 +28,4 @@ private:
 
     int port;
     std::string responseFilepath;
-public:
-    TestTcpServer(int _port = 8080, const std::string& _responseFilepath = "/home/wxm/Tudou/assets/homepage.html");
-    ~TestTcpServer();
-
-    void start();
 };

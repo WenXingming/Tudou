@@ -1,0 +1,78 @@
+# 基础风格
+BasedOnStyle: Microsoft
+Language: Cpp
+Standard: Latest
+
+# 缩进与空格
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+IndentCaseLabels: true
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+
+SpaceBeforeParens: ControlStatements      # if/for/while 后有空格，函数调用/声明无空格
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceAroundPointerQualifiers: Before      # int *p; 这样的风格
+PointerAlignment: Left                    # int* p; -> 左对齐星号
+
+# 大括号
+BreakBeforeBraces: Attach                 # { 不换行（你已有）
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
+
+# 行宽和换行
+ColumnLimit: 150
+AllowShortFunctionsOnASingleLine: None    # 你已注明：禁止短函数单行
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+BinPackParameters: true
+BinPackArguments: true
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakString: 1000
+
+# 注释
+AlignTrailingComments: true               # 你已有
+ReflowComments: true
+CommentPragmas: '^ IWYU pragma:'
+
+# 对齐
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: true              # 你已有
+AlignEscapedNewlines: Right
+AlignOperands:   true
+AlignAfterOpenBracket: Align
+
+# include 排序
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^<[^"]+>$'
+    Priority:        1
+  - Regex:           '^"[^"]+"$'
+    Priority:        2
+SortIncludes: true
+
+# 命名空间
+NamespaceIndentation: All
+
+# 其他细节
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SortUsingDeclarations: true
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
