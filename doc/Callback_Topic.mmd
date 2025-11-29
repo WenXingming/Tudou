@@ -46,20 +46,23 @@
 }}%%
 graph TD
     %% 定义发布者节点
+    EventLoop(EventLoop)
+    EpollPoller(EpollPoller)
     Channel(Channel)
     Acceptor(Acceptor)
     TcpConnection(TcpConnection)
+    Buffer(Buffer)
     TcpServer(TcpServer)
+    HttpContext(HttpContext)
+    HttpServer(HttpServer)
 
-
-    Channel -.handle_read.-> Acceptor
-    Channel -.handle_read.-> TcpConnection
-    Channel -.handle_write.-> TcpConnection
-    Channel -.handle_close.-> TcpConnection
-    Channel -.handle_error.-> TcpConnection
-    
-    Acceptor -.handle_connect.-> TcpServer
-    TcpConnection -.handle_message(中介).-> TcpServer
-    TcpConnection -.handle_close.-> TcpServer
-    
-    TcpServer -.handle_message.-> 业务层
+    EventLoop -.uses.-> EpollPoller
+    EpollPoller -.manages.-> Channel
+    TcpConnection -.callbacks.-> Channel
+    TcpConnection -.has.-> Buffer
+    Acceptor -.callbacks.-> Channel
+    TcpServer -.manage+callback.-> Acceptor
+    TcpServer -.manages+callbacks.-> TcpConnection
+    HttpContext -.callsbacks.-> TcpServer
+    HttpServer -.manages+callbacks.-> HttpContext
+%% EOF %%

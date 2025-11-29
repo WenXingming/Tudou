@@ -1,0 +1,117 @@
+%%{init: {
+    "theme": "default",
+    "themeVariables": {
+        "fontFamily": "Times New Roman",
+        "fontSize": "20px"
+    }
+}}%%
+
+classDiagram
+    direction TD
+
+    subgraph Reactor 核心
+        class EventLoop {
+            -std::unique_ptr<Poller> poller
+            +loop()
+            +update_channel(Channel* channel)
+            +remove_channel(Channel* channel)
+        }
+
+        class EPollPoller {
+            -int epollfd_
+            -const int eventListSize = 16
+            -std::vector~struct epoll_event~ events_
+            +poll(int timeoutMs, ChannelList* activeChannels) Timestamp
+            +updateChannel(Channel*) override
+            +removeChannel(Channel*) override
+        }
+
+        class Channel {
+            -EventLoop* loop
+            -int fd
+            -int events
+            -int revents
+            -std::function readCallback
+            -std::function writeCallback
+            -std::function closeCallback
+            -std::function errorCallback
+            
+            -handle_read()
+            +set_read_callback(std::function cb)
+            -handle_write()
+            +set_write_callback(std::function cb)
+            -handle_close()
+            +set_close_callback(std::function cb)
+            -handle_error()
+            +set_error_callback(std::functioncb)
+        }
+    end
+
+    subgraph TCP 网络层
+        class TcpServer {
+            -EventLoop* loop
+            -UniquePtr acceptor
+            -ConnectionMap connections
+            
+            -MessageCallback messageCallback
+            
+            +set_message_callback(MessageCallback cb) // 中间者
+        }
+        
+        class Acceptor {
+            -EventLoop* loop
+            -int listenFd
+            -InetAddress listenAddr
+            -std::unique_ptr<Channel> channel
+            
+            -read_callback() // channel 的回调处理函数
+            -handle_connect(int connFd)
+            +set_connect_callback(std::function cb)
+        }
+
+        class TcpConnection {
+            -EventLoop* loop
+            -int connectFd
+            -unique_ptr channel
+            -unique_ptr readBuffer
+            -unique_ptr writeBuffer
+            
+            -MessageCallback messageCallback
+            -CloseCallback closeCallback
+            
+            -read_callback()
+            -write_callback()
+            -close_callback()
+            
+            -handle_message()
+            -handle_close()
+            +set_message_callback(MessageCallback _cb)
+            +set_close_callback(CloseCallback _cb)
+        }
+
+        class Buffer {
+            -std::vector~char~ buffer;
+            -size_t readIndex;
+            -size_t writeIndex;
+
+            +read_from_buffer() std::string 
+            +write_to_buffer(const char* data, size_t len)
+            +write_to_buffer(const std::string& str)
+
+            +read_from_fd(int fd, int* savedErrno) ssize_t 
+            +write_to_fd(int fd, int* savedErrno) ssize_t
+        }
+    end
+
+    %% -- 继承关系 --
+    
+    %% -- 组合/聚合关系 (拥有) --
+    EventLoop "1" *-- "1" EPollPoller: owns
+    EPollPoller "1" --> "n" Channel: tracks
+    
+    Acceptor "1" *-- "1" Channel: owns
+    TcpConnection "1" *-- "1" Channel: owns
+    TcpConnection "1" *-- "1" Buffer: owns
+    
+    TcpServer "1" *-- "1" Acceptor: owns
+    TcpServer "1" *-- "n" TcpConnection: manages
