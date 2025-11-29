@@ -38,8 +38,20 @@ class EventLoop;
 class Channel;
 class Buffer;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
+    // 上层业务回调函数类型定义
+    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
+    // 使用 shared_ptr，避免回调过程中对象被析构
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+
+private:
+    EventLoop* loop;
+    int connectFd;
+    std::unique_ptr<Channel> channel;
+    std::unique_ptr<Buffer> readBuffer;
+    std::unique_ptr<Buffer> writeBuffer;
+    MessageCallback messageCallback{ nullptr }; // 业务层回调（类似于 ROS 发布话题）
+    CloseCallback closeCallback{ nullptr }; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
 
 public:
     TcpConnection(EventLoop* _loop, int _sockfd);
@@ -65,13 +77,4 @@ private:
     // 触发上层回调
     void handle_message();
     void handle_close();
-
-private:
-    EventLoop* loop;
-    int connectFd;
-    std::unique_ptr<Channel> channel;
-    std::unique_ptr<Buffer> readBuffer;
-    std::unique_ptr<Buffer> writeBuffer;
-    MessageCallback messageCallback{ nullptr }; // 业务层回调（类似于 ROS 发布话题）
-    CloseCallback closeCallback{ nullptr }; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
 };

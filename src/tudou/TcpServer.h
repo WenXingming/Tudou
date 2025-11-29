@@ -34,14 +34,30 @@
 #include <functional>
 #include <unordered_map>
 
+#include "../base/InetAddress.h"
+
 class EventLoop;
 class Acceptor;
 class TcpConnection;
 class Buffer;
 class InetAddress;
+// 前向声明只能用于指针/引用/函数参数/返回值 等“不需要知道对象大小”的场景，
+// 但你在 TcpServer 里是直接按值持有一个 InetAddress listenAddr;，这就需要完整类型定义，所以仅有前向声明不够。
+// 如果你想避免包含 InetAddress.h，可以改为持有指针或引用，例如：std::unique_ptr<InetAddress> listenAddr;
+
 class TcpServer {
+    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+
+private:
+    EventLoop* loop;
+    std::unique_ptr<InetAddress> listenAddr;
+    std::unique_ptr<Acceptor> acceptor;
+    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
+
+    ConnectionCallback connectionCallback{ nullptr };
+    MessageCallback messageCallback{ nullptr };
 
 public:
     TcpServer(EventLoop* _loop, const InetAddress& _listenAddr);
@@ -52,17 +68,15 @@ public:
     void set_message_callback(MessageCallback cb);
 
 private:
-    void connect_callback(int sockfd); // Acceptor 的回调处理函数
-    void message_callback(const std::shared_ptr<TcpConnection>& conn); // TcpConnection 的回调函数
-    void close_callback(const std::shared_ptr<TcpConnection>& conn); // TcpConnection 的回调函数
+    // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
+    void connect_callback(const int);
+
+    // TcpConnection 的回调函数。处理消息解析、连接关闭等逻辑
+    void message_callback(const std::shared_ptr<TcpConnection>& conn);
+    void close_callback(const std::shared_ptr<TcpConnection>& conn);
+
+    void handle_connection(const std::shared_ptr<TcpConnection>& conn);
+    void handle_message(const std::shared_ptr<TcpConnection>& conn);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
-
-private:
-    EventLoop* loop;
-    std::unique_ptr<Acceptor> acceptor;
-    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
-
-    ConnectionCallback connectionCallback{ nullptr };
-    MessageCallback messageCallback{ nullptr };
 };

@@ -31,6 +31,9 @@ class Channel;
 class Timestamp;
 
 class EventLoop : NonCopyable {
+private:
+    std::unique_ptr<EpollPoller> poller; // 拥有 poller，控制其生命期。智能指针，自动析构
+
 public:
     EventLoop();
     ~EventLoop() = default;
@@ -40,7 +43,4 @@ public:
     void loop(int timeoutMs = 10000);
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
-
-private:
-    std::unique_ptr<EpollPoller> poller; // 拥有 poller。智能指针，自动析构
 };

@@ -40,6 +40,20 @@
 class Timestamp;
 class EventLoop;
 class Channel : public NonCopyable {
+private:
+    static const uint32_t kNoneEvent; // 类所有实例共享，节省空间
+    static const uint32_t kReadEvent;
+    static const uint32_t kWriteEvent;
+
+    EventLoop* loop;                // 依赖注入
+    int fd;                         // 并不持有，无需负责 close
+    uint32_t event{ kNoneEvent };   // interesting events
+    uint32_t revent{ kNoneEvent };  // received events types of poller, channel 调用
+    std::function<void()> readCallback{ nullptr };  // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+    std::function<void()> writeCallback{ nullptr };
+    std::function<void()> closeCallback{ nullptr };
+    std::function<void()> errorCallback{ nullptr };
+
 public:
     explicit Channel(EventLoop* loop, int fd);
     ~Channel();
@@ -55,17 +69,17 @@ public:
 
     void set_revent(uint32_t _revent);
 
-    // 注册回调函数
+    // 上层注入回调函数
     void set_read_callback(std::function<void()> cb);
     void set_write_callback(std::function<void()> cb);
     void set_close_callback(std::function<void()> cb);
     void set_error_callback(std::function<void()> cb);
 
-    // channel 借助依赖注入的 EventLoop 完成在 Poller 的注册、更新、删除操作
+    // 内部属性改变时，需要在 poller 上更新（epoll）
     void update_to_register();
     void remove_in_register();
 
-    // 核心函数，事件发生后进行回调
+    // 核心函数：事件发生后调用回调
     void handle_events(Timestamp receiveTime);
 
 private:
@@ -74,18 +88,4 @@ private:
     void handle_write();
     void handle_close();
     void handle_error();
-
-private:
-    static const uint32_t kNoneEvent;
-    static const uint32_t kReadEvent;
-    static const uint32_t kWriteEvent;
-
-    EventLoop* loop;                // 依赖注入
-    int fd;                         // 并不持有，无需负责 close。为了同步，因此 channel 不负责 remove_in_register
-    uint32_t event{ kNoneEvent };   // interesting events
-    uint32_t revent{ kNoneEvent };  // received events types of poller, channel 调用
-    std::function<void()> readCallback{ nullptr };
-    std::function<void()> writeCallback{ nullptr };
-    std::function<void()> closeCallback{ nullptr };
-    std::function<void()> errorCallback{ nullptr };
 };

@@ -34,6 +34,18 @@ class EventLoop;
 class Channel;
 class InetAddress;
 class Acceptor : public NonCopyable {
+    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
+    // using ConnectCallback = std::function<void(const Acceptor&)>;
+    // 直接传递 connFd 更简单，因为上层只需要这个 fd 来创建 TcpConnection。Acceptor 只能提供 listenFd，没有 connFd
+    using ConnectCallback = std::function<void(int)>;
+
+private:
+    EventLoop* loop;
+    int listenFd;
+    InetAddress listenAddr;
+    std::unique_ptr<Channel> channel;
+    ConnectCallback connectCallback{ nullptr }; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+
 public:
     Acceptor(EventLoop* _loop, const InetAddress& _listenAddr);
     ~Acceptor();
@@ -46,13 +58,11 @@ private:
     void bind_address();
     void start_listen();
 
-    void read_callback(); // channel 的回调处理函数。Acceptor 只需要处理连接事件
-    void handle_connect(int connFd); // 触发上层回调
+    // 理论上 Acceptor 不会触发 error、close、write 事件，只监听读事件（新连接到来）。但为了完整性，仍然预留这些回调接口处理逻辑
+    void error_callback();
+    void close_callback();
+    void write_callback();
+    void read_callback();
 
-private:
-    EventLoop* loop;
-    int listenFd;
-    InetAddress listenAddr;
-    std::unique_ptr<Channel> channel;
-    std::function<void(int)> connectCallback{ nullptr }; // 上层 TcpServer 设置的回调函数（钩子）
+    void handle_connect(int connFd); // 触发上层回调
 };

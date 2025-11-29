@@ -19,8 +19,11 @@ const uint32_t Channel::kNoneEvent = 0;
 const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
 const uint32_t Channel::kWriteEvent = EPOLLOUT;
 
-Channel::Channel(EventLoop* _loop, int _fd) : loop(_loop), fd(_fd) {
-    // 不在构造函数里调用。上层在创建 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor/TcpConnection 同步
+Channel::Channel(EventLoop* _loop, int _fd)
+    : loop(_loop)
+    , fd(_fd) {
+    // 不在构造函数里调用。我们的逻辑上当然是 channel 和 connection/acceptor 同步的
+    // 上层在创建 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor / TcpConnection 同步
     // Epoller 已经保证 channels 已经和 fd 同步。又有 fd 和 Acceptor/TcpConnection 同步
     // 所以需要保证 channels 和 Acceptor / TcpConnection 同步
     // update_to_register();
@@ -85,6 +88,7 @@ void Channel::set_error_callback(std::function<void()> cb) {
     this->errorCallback = std::move(cb);
 }
 
+// channel 借助依赖注入的 EventLoop 完成在 Poller 的注册、更新、删除操作
 void Channel::update_to_register() {
     loop->update_channel(this);
 }
@@ -132,9 +136,6 @@ void Channel::handle_close() {
 }
 
 void Channel::handle_error() {
-    if (!this->errorCallback) { // 不使用 assert，假如 listenFd 出错，仍然需要处理。服务器不能崩溃
-        LOG::LOG_ERROR("Channel::handle_error() but errorCallback is nullptr");
-        return;
-    }
+    assert(this->errorCallback != nullptr);
     this->errorCallback();
 }

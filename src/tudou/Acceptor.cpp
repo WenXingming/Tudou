@@ -10,7 +10,10 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) : loop(_loop), listenAddr(_listenAddr) {
+Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
+    : loop(_loop)
+    , listenAddr(_listenAddr) {
+
     // 初始化 this->listenFd
     this->create_fd();
     this->bind_address();
@@ -18,11 +21,14 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) : loop(_loo
 
     // 初始化 channel. 也可以放在初始化列表里，但注意初始化顺序（依赖 listenFd）
     this->channel.reset(new Channel(this->loop, this->listenFd)); // unique_ptr 无法拷贝，所以使用 reset + new
-    this->channel->enable_reading();
     this->channel->set_read_callback(std::bind(&Acceptor::read_callback, this));
-    this->channel->update_to_register(); // 注册到 poller，和 fd 创建同步
+    this->channel->set_error_callback(std::bind(&Acceptor::error_callback, this));
+    this->channel->set_close_callback(std::bind(&Acceptor::close_callback, this));
+    this->channel->set_write_callback([this]() { this->write_callback(); });
+    this->channel->enable_reading();
+    this->channel->update_to_register(); // 注册到 poller，和 Acceptor 创建同步
 
-    // connectCallback 已经在声明时初始化为 nullptr
+    // connectCallback 已经在类声明时初始化为 nullptr。无需在此重复初始化
 }
 
 Acceptor::~Acceptor() {
@@ -57,12 +63,33 @@ void Acceptor::start_listen() {
     assert(listenRet != -1);
 }
 
+void Acceptor::error_callback() {
+    LOG::LOG_ERROR("Acceptor::error_callback() is called.");
+    LOG::LOG_ERROR("Acceptor::listenFd %d error.", this->listenFd);
+    assert(false); // 理论上不应该触发错误事件
+}
+
+void Acceptor::close_callback() {
+    LOG::LOG_ERROR("Acceptor::close_callback() is called.");
+    LOG::LOG_ERROR("Acceptor::listenFd %d is closed.", this->listenFd);
+    assert(false); // 理论上不应该触发关闭事件
+}
+
+void Acceptor::write_callback() {
+    LOG::LOG_ERROR("Acceptor::write_callback() is called.");
+    LOG::LOG_ERROR("Acceptor::listenFd %d write event.", this->listenFd);
+    assert(false); // 理论上不应该触发写事件
+}
+
 void Acceptor::read_callback() {
     sockaddr_in clientAddr;
     socklen_t len = sizeof(clientAddr);
     int connFd = ::accept(this->listenFd, (sockaddr*)&clientAddr, &len);
+
+    // wrk 测试时注释掉日志，避免影响性能测试结果
+    // LOG::LOG_DEBUG("Acceptor::ConnectFd %d is accepted.", connFd);
+
     if (connFd >= 0) {
-        // LOG::LOG_DEBUG("Acceptor::ConnectFd %d is accepted.", connFd); // wrk 测试时注释掉
         handle_connect(connFd);
     }
     else {

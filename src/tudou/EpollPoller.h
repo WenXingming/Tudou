@@ -37,8 +37,15 @@
 class EventLoop;
 class Channel;
 class EpollPoller {
+private:
+    int epollFd;
+    const size_t eventListSize{ 16 };                    // 初始事件数组大小；声明顺序保证先初始化此常量
+    std::vector<epoll_event> eventList{ eventListSize }; // 存放 epoll_wait 返回的就绪事件列表
+    int pollTimeoutMs{ 5000 };                           // 默认 poll 超时时间，单位毫秒
+    std::unordered_map<int, Channel*> channels;          // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
+
 public:
-    explicit EpollPoller(); // 构造时创建 epoll fd
+    explicit EpollPoller();
     ~EpollPoller();
 
     void set_poll_timeout_ms(int timeoutMs);
@@ -49,13 +56,6 @@ public:
     void remove_channel(Channel* channel);
 
 private:
-    std::vector<Channel*> get_activate_channels(int numEvents) const;
+    std::vector<Channel*> get_activate_channels(int numEvents);
     void resize_event_list(int numReady);
-
-private:
-    int epollFd;
-    const size_t eventListSize{ 16 };                    // 初始事件数组大小；声明顺序保证先初始化此常量
-    std::vector<epoll_event> eventList{ eventListSize }; // 存放 epoll_wait 返回的就绪事件列表
-    int pollTimeoutMs{ 5000 };                           // 默认 poll 超时时间，单位毫秒
-    std::unordered_map<int, Channel*> channels;        // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
 };

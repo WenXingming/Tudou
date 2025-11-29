@@ -16,12 +16,14 @@
 #include "Channel.h"
 
 EpollPoller::EpollPoller() {
-    epollFd = ::epoll_create1(EPOLL_CLOEXEC);
+    epollFd = ::epoll_create1(EPOLL_CLOEXEC); // EPOLL_CLOEXEC 避免 fork 出来的子进程继承 epoll fd
     assert(epollFd > 0);
 }
 
 EpollPoller::~EpollPoller() {
-    ::close(epollFd);
+    int ret = ::close(epollFd);
+    assert(ret == 0);
+    channels.clear();
 }
 
 void EpollPoller::set_poll_timeout_ms(int timeoutMs) {
@@ -32,11 +34,10 @@ int EpollPoller::get_poll_timeout_ms() const {
     return pollTimeoutMs;
 }
 
-/// @brief 使用 epoll_wait() 返回活动的 channels 列表
-/// @param timeoutMs
-/// @return
+// 使用 epoll_wait() 返回活动的 channels 列表
 std::vector<Channel*> EpollPoller::poll() {
-    // LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size()); // wrk 测试时注释掉
+    // wrk 测试时注释掉 LOG
+    LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size());
 
     int numReady = epoll_wait(epollFd
         , eventList.data()
@@ -44,18 +45,20 @@ std::vector<Channel*> EpollPoller::poll() {
         , pollTimeoutMs
     );
     assert(numReady >= 0); // 否则 Error, 说明 epoll_wait 出错
-    // LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady); // wrk 测试时注释掉
+
+    // wrk 测试时注释掉 LOG
+    LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady);
 
     std::vector<Channel*> activeChannels;
     activeChannels = get_activate_channels(numReady);
-    resize_event_list(numReady);
 
     return std::move(activeChannels);
 }
 
 // 根据 epoll_wait 返回的就绪事件（存放在 eventList 中），找到对应的 channel 并设置 revent、维护 channels
-std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) const {
+std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
     std::vector<Channel*> activeChannels;
+
     for (int i = 0; i < numReady; ++i) {
         const epoll_event& event = this->eventList[i];
         int fd = event.data.fd;
@@ -68,6 +71,7 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) const {
         activeChannels.push_back(channel);
     }
 
+    resize_event_list(numReady);
     return std::move(activeChannels);
 }
 

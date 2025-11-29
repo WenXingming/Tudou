@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 #include "TestNetlib.h"
-#include "TestTcpServer.h"
+#include "SendFileTcpServer.h"
 #include "TestHttpParser.h"
 #include "TestHttpServer.h"
 
@@ -28,11 +28,16 @@ int main() {
     // std::cout << "Netlib test finished." << std::endl;
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
-    // std::thread t2([]() {
-    //     TestTcpServer testTcpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-    //     testTcpServer.start(); });
-    // t2.join();
-    // std::cout << "TcpServer test finished." << std::endl;
+    std::thread t2([]() {
+        SendFileTcpServer sendFileTcpServer;
+        sendFileTcpServer.set_ip("127.0.0.1");
+        sendFileTcpServer.set_port(8080);
+        sendFileTcpServer.set_response_filepath("/home/wxm/Tudou/assets/homepage.html");
+
+        sendFileTcpServer.start(); }
+    );
+    t2.join();
+    std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
     // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null
@@ -45,12 +50,12 @@ int main() {
     // std::cout << "HttpParser test finished." << std::endl;
 
     // 测试 HttpServer 服务器：TcpServer + HttpServer
-    std::thread t4([]() {
-        tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-        // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");
-        testHttpServer.start();
-        });
-    t4.join();
-    std::cout << "HttpServer test finished." << std::endl;
+    // std::thread t4([]() {
+    //     tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+    //     // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");
+    //     testHttpServer.start();
+    //     });
+    // t4.join();
+    // std::cout << "HttpServer test finished." << std::endl;
     return 0;
 }
