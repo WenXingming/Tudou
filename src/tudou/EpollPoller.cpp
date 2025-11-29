@@ -36,7 +36,7 @@ int EpollPoller::get_poll_timeout_ms() const {
 /// @param timeoutMs
 /// @return
 std::vector<Channel*> EpollPoller::poll() {
-    LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size());
+    // LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size()); // wrk 测试时注释掉
 
     int numReady = epoll_wait(epollFd
         , eventList.data()
@@ -44,7 +44,7 @@ std::vector<Channel*> EpollPoller::poll() {
         , pollTimeoutMs
     );
     assert(numReady >= 0); // 否则 Error, 说明 epoll_wait 出错
-    LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady);
+    // LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady); // wrk 测试时注释掉
 
     std::vector<Channel*> activeChannels;
     activeChannels = get_activate_channels(numReady);

@@ -62,7 +62,7 @@ void Acceptor::read_callback() {
     socklen_t len = sizeof(clientAddr);
     int connFd = ::accept(this->listenFd, (sockaddr*)&clientAddr, &len);
     if (connFd >= 0) {
-        LOG::LOG_DEBUG("Acceptor::ConnectFd %d is accepted.", connFd);
+        // LOG::LOG_DEBUG("Acceptor::ConnectFd %d is accepted.", connFd); // wrk 测试时注释掉
         handle_connect(connFd);
     }
     else {

@@ -35,6 +35,7 @@ int main() {
     // std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
+    // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null
     // std::thread t3([]() {
     //     tudou::TestHttpParser testHttpParser;
     //     int ret = testHttpParser.run_all();
@@ -45,8 +46,8 @@ int main() {
 
     // 测试 HttpServer 服务器：TcpServer + HttpServer
     std::thread t4([]() {
-        // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
         tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
+        // tudou::TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");
         testHttpServer.start();
         });
     t4.join();

@@ -14,11 +14,11 @@ EventLoop::EventLoop() : poller(new EpollPoller()) {
 }
 
 void EventLoop::loop(int timeoutMs) {
-    LOG::LOG_DEBUG("EventLoop start looping...");
+    // LOG::LOG_DEBUG("EventLoop start looping..."); // wrk 测试时注释掉
     poller->set_poll_timeout_ms(timeoutMs);
 
     while (true) {
-        LOG::LOG_DEBUG("EventLoop is looping...");
+        // LOG::LOG_DEBUG("EventLoop is looping..."); // wrk 测试时注释掉
 
         // 使用 poller 监听发生事件的 channels
         std::vector<Channel*> activeChannels = poller->poll();
@@ -26,7 +26,7 @@ void EventLoop::loop(int timeoutMs) {
         for (auto channel : activeChannels) { channel->handle_events(Timestamp::now()); }
     }
 
-    LOG::LOG_DEBUG("EventLoop stop looping.");
+    // LOG::LOG_DEBUG("EventLoop stop looping."); // wrk 测试时注释掉
 }
 
 void EventLoop::update_channel(Channel* channel) {
