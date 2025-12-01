@@ -32,15 +32,16 @@ file(GLOB all_source_files #  CMake 不会自动解析通配符，因此必须�
 add_executable(unitTest ${all_source_files})
 
 
-# 链接 llhttp 库
-target_include_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib") # 添加库的头文件路径
-# target_link_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib") # 添加库文件路径（非必须，因为 llhttp 是源码引入方式。cmake 编译后能够自动找到：build/src/test/libllhttp.a）
+# 使用 llhttp 库
+target_include_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib") # 添加库的头文件路径（编译时需要）
+# target_link_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib")  # 添加库文件路径（非必须，因为 llhttp 是源码引入方式。cmake 编译后能够自动找到：build/src/test/libllhttp.a）
 target_link_libraries(unitTest PRIVATE llhttp) # 链接 llhttp 静态库
 
 
 # 使用 spdlog 库（头文件引入方式，无需链接库文件）
-target_include_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib/")
-
+target_include_directories(unitTest PRIVATE "${CMAKE_SOURCE_DIR}/lib/") # 添加库的头文件路径（编译时需要）
+# 添加库文件路径（pass）。头文件引入方式，没有库文件路径，无需 target_link_directories
+# 链接库（pass）。头文件引入方式，没有库文件。无需 target_link_libraries
 
 # 链接 -lpthread。Linux 下 std::thread 依赖 pthread
 find_package(Threads REQUIRED)
