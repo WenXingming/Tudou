@@ -12,7 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 #include "Channel.h"
 
 EpollPoller::EpollPoller() {
@@ -36,8 +36,7 @@ int EpollPoller::get_poll_timeout_ms() const {
 
 // 使用 epoll_wait() 返回活动的 channels 列表
 std::vector<Channel*> EpollPoller::poll() {
-    // wrk 测试时注释掉 LOG
-    LOG::LOG_INFO("Epoll is running... poller monitors channels's size is: %d", channels.size());
+    spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels.size());
 
     int numReady = epoll_wait(epollFd
         , eventList.data()
@@ -46,8 +45,7 @@ std::vector<Channel*> EpollPoller::poll() {
     );
     assert(numReady >= 0); // 否则 Error, 说明 epoll_wait 出错
 
-    // wrk 测试时注释掉 LOG
-    LOG::LOG_INFO("Epoll is running... activeChannels's size is: %d", numReady);
+    spdlog::debug("Epoll is running... activeChannels's size is: {}", numReady);
 
     std::vector<Channel*> activeChannels;
     activeChannels = get_activate_channels(numReady);
@@ -96,7 +94,8 @@ void EpollPoller::update_channel(Channel* channel) {
     ev.data.fd = fd;
     ev.events = event;
 
-    // LOG::LOG_DEBUG("update_channel(): fd is %d", fd);
+    spdlog::debug("update_channel(): fd is {}", fd);
+
     auto findIt = channels.find(fd);
     if (findIt == channels.end()) {
         int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_ADD, ev.data.fd, &ev);

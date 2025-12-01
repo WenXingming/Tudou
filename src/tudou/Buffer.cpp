@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <cassert>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 
  // 构造缓冲区，预留 prepend 区域并初始化读写索引。
 Buffer::Buffer(size_t initialSize)
@@ -66,7 +66,7 @@ void Buffer::maintain_all_index() {
 // 读取 len 字节为字符串并消费对应数据
 std::string Buffer::read_from_buffer(size_t len) {
     if (len > readable_bytes()) {
-        LOG::LOG_ERROR("Buffer::read_from_buffer(). len > readable_bytes");
+        spdlog::error("Buffer::read_from_buffer(). len > readable_bytes");
     }
 
     std::string str(readable_start_ptr(), len);

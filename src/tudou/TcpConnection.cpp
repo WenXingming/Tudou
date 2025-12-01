@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 #include "Buffer.h"
 #include "Channel.h"
 #include "EventLoop.h"
@@ -81,7 +81,7 @@ void TcpConnection::read_callback() {
         this->close_callback();
     }
     else {
-        LOG::LOG_ERROR("TcpConnection::read_callback(). read error: %d", savedErrno);
+        spdlog::error("TcpConnection::read_callback(). read error: {}", savedErrno);
         this->close_callback();
     }
 }

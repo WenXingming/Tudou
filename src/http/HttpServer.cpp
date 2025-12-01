@@ -1,6 +1,7 @@
-#include "../base/Log.h"
 #include "HttpServer.h"
 
+#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 namespace tudou {
 
     HttpServer::HttpServer(EventLoop* loop, const InetAddress& listen_addr)
@@ -25,6 +26,8 @@ namespace tudou {
         int fd = conn->get_fd();
         if (/* conn->is_connected() */1) {
             // LOG::LOG_DEBUG("[HttpServer] New connection established. fd=%d", fd);
+            spdlog::debug("[HttpServer] New connection established. fd={}", fd);
+
             // contexts.emplace(fd, HttpContext{});
             contexts[fd].reset(new HttpContext());
         }

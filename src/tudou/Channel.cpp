@@ -11,7 +11,7 @@
 #include <sys/epoll.h>
 #include <assert.h>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 #include "../base/Timestamp.h"
 #include "EventLoop.h"
 
@@ -102,7 +102,7 @@ void Channel::handle_events(Timestamp receiveTime) {
 }
 
 void Channel::handle_events_with_guard(Timestamp receiveTime) {
-    // LOG::LOG_INFO("poller find event, channel handle event: %d", revent);
+    spdlog::debug("poller find event, channel handle event: {}", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
         this->handle_close();

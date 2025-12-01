@@ -140,9 +140,10 @@ apr_pollset_poll: The timeout specified has expired (70007)
 
 ## Citation
 
-- https://github.com/chenshuo/muduo
-- https://github.com/nodejs/llhttp
-- https://github.com/wg/wrk
+- 网络库：https://github.com/chenshuo/muduo
+- Http 协议解析库：https://github.com/nodejs/llhttp
+- 日志库：https://github.com/gabime/spdlog
+- 压力测试工具：https://github.com/wg/wrk
 
 ## References
 

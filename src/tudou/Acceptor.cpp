@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 #include "Channel.h"
 #include "EventLoop.h"
 
@@ -64,20 +64,20 @@ void Acceptor::start_listen() {
 }
 
 void Acceptor::error_callback() {
-    LOG::LOG_ERROR("Acceptor::error_callback() is called.");
-    LOG::LOG_ERROR("Acceptor::listenFd %d error.", this->listenFd);
+    spdlog::error("Acceptor::error_callback() is called.");
+    spdlog::error("Acceptor::listenFd {} error.", this->listenFd);
     assert(false); // 理论上不应该触发错误事件
 }
 
 void Acceptor::close_callback() {
-    LOG::LOG_ERROR("Acceptor::close_callback() is called.");
-    LOG::LOG_ERROR("Acceptor::listenFd %d is closed.", this->listenFd);
+    spdlog::error("Acceptor::close_callback() is called.");
+    spdlog::error("Acceptor::listenFd {} is closed.", this->listenFd);
     assert(false); // 理论上不应该触发关闭事件
 }
 
 void Acceptor::write_callback() {
-    LOG::LOG_ERROR("Acceptor::write_callback() is called.");
-    LOG::LOG_ERROR("Acceptor::listenFd %d write event.", this->listenFd);
+    spdlog::error("Acceptor::write_callback() is called.");
+    spdlog::error("Acceptor::listenFd {} write event.", this->listenFd);
     assert(false); // 理论上不应该触发写事件
 }
 
@@ -87,13 +87,13 @@ void Acceptor::read_callback() {
     int connFd = ::accept(this->listenFd, (sockaddr*)&clientAddr, &len);
 
     // wrk 测试时注释掉日志，避免影响性能测试结果
-    // LOG::LOG_DEBUG("Acceptor::ConnectFd %d is accepted.", connFd);
+    spdlog::debug("Acceptor::ConnectFd {} is accepted.", connFd);
 
     if (connFd >= 0) {
         handle_connect(connFd);
     }
     else {
-        LOG::LOG_ERROR("Acceptor::handle_read(). accept error, errno: %d", errno);
+        spdlog::error("Acceptor::handle_read(). accept error, errno: {}", errno);
     }
 }
 

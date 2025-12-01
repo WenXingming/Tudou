@@ -14,8 +14,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "spdlog/spdlog.h"
 #include "../base/InetAddress.h"
-#include "../base/Log.h"
 #include "Acceptor.h"
 #include "EventLoop.h"
 #include "TcpConnection.h"
@@ -33,7 +33,7 @@ TcpServer::~TcpServer() {
 }
 
 void TcpServer::connect_callback(const int connFd) {
-    // LOG::LOG_DEBUG("New connection created. fd is: %d", connFd);
+    spdlog::debug("New connection created. fd is: {}", connFd);
 
     // 初始化 conn。设置业务层回调函数，callback 是由业务传入的，TcpServer 并不实现 callback 只是做中间者
     auto conn = std::make_shared<TcpConnection>(loop, connFd);
@@ -70,7 +70,7 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
         connections.erase(findIt);
     }
     else {
-        LOG::LOG_ERROR("TcpServer::remove_connection(). connection not found, fd: %d", fd);
+        spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
     }
 }
 

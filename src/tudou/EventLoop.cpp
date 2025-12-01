@@ -5,7 +5,7 @@
 #include <sys/syscall.h> // 定义 SYS_gettid
 #include <unistd.h>
 
-#include "../base/Log.h"
+#include "spdlog/spdlog.h"
 #include "../base/Timestamp.h"
 #include "Channel.h"
 #include "EpollPoller.h"
@@ -15,12 +15,11 @@ EventLoop::EventLoop()
 }
 
 void EventLoop::loop(int timeoutMs) {
-    // wrk 测试时注释掉 LOG
-    LOG::LOG_INFO("EventLoop start looping...");
+    spdlog::info("EventLoop start looping...");
+
     poller->set_poll_timeout_ms(timeoutMs);
     while (true) {
-        // wrk 测试时注释掉 LOG
-        LOG::LOG_INFO("EventLoop is looping...");
+        spdlog::info("EventLoop is looping...");
 
         // 使用 poller 监听发生事件的 channels
         std::vector<Channel*> activeChannels = poller->poll();
@@ -30,8 +29,7 @@ void EventLoop::loop(int timeoutMs) {
         }
     }
 
-    // wrk 测试时注释掉 LOG
-    LOG::LOG_INFO("EventLoop stop looping.");
+    spdlog::info("EventLoop stop looping.");
 }
 
 void EventLoop::update_channel(Channel* channel) {
