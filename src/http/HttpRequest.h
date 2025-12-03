@@ -22,45 +22,43 @@
 #include <string>
 #include <unordered_map>
 
-namespace tudou {
 
-    class HttpRequest {
-    public:
-        using Headers = std::unordered_map<std::string, std::string>;
+class HttpRequest {
+public:
+    using Headers = std::unordered_map<std::string, std::string>;
 
-        void set_method(const std::string& m) { method = m; }
-        const std::string& get_method() const { return method; }
+    void set_method(const std::string& m) { method = m; }
+    const std::string& get_method() const { return method; }
 
-        void set_url(const std::string& u) { url = u; }
-        const std::string& get_url() const { return url; }
+    void set_url(const std::string& u) { url = u; }
+    const std::string& get_url() const { return url; }
 
-        void set_path(const std::string& p) { path = p; }
-        const std::string& get_path() const { return path; }
+    void set_path(const std::string& p) { path = p; }
+    const std::string& get_path() const { return path; }
 
-        void set_query(const std::string& q) { query = q; }
-        const std::string& get_query() const { return query; }
+    void set_query(const std::string& q) { query = q; }
+    const std::string& get_query() const { return query; }
 
-        void set_version(const std::string& v) { version = v; }
-        const std::string& get_version() const { return version; }
+    void set_version(const std::string& v) { version = v; }
+    const std::string& get_version() const { return version; }
 
-        void add_header(const std::string& field, const std::string& value);
-        const Headers& get_headers() const { return headers; }
-        const std::string& get_header(const std::string& field) const;
+    void add_header(const std::string& field, const std::string& value);
+    const Headers& get_headers() const { return headers; }
+    const std::string& get_header(const std::string& field) const;
 
-        void append_body(const char* data, size_t len) { body.append(data, len); }
-        void set_body(const std::string& b) { body = b; }
-        const std::string& get_body() const { return body; }
+    void append_body(const char* data, size_t len) { body.append(data, len); }
+    void set_body(const std::string& b) { body = b; }
+    const std::string& get_body() const { return body; }
 
-        void clear();
+    void clear();
 
-    private:
-        std::string method;
-        std::string url;
-        std::string path;
-        std::string query;
-        std::string version;
-        Headers headers;
-        std::string body;
-    };
+private:
+    std::string method;
+    std::string url;
+    std::string path;
+    std::string query;
+    std::string version;
+    Headers headers;
+    std::string body;
+};
 
-} // namespace tudou

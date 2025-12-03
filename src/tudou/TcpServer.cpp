@@ -20,11 +20,11 @@
 #include "EventLoop.h"
 #include "TcpConnection.h"
 
-TcpServer::TcpServer(EventLoop* _loop, const InetAddress& _listenAddr)
-    : loop(_loop)
-    , listenAddr(new InetAddress(_listenAddr)) {
+TcpServer::TcpServer(const InetAddress& _listenAddr)
+    : listenAddr(new InetAddress(_listenAddr)) {
+    this->loop.reset(new EventLoop());
 
-    acceptor.reset(new Acceptor(this->loop, *this->listenAddr));
+    acceptor.reset(new Acceptor(this->loop.get(), *this->listenAddr));
     acceptor->set_connect_callback(std::bind(&TcpServer::connect_callback, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
@@ -32,25 +32,47 @@ TcpServer::~TcpServer() {
     this->connections.clear();
 }
 
+void TcpServer::set_connection_callback(ConnectionCallback cb) {
+    this->connectionCallback = cb;
+}
+
+void TcpServer::set_message_callback(MessageCallback cb) {
+    this->messageCallback = cb;
+}
+
+void TcpServer::set_close_callback(CloseCallback cb) {
+    this->closeCallback = cb;
+}
+
+void TcpServer::start() {
+    this->loop->loop();
+}
+
 void TcpServer::connect_callback(const int connFd) {
     spdlog::debug("New connection created. fd is: {}", connFd);
 
     // 初始化 conn。设置业务层回调函数，callback 是由业务传入的，TcpServer 并不实现 callback 只是做中间者
-    auto conn = std::make_shared<TcpConnection>(loop, connFd);
+    auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
     conn->set_message_callback(std::bind(&TcpServer::message_callback, this, std::placeholders::_1));
-    conn->set_close_callback(std::bind(&TcpServer::close_callback, this, std::placeholders::_1));
+    conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& c) {
+        this->close_callback(c);
+        });
     connections[connFd] = conn;
 
-    // 触发上层回调
+    // 触发上层回调。上层可以设置连接建立时的逻辑
     this->handle_connection(conn);
 }
 
 void TcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
+    // TcpServer 不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑
     this->handle_message(conn);
 }
 
 void TcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
     this->remove_connection(conn);
+
+    // 触发上层回调。上层可以设置连接关闭时的逻辑
+    this->handle_close(conn);
 }
 
 void TcpServer::handle_connection(const std::shared_ptr<TcpConnection>& conn) {
@@ -63,6 +85,11 @@ void TcpServer::handle_message(const std::shared_ptr<TcpConnection>& conn) {
     this->messageCallback(conn);
 }
 
+void TcpServer::handle_close(const std::shared_ptr<TcpConnection>& conn) {
+    assert(this->closeCallback != nullptr);
+    this->closeCallback(conn);
+}
+
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     auto findIt = connections.find(fd);
@@ -72,12 +99,4 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     else {
         spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
     }
-}
-
-void TcpServer::set_connection_callback(ConnectionCallback cb) {
-    this->connectionCallback = cb;
-}
-
-void TcpServer::set_message_callback(MessageCallback cb) {
-    this->messageCallback = cb;
 }

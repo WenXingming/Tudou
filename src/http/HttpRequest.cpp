@@ -1,6 +1,5 @@
 #include "HttpRequest.h"
 
-namespace tudou {
 
 void HttpRequest::add_header(const std::string& field, const std::string& value) {
     headers[field] = value;
@@ -25,4 +24,3 @@ void HttpRequest::clear() {
     body.clear();
 }
 
-} // namespace tudou

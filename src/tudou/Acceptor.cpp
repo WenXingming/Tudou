@@ -26,7 +26,7 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
     this->channel->set_close_callback(std::bind(&Acceptor::close_callback, this));
     this->channel->set_write_callback([this]() { this->write_callback(); });
     this->channel->enable_reading();
-    this->channel->update_to_register(); // 注册到 poller，和 Acceptor 创建同步
+    this->channel->update_to_register(); // 注册到 poller，和 fd 创建同步
 
     // connectCallback 已经在类声明时初始化为 nullptr。无需在此重复初始化
 }
@@ -35,7 +35,6 @@ Acceptor::~Acceptor() {
     this->channel->disable_all();
     this->channel->remove_in_register(); // 注销 channel，channels 和 fd 销毁同步
 
-    assert(listenFd > 0);
     ::close(this->listenFd); // listenFd 生命期应该由 Acceptor 管理（创建和销毁）
 }
 
@@ -64,37 +63,38 @@ void Acceptor::start_listen() {
 }
 
 void Acceptor::error_callback() {
+    // 理论上不应该触发错误事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::error_callback() is called.");
     spdlog::error("Acceptor::listenFd {} error.", this->listenFd);
-    assert(false); // 理论上不应该触发错误事件
 }
 
 void Acceptor::close_callback() {
+    // 理论上不应该触发关闭事件
     spdlog::error("Acceptor::close_callback() is called.");
     spdlog::error("Acceptor::listenFd {} is closed.", this->listenFd);
-    assert(false); // 理论上不应该触发关闭事件
+    assert(false);
 }
 
 void Acceptor::write_callback() {
+    // 理论上不应该触发写事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::write_callback() is called.");
     spdlog::error("Acceptor::listenFd {} write event.", this->listenFd);
-    assert(false); // 理论上不应该触发写事件
+    assert(false);
 }
 
 void Acceptor::read_callback() {
     sockaddr_in clientAddr;
     socklen_t len = sizeof(clientAddr);
     int connFd = ::accept(this->listenFd, (sockaddr*)&clientAddr, &len);
+    if (connFd < 0) {
+        spdlog::error("Acceptor::read_callback(). accept error, errno: {}", errno);
+    }
 
     // wrk 测试时注释掉日志，避免影响性能测试结果
     spdlog::debug("Acceptor::ConnectFd {} is accepted.", connFd);
 
-    if (connFd >= 0) {
-        handle_connect(connFd);
-    }
-    else {
-        spdlog::error("Acceptor::handle_read(). accept error, errno: {}", errno);
-    }
+    // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理
+    this->handle_connect(connFd);
 }
 
 void Acceptor::handle_connect(int connFd) {

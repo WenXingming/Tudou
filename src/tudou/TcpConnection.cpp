@@ -74,7 +74,7 @@ void TcpConnection::read_callback() {
     int savedErrno = 0;
     ssize_t n = readBuffer->read_from_fd(this->connectFd, &savedErrno);
     if (n > 0) {
-        // 从 fd 读取到了数据到 buffer，触发上层回调解析数据
+        // 从 fd 读取到了数据到 buffer，触发上层回调逻辑处理数据
         this->handle_message();
     }
     else if (n == 0) { // 对端关闭
@@ -96,26 +96,23 @@ void TcpConnection::write_callback() {
         }
     }
     else {
-        std::cerr << "Write error: " << savedErrno << std::endl;
+        spdlog::error("TcpConnection::write_callback(). write error: {}", savedErrno);
+        this->close_callback(); // 是否需要关闭连接？
     }
 }
 
 void TcpConnection::close_callback() {
     channel->disable_all();
-    // fd 生命期由 TcpConnection 管理（绑定）。因此这里不关闭 fd，析构函数中关闭。
     // channel->remove_in_register();
+    // fd 生命期由 TcpConnection 管理（绑定）。因此这里不关闭 fd，析构函数中关闭
 
     // 触发上层 TcpServer 回调，进行资源回收（删除 TcpConnection shared_ptr 对象）
     this->handle_close();
 }
 
 void TcpConnection::error_callback() {
-    channel->disable_all();
-    // fd 生命期由 TcpConnection 管理（绑定）。因此这里不关闭 fd，析构函数中关闭。
-    // channel->remove_in_register();
-
-    // 触发上层 TcpServer 回调，进行资源回收（删除 TcpConnection shared_ptr 对象）
-    this->handle_close();
+    spdlog::error("TcpConnection::error_callback() called.");
+    this->close_callback();
 }
 
 void TcpConnection::handle_message() {

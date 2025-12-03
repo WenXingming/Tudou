@@ -20,7 +20,6 @@
 #include <string>
 #include <unordered_map>
 
-namespace tudou {
 
 class HttpResponse {
 public:
@@ -58,4 +57,3 @@ private:
     std::string body;
 };
 
-} // namespace tudou

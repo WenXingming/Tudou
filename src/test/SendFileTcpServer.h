@@ -1,6 +1,6 @@
 /**
- * @file TestServer.h
- * @brief 单元测试。结合底层网络库，测试上层 TcpServer 功能。
+ * @file SendFileTcpServer.h
+ * @brief 发送文件的 TCP 服务器示例
  * @author wenxingming
  * @date 2025-11-27
  * @project: https://github.com/WenXingming/Tudou.git
@@ -15,10 +15,11 @@ class EventLoop;
 class InetAddress;
 class TcpServer;
 class TcpConnection;
+#include "../base/InetAddress.h" // 需要包含完整定义，因为成员变量中有 InetAddress 对象（不是指针或引用）
 
 class SendFileTcpServer {
 public:
-    SendFileTcpServer();
+    SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath);
     ~SendFileTcpServer();
 
     std::string get_ip() const { return ip; }
@@ -35,6 +36,7 @@ public:
 private:
     void connect_callback(const std::shared_ptr<TcpConnection>& conn);
     void message_callback(const std::shared_ptr<TcpConnection>& conn);
+    void close_callback(const std::shared_ptr<TcpConnection>& conn);
 
     std::string receive_data(const std::shared_ptr<TcpConnection>& conn);
     std::string parse_data(const std::string& data);
@@ -47,7 +49,6 @@ private:
     uint16_t port{ 8080 };
     std::string responseFilepath{ "/home/wxm/Tudou/assets/homepage.html" };
 
-    std::unique_ptr<EventLoop> loop;
-    std::unique_ptr<InetAddress> listenAddr;
+    InetAddress listenAddr;
     std::unique_ptr<TcpServer> tcpServer;
 };

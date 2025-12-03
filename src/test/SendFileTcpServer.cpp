@@ -10,13 +10,9 @@
 #include <fstream>
 #include <sstream>
 
-SendFileTcpServer::SendFileTcpServer() {
-    loop.reset(new EventLoop());
-    listenAddr.reset(new InetAddress(port, ip));
-    tcpServer.reset(new TcpServer(
-        loop.get(),
-        *listenAddr
-    ));
+SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath) 
+    : listenAddr(port, ip), responseFilepath(responseFilepath) {
+    tcpServer.reset(new TcpServer(listenAddr));
     tcpServer->set_connection_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
             connect_callback(conn);
@@ -27,12 +23,17 @@ SendFileTcpServer::SendFileTcpServer() {
             message_callback(conn);
         }
     );
+    tcpServer->set_close_callback(
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            close_callback(conn);
+        }
+    );
 }
 
 SendFileTcpServer::~SendFileTcpServer() {}
 
 void SendFileTcpServer::start() {
-    loop->loop();
+    tcpServer->start();
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑
@@ -51,6 +52,10 @@ void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& c
     std::string response = construct_response(body);
     // 5. 发送响应
     send_response(conn, response);
+}
+
+void SendFileTcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
+    std::cout << "Connection closed. fd: " << conn->get_fd() << std::endl;
 }
 
 // 1. 接收数据

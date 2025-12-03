@@ -96,4 +96,198 @@
 [2025-12-01 15:08:51] [debug] [thread 18663] update_channel(): fd is 7
 [2025-12-01 15:08:51] [debug] [thread 18663] update_channel(): fd is 7
 [2025-12-01 15:08:51] [info] [thread 18663] EventLoop is looping...
-[2025-12-01 15:08:51] [debug] [thread 18663] Epoll is running... polle
+[2025-12-01 15:08:51] [debug] [thread 18663] Epoll is running... polle[2025-12-03 12:27:46] [debug] [thread 17313] Starting HttpServer test...
+[2025-12-03 12:27:46] [debug] [thread 17314] update_channel(): fd is 5
+[2025-12-03 12:27:46] [debug] [thread 17314] update_channel(): fd is 5
+[2025-12-03 12:27:46] [info] [thread 17314] EventLoop start looping...
+[2025-12-03 12:27:46] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:46] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] Acceptor::ConnectFd 6 is accepted.
+[2025-12-03 12:27:48] [debug] [thread 17314] New connection created. fd is: 6
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [debug] [thread 17314] [HttpServer] New connection established. fd=6
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 4
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] Acceptor::ConnectFd 7 is accepted.
+[2025-12-03 12:27:48] [debug] [thread 17314] New connection created. fd is: 7
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 7
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 7
+[2025-12-03 12:27:48] [debug] [thread 17314] [HttpServer] New connection established. fd=7
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:27:48] [debug] [thread 17314] poller find event, channel handle event: 4
+[2025-12-03 12:27:48] [debug] [thread 17314] update_channel(): fd is 6
+[2025-12-03 12:27:48] [info] [thread 17314] EventLoop is looping...
+[2025-12-03 12:27:48] [debug] [thread 17314] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 12:27:51] [debug] [thread 17314] Epoll is running... activeChannels's size is: 2
+[2025-12-03 12:27:51] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:51] [debug] [thread 17314] update_channel(): fd is 7
+[2025-12-03 12:27:51] [debug] [thread 17314] update_channel(): fd is 7
+[2025-12-03 12:27:51] [debug] [thread 17314] poller find event, channel handle event: 1
+[2025-12-03 12:27:51] [debug] [thread 17314] updat[2025-12-03 12:56:20] [debug] [thread 18987] update_channel(): fd is 0
+[2025-12-03 12:56:20] [debug] [thread 18987] update_channel(): fd is 0
+[2025-12-03 12:56:20] [info] [thread 18987] EventLoop start looping...
+[2025-12-03 12:56:20] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:20] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:24] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:24] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:24] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:24] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:25] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:25] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:25] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:25] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:25] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:25] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:25] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:25] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03 12:56:26] [info] [thread 18987] EventLoop is looping...
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] Epoll is running... activeChannels's size is: 1
+[2025-12-03 12:56:26] [debug] [thread 18987] poller find event, channel handle event: 1
+[2025-12-03[2025-12-03 13:19:18] [debug] [thread 20897] update_channel(): fd is 5
+[2025-12-03 13:19:18] [debug] [thread 20897] update_channel(): fd is 5
+[2025-12-03 13:19:18] [info] [thread 20897] EventLoop start looping...
+[2025-12-03 13:19:18] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:18] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 13:19:26] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:26] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:26] [debug] [thread 20897] Acceptor::ConnectFd 6 is accepted.
+[2025-12-03 13:19:26] [debug] [thread 20897] New connection created. fd is: 6
+[2025-12-03 13:19:26] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:26] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:26] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:26] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:28] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:28] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:28] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:28] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:28] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:28] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:28] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:28] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:28] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:28] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:29] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:29] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:29] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:29] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:29] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:29] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:29] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:29] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:29] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:29] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:31] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:31] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:31] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:31] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:31] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:31] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:31] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:31] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:31] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:31] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:33] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:33] [debug] [thread 20897] poller find event, channel handle event: 25
+[2025-12-03 13:19:33] [error] [thread 20897] TcpConnection::error_callback() called.
+[2025-12-03 13:19:33] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:33] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:33] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:33] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 13:19:43] [debug] [thread 20897] Epoll is running... activeChannels's size is: 0
+[2025-12-03 13:19:43] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:43] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 13:19:45] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:45] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:45] [debug] [thread 20897] Acceptor::ConnectFd 6 is accepted.
+[2025-12-03 13:19:45] [debug] [thread 20897] New connection created. fd is: 6
+[2025-12-03 13:19:45] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:45] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:45] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:45] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:48] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:48] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:48] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:48] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:48] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:48] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:48] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:48] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:48] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:48] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:49] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:49] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:49] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] poller find event, channel handle event: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:49] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:49] [debug] [thread 20897] poller find event, channel handle event: 4
+[2025-12-03 13:19:49] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:49] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:49] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:19:52] [debug] [thread 20897] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:19:52] [debug] [thread 20897] poller find event, channel handle event: 25
+[2025-12-03 13:19:52] [error] [thread 20897] TcpConnection::error_callback() called.
+[2025-12-03 13:19:52] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:52] [debug] [thread 20897] update_channel(): fd is 6
+[2025-12-03 13:19:52] [info] [thread 20897] EventLoop is looping...
+[2025-12-03 13:19:52] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 1
+[202

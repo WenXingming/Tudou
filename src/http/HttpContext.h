@@ -22,64 +22,60 @@
  */
 
 #pragma once
-
 #include <string>
-
 #include "HttpRequest.h"
 #include "llhttp/llhttp.h"
 
-namespace tudou {
 
-    class HttpContext {
-    public:
-        HttpContext();
+class HttpContext {
+public:
+    HttpContext();
 
-        // 禁止拷贝和移动构造。因为 llhttp_t 内部有指针指向 HttpContext 实例，拷贝或移动会导致指针失效。
-        HttpContext(const HttpContext&) = delete;
-        HttpContext& operator=(const HttpContext&) = delete;
-        HttpContext(HttpContext&&) = delete;
-        HttpContext& operator=(HttpContext&&) = delete;
+    // 禁止拷贝和移动构造。因为 llhttp_t 内部有指针指向 HttpContext 实例，拷贝或移动会导致指针失效。
+    HttpContext(const HttpContext&) = delete;
+    HttpContext& operator=(const HttpContext&) = delete;
+    HttpContext(HttpContext&&) = delete;
+    HttpContext& operator=(HttpContext&&) = delete;
 
-        // 关键函数：返回是否解析成功，nparsed 输出实际解析的字节数
-        bool parse(const char* data, size_t len, size_t& nparsed);
+    // 关键函数：返回是否解析成功，nparsed 输出实际解析的字节数
+    bool parse(const char* data, size_t len, size_t& nparsed);
 
-        bool is_complete() const { return messageComplete; }
+    bool is_complete() const { return messageComplete; }
 
-        const HttpRequest& get_request() const { return request; }
+    const HttpRequest& get_request() const { return request; }
 
-        void reset();
+    void reset();
 
-    private:
-        // 回调函数的参数是固定要求的，需要将 parser 指针转换回 HttpContext 实例指针
-        static int on_message_begin(llhttp_t* parser);
-        static int on_url(llhttp_t* parser, const char* at, size_t length);
-        static int on_header_field(llhttp_t* parser, const char* at, size_t length);
-        static int on_header_value(llhttp_t* parser, const char* at, size_t length);
-        static int on_body(llhttp_t* parser, const char* at, size_t length);
-        static int on_message_complete(llhttp_t* parser);
+private:
+    // 回调函数的参数是固定要求的，需要将 parser 指针转换回 HttpContext 实例指针
+    static int on_message_begin(llhttp_t* parser);
+    static int on_url(llhttp_t* parser, const char* at, size_t length);
+    static int on_header_field(llhttp_t* parser, const char* at, size_t length);
+    static int on_header_value(llhttp_t* parser, const char* at, size_t length);
+    static int on_body(llhttp_t* parser, const char* at, size_t length);
+    static int on_message_complete(llhttp_t* parser);
 
-        static HttpContext* get_context(llhttp_t* parser) {
-            return static_cast<HttpContext*>(parser->data);
-        }
+    static HttpContext* get_context(llhttp_t* parser) {
+        return static_cast<HttpContext*>(parser->data);
+    }
 
-        void on_message_begin_impl();
-        void on_url_impl(const char* at, size_t length);
-        void on_header_field_impl(const char* at, size_t length);
-        void on_header_value_impl(const char* at, size_t length);
-        void on_body_impl(const char* at, size_t length);
-        void on_message_complete_impl();
+    void on_message_begin_impl();
+    void on_url_impl(const char* at, size_t length);
+    void on_header_field_impl(const char* at, size_t length);
+    void on_header_value_impl(const char* at, size_t length);
+    void on_body_impl(const char* at, size_t length);
+    void on_message_complete_impl();
 
-    private:
-        llhttp_t parser{};
-        llhttp_settings_t settings{};
+private:
+    llhttp_t parser{};
+    llhttp_settings_t settings{};
 
-        HttpRequest request;
+    HttpRequest request;
 
-        bool messageComplete{ false };
+    bool messageComplete{ false };
 
-        std::string currentHeaderField;
-        std::string currentHeaderValue;
-        bool lastWasValue{ false };
-    };
+    std::string currentHeaderField;
+    std::string currentHeaderValue;
+    bool lastWasValue{ false };
+};
 
-} // namespace tudou
