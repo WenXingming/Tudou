@@ -52,9 +52,8 @@ class TcpServer {
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>; // 只需要 fd 即可，无需也最好不要传递 TcpConnection 对象
 
 private:
-    // EventLoop* loop;
     std::unique_ptr<EventLoop> loop;
-    std::unique_ptr<InetAddress> listenAddr;
+    InetAddress listenAddr;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
 
@@ -63,7 +62,7 @@ private:
     CloseCallback closeCallback{ nullptr };
 
 public:
-    TcpServer(const InetAddress& _listenAddr);
+    TcpServer(std::string ip, uint16_t port);
     ~TcpServer();
 
     // TcpConnection 发布。不是 TcpServer 发布，Server 只是作为消息传递中间商

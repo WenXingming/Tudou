@@ -290,4 +290,53 @@
 [2025-12-03 13:19:52] [debug] [thread 20897] update_channel(): fd is 6
 [2025-12-03 13:19:52] [info] [thread 20897] EventLoop is looping...
 [2025-12-03 13:19:52] [debug] [thread 20897] Epoll is running... poller monitors channels's size is: 1
-[202
+[202[2025-12-03 13:47:54] [debug] [thread 23137] update_channel(): fd is 5
+[2025-12-03 13:47:54] [debug] [thread 23137] update_channel(): fd is 5
+[2025-12-03 13:47:54] [info] [thread 23137] EventLoop start looping...
+[2025-12-03 13:47:54] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:54] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] Acceptor::ConnectFd 6 is accepted.
+[2025-12-03 13:47:58] [debug] [thread 23137] New connection created. fd is: 6
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 4
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] Acceptor::ConnectFd 7 is accepted.
+[2025-12-03 13:47:58] [debug] [thread 23137] New connection created. fd is: 7
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 7
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 7
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:58] [debug] [thread 23137] poller find event, channel handle event: 4
+[2025-12-03 13:47:58] [debug] [thread 23137] update_channel(): fd is 6
+[2025-12-03 13:47:58] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:58] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 3
+[2025-12-03 13:47:59] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:59] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:59] [debug] [thread 23137] update_channel(): fd is 7
+[2025-12-03 13:47:59] [debug] [thread 23137] update_channel(): fd is 7
+[2025-12-03 13:47:59] [info] [thread 23137] EventLoop is looping...
+[2025-12-03 13:47:59] [debug] [thread 23137] Epoll is running... poller monitors channels's size is: 2
+[2025-12-03 13:47:59] [debug] [thread 23137] Epoll is running... activeChannels's size is: 1
+[2025-12-03 13:47:59] [debug] [thread 23137] poller find event, channel handle event: 1
+[2025-12-03 13:47:59] [debug] [thread 231

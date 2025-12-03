@@ -53,8 +53,8 @@ int main() {
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
     std::thread t2([]() {
         SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/homepage.html");
-        sendFileTcpServer.start(); }
-    );
+        sendFileTcpServer.start();
+        });
     t2.join();
     std::cout << "TcpServer test finished." << std::endl;
 

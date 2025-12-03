@@ -10,9 +10,11 @@
 #include <fstream>
 #include <sstream>
 
-SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath) 
-    : listenAddr(port, ip), responseFilepath(responseFilepath) {
-    tcpServer.reset(new TcpServer(listenAddr));
+SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath)
+    : listenAddr(ip, port)
+    , responseFilepath(responseFilepath) {
+
+    tcpServer.reset(new TcpServer(ip, port));
     tcpServer->set_connection_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
             connect_callback(conn);
@@ -28,6 +30,7 @@ SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::s
             close_callback(conn);
         }
     );
+
 }
 
 SendFileTcpServer::~SendFileTcpServer() {}

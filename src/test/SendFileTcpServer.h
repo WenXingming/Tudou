@@ -23,9 +23,9 @@ public:
     ~SendFileTcpServer();
 
     std::string get_ip() const { return ip; }
-    void set_ip(const std::string& _ip) { ip = _ip; }
+    // void set_ip(const std::string& _ip) { ip = _ip; }
     uint16_t get_port() const { return port; }
-    void set_port(uint16_t _port) { port = _port; }
+    // void set_port(uint16_t _port) { port = _port; }
     std::string get_response_filepath() const { return responseFilepath; }
     void set_response_filepath(const std::string& filepath) {
         responseFilepath = filepath;

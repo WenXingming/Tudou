@@ -14,9 +14,10 @@ private:
     sockaddr_in address;
 
 public:
-    explicit InetAddress(uint16_t _port, std::string _ip = "127.0.0.1");
+    explicit InetAddress(std::string ip, uint16_t port); // 不能隐式转换
     explicit InetAddress(const sockaddr_in& _addr) // 可以拷贝
-        : address(_addr) {}
+        : address(_addr) {
+    }
     ~InetAddress() {}
     // explicit InetAddress(const InetAddress& other) = default;
 

@@ -20,11 +20,11 @@
 #include "EventLoop.h"
 #include "TcpConnection.h"
 
-TcpServer::TcpServer(const InetAddress& _listenAddr)
-    : listenAddr(new InetAddress(_listenAddr)) {
+TcpServer::TcpServer(std::string ip, uint16_t port)
+    : listenAddr(std::move(ip), port) {
     this->loop.reset(new EventLoop());
 
-    acceptor.reset(new Acceptor(this->loop.get(), *this->listenAddr));
+    acceptor.reset(new Acceptor(this->loop.get(), listenAddr));
     acceptor->set_connect_callback(std::bind(&TcpServer::connect_callback, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
