@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎈 祝陈楠生日快乐！</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            /* 字体设置 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 背景：保留您喜欢的柔和紫粉渐变 */
+            background: linear-gradient(135deg, #f0e6fa 0%, #d8bfd8 100%);
+            overflow: hidden;
+            /* 防止滚动条 */
+            position: relative;
+            /* 允许绝对定位的粒子参考 */
+        }
+
+        /* * 粒子容器 
+         * z-index: -1 保证它永远在文字后面，不遮挡文字
+         */
+        #particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            /* 点击穿透 */
+        }
+
+        /* 单个粒子的基础样式 */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            /* 半透明白色，非常柔和 */
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+            /* 轻微发光 */
+            bottom: -50px;
+            /* 从屏幕底部下方开始 */
+            animation: float-up linear infinite;
+        }
+
+        /* 粒子上升动画 */
+        @keyframes float-up {
+            0% {
+                transform: translateY(0) translateX(0) scale(0.8);
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.8;
+                /* 出现 */
+            }
+
+            80% {
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: translateY(-120vh) translateX(50px) scale(1.2);
+                /* 向上飘并稍微变大 */
+                opacity: 0;
+                /* 消失 */
+            }
+        }
+
+        /* * 核心文字框样式 
+         * (完全保留您喜欢的第二版样式，只加了 z-index)
+         */
+        .birthday-message {
+            position: relative;
+            z-index: 10;
+            /* 保证文字浮在粒子上方 */
+            font-size: 5vw;
+            font-weight: bold;
+            color: #8b008b;
+            text-shadow:
+                2px 2px 4px rgba(0, 0, 0, 0.2),
+                0 0 10px rgba(139, 0, 139, 0.5);
+            letter-spacing: 0.05em;
+            text-align: center;
+            padding: 20px 40px;
+            border-radius: 15px;
+            background-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+
+            /* 呼吸动画 */
+            animation: breathe 2.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes breathe {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            }
+
+            100% {
+                transform: scale(1.03);
+                box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .birthday-message {
+                font-size: 8vw;
+                padding: 15px 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="particles"></div>
+
+    <div class="birthday-message">
+        祝陈楠生日快乐！
+    </div>
+
+    <script>
+        /**
+         * 简单的脚本，用于生成随机的背景粒子
+         * 不需要复杂的库，原生JS即可实现
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('particles');
+            const particleCount = 60; // 粒子数量，60个比较适中，不会太乱
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+
+                // 随机属性生成
+                const size = Math.random() * 15 + 5; // 大小：5px 到 20px
+                const left = Math.random() * 100; // 水平位置：0% 到 100%
+                const duration = Math.random() * 10 + 10; // 动画时长：10s 到 20s (慢速飘动)
+                const delay = Math.random() * 15; // 延迟开始，让粒子错落有致
+
+                // 应用样式
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${left}%`;
+                particle.style.animationDuration = `${duration}s`;
+                particle.style.animationDelay = `-${delay}s`; // 使用负延迟，让页面一打开就有粒子在中间
+
+                container.appendChild(particle);
+            }
+        });
+    </script>
+</body>
+
+</html>
