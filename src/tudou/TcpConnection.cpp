@@ -19,8 +19,7 @@
 #include "EventLoop.h"
 
 TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
-    : loop(_loop)
-    , connectFd(_connFd) {
+    : loop(_loop) {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
     channel.reset(new Channel(_loop, _connFd));
@@ -41,7 +40,7 @@ TcpConnection::~TcpConnection() {
 }
 
 int TcpConnection::get_fd() const {
-    return this->connectFd;
+    return this->channel->get_fd();
 }
 
 void TcpConnection::set_message_callback(MessageCallback _cb) {
@@ -69,7 +68,7 @@ std::string TcpConnection::receive() {
 // 从 fd 读数据到 readBuffer，然后触发上层回调处理数据
 void TcpConnection::read_callback() {
     int savedErrno = 0;
-    ssize_t n = readBuffer->read_from_fd(this->connectFd, &savedErrno);
+    ssize_t n = readBuffer->read_from_fd(this->channel->get_fd(), &savedErrno);
     if (n > 0) {
         // 从 fd 读取到了数据到 buffer，触发上层回调逻辑处理数据
         this->handle_message();
@@ -86,7 +85,7 @@ void TcpConnection::read_callback() {
 // 从 writeBuffer 写数据到 fd，写完了就取消对写事件的关注
 void TcpConnection::write_callback() {
     int savedErrno = 0;
-    ssize_t n = writeBuffer->write_to_fd(connectFd, &savedErrno);
+    ssize_t n = writeBuffer->write_to_fd(this->channel->get_fd(), &savedErrno);
     if (n > 0) {
         if (writeBuffer->readable_bytes() == 0) { // writeBuffer 里的数据写完了
             channel->disable_writing();

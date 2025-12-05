@@ -26,8 +26,10 @@ Channel::Channel(EventLoop* _loop, int _fd)
 }
 
 Channel::~Channel() {
+    // 注销 channel，channels 和 负责和 Epoller 同步（相邻类）。该同步不再交给上层 Acceptor / TcpConnection 负责
+    // 好处是：保证了 poller 访问 channel 有效（生命周期），当 channel 析构时才 unregister，因此只要还在 register，就一定有效访问。
     disable_all();
-    remove_in_register(); // 注销 channel，channels 和 负责和 Epoller 同步（相邻类）。该同步不再交给上层 Acceptor / TcpConnection 负责
+    remove_in_register();
     ::close(fd); // fd 生命期应该由 Channel 管理（虽然是上层创建，但是销毁应该由 Channel 负责）。这样就做到了 Channel 完全封装 fd，且 Epoller 的 Channels 和 fd 同步
 }
 

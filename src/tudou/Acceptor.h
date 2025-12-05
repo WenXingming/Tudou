@@ -40,7 +40,6 @@ class Acceptor {
 
 private:
     EventLoop* loop;
-    int listenFd;
     InetAddress listenAddr;
     std::unique_ptr<Channel> channel;
     ConnectCallback connectCallback{ nullptr }; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
@@ -55,9 +54,9 @@ public:
     void set_connect_callback(std::function<void(int)> cb);
 
 private:
-    void create_fd();
-    void bind_address();
-    void start_listen();
+    int create_fd();
+    void bind_address(int listenFd);
+    void start_listen(int listenFd);
 
     // 理论上 Acceptor 不会触发 error、close、write 事件，只监听读事件（新连接到来）。但为了完整性，仍然预留这些回调接口处理逻辑
     void error_callback();

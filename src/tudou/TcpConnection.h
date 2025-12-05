@@ -46,7 +46,6 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 
 private:
     EventLoop* loop;
-    int connectFd;
     std::unique_ptr<Channel> channel;
     std::unique_ptr<Buffer> readBuffer;
     std::unique_ptr<Buffer> writeBuffer;
