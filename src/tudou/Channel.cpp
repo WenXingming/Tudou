@@ -22,16 +22,13 @@ const uint32_t Channel::kWriteEvent = EPOLLOUT;
 Channel::Channel(EventLoop* _loop, int _fd)
     : loop(_loop)
     , fd(_fd) {
-    // 不在构造函数里调用。我们的逻辑上当然是 channel 和 connection/acceptor 同步的
-    // 上层在创建 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor / TcpConnection 同步
-    // Epoller 已经保证 channels 已经和 fd 同步。又有 fd 和 Acceptor/TcpConnection 同步
-    // 所以需要保证 channels 和 Acceptor / TcpConnection 同步
-    // update_to_register();
+    update_to_register(); // 创建 channel 后立即注册到 poller 上，和 fd "创建" 同步
 }
 
 Channel::~Channel() {
-    // 不在析构函数里调用。上层在销毁 Acceptor、TcpConnection 时调用，上层保证 channels 和 Acceptor/TcpConnection 同步
-    // remove_in_register();
+    disable_all();
+    remove_in_register(); // 注销 channel，channels 和 负责和 Epoller 同步（相邻类）。该同步不再交给上层 Acceptor / TcpConnection 负责
+    ::close(fd); // fd 生命期应该由 Channel 管理（虽然是上层创建，但是销毁应该由 Channel 负责）。这样就做到了 Channel 完全封装 fd，且 Epoller 的 Channels 和 fd 同步
 }
 
 int Channel::get_fd() const {

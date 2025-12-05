@@ -37,10 +37,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
 }
 
 TcpConnection::~TcpConnection() {
-    // 注销 channel，channels 和 TcpConnection 销毁同步
-    channel->disable_all();
-    channel->remove_in_register();
-    ::close(this->connectFd);
+
 }
 
 int TcpConnection::get_fd() const {

@@ -32,10 +32,7 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
 }
 
 Acceptor::~Acceptor() {
-    this->channel->disable_all();
-    this->channel->remove_in_register(); // 注销 channel，channels 和 fd 销毁同步
 
-    ::close(this->listenFd); // listenFd 生命期应该由 Acceptor 管理（创建和销毁）
 }
 
 int Acceptor::get_listen_fd() const {

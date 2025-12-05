@@ -110,5 +110,12 @@ fd 和 channel 生命期进行绑定，因为从逻辑上讲，channel 就是对
 
 ## Others
 
+1. ✅（已完成，例如 EventLoop 和 Channel，见 Commit 21ae66caeb34b21e18085e6cd2df515946d85a1c）画一颗类图，类之间只进行相邻类之间的通信（立马就清晰许多了），因此我们知道，update to epoll 应该由 channel做，而不是 Acceptor 和 Tcpconn！ 而且发现，自下而上的通信有两种实现方式：回调和依赖注入。我们或许可以只关注相邻类之间的通信（loop和channe是个例外，能够也融入该思想呢，好像可以！）！相邻类就是数据流通的路径，不应该跳，那样就是出现了环比较复杂！
+   - epoll_wait是一个函数，同时执行自动扩缩x，遍历完再自动扩缩
+   - get_activate_channels是一个函数
+   - 对每个channel通知事件分发也是一个函数
+
+2. ✅（已完成，例如 Channel 和 Epoller）。画一颗类图，类之间只进行相邻类之间的通信（立马就清晰许多了），因此我们知道，Channel 的 update_to_register() 和 remove_in_register() 应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用！因为 Channel 封装了 fd，因此 close(fd) 也应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用（生命期：虽然 fd 的创建是由上层负责，但销毁应该由 Channel 负责）！
+
 - TcpConnection 的生命周期非常复杂（许多回调函数参数都是 TcpConnection 的 shared_ptr），因此使用 shared_ptr 管理生命周期
 - 回调函数不能直接用编辑器追踪函数跳转...可以用 handle_xxx() 方法名来查找对应的回调函数 xxx_callback() 实现位置
