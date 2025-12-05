@@ -114,4 +114,5 @@ classDiagram
     TcpConnection "1" *-- "1" Buffer: owns
     
     TcpServer "1" *-- "1" Acceptor: owns
-    TcpServer "1" *-- "n" TcpConnection: manages
+    TcpServer "1" *-- "n" TcpConnection: owns(shared_ptr)
+    TcpServer "1" --> "1" EventLoop: owns

@@ -59,7 +59,7 @@ void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& c
 }
 
 void SendFileTcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    spdlog::info("Connection closed. fd: {}", conn->get_fd());
+    spdlog::debug("Connection closed. fd: {}", conn->get_fd());
 }
 
 // 1. 接收数据

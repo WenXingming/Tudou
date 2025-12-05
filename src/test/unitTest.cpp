@@ -38,9 +38,9 @@ void set_logger() {
     spdlog::set_default_logger(my_logger);
 
     // 设置日志级别和格式
-    // spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::debug);
     // spdlog::set_level(spdlog::level::info);
-    spdlog::set_level(spdlog::level::err);
+    // spdlog::set_level(spdlog::level::err);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v");
 }
 
@@ -58,7 +58,7 @@ int main() {
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
     std::thread t2([]() {
-        SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/homepage.html");
+        SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/happy-birthday.html");
         sendFileTcpServer.start();
         });
     t2.join();
@@ -75,8 +75,8 @@ int main() {
     // std::cout << "HttpParser test finished." << std::endl;
 
 
-    // spdlog::debug("Starting HttpServer test...");
     // // 测试 HttpServer 服务器：TcpServer + HttpServer
+    // spdlog::debug("Starting HttpServer test...");
     // std::thread t4([]() {
     //     TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
     //     // TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");

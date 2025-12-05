@@ -45,6 +45,9 @@ public:
     void remove_channel(Channel* channel);
 
 private:
-    std::vector<Channel*> get_activate_channels(int numEvents);
+    // 完成 poll() 的辅助函数（面向过程设计）
+    int get_ready_num();
+    std::vector<Channel*> get_activate_channels(int numReady);
+    void dispatch_events(const std::vector<Channel*>& activeChannels);
     void resize_event_list(int numReady);
 };

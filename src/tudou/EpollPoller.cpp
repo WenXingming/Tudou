@@ -37,19 +37,26 @@ int EpollPoller::get_poll_timeout_ms() const {
 std::vector<Channel*> EpollPoller::poll() {
     spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels.size());
 
+    int numReady = get_ready_num();
+    std::vector<Channel*> activeChannels = get_activate_channels(numReady);
+    dispatch_events(activeChannels);
+    resize_event_list(numReady); // get_activate_channels 完成后调用，防止使用过程中 eventList 大小变化
+
+    return std::move(activeChannels);
+}
+
+int EpollPoller::get_ready_num() {
     int numReady = epoll_wait(epollFd
         , eventList.data()
         , static_cast<int>(eventList.size())
         , pollTimeoutMs
     );
-    assert(numReady >= 0); // 否则 Error, 说明 epoll_wait 出错
+    if (numReady < 0) {
+        spdlog::error("EpollPoller::poll() error: epoll_wait return {}", numReady);
+    }
+    spdlog::debug("EpollPoller::poll() return numReady: {}", numReady);
 
-    spdlog::debug("Epoll is running... activeChannels's size is: {}", numReady);
-
-    std::vector<Channel*> activeChannels;
-    activeChannels = get_activate_channels(numReady);
-
-    return std::move(activeChannels);
+    return numReady;
 }
 
 // 根据 epoll_wait 返回的就绪事件（存放在 eventList 中），找到对应的 channel 并设置 revent、维护 channels
@@ -59,7 +66,7 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
     for (int i = 0; i < numReady; ++i) {
         const epoll_event& event = this->eventList[i];
         int fd = event.data.fd;
-        auto revent = event.events;
+        uint32_t revent = event.events;
 
         auto it = channels.find(fd);
         assert(it != channels.end()); // 否则 Error：说明 epoll 和 channels 不同步
@@ -68,8 +75,14 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
         activeChannels.push_back(channel);
     }
 
-    resize_event_list(numReady);
     return std::move(activeChannels);
+}
+
+// 对每一个 active channel，进行事件分发, 通知 channel 进行事件分发处理回调
+void EpollPoller::dispatch_events(const std::vector<Channel*>& activeChannels) {
+    for (auto channel : activeChannels) {
+        channel->handle_events();
+    }
 }
 
 // eventList 自动扩容和缩减

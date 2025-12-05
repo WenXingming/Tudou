@@ -24,10 +24,6 @@ void EventLoop::loop(int timeoutMs) const {
 
         // 使用 poller 监听发生事件的 channels
         std::vector<Channel*> activeChannels = poller->poll();
-        // 通知 channel 进行事件分发处理回调
-        for (auto channel : activeChannels) {
-            channel->handle_events();
-        }
     }
 
     spdlog::debug("EventLoop stop looping.");
