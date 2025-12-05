@@ -1,8 +1,7 @@
 #include "HttpServer.h"
 
-
-#include "../base/Log.h"
 #include "spdlog/spdlog.h"
+
 
 HttpServer::HttpServer(std::string ip, uint16_t port)
     : ip(std::move(ip))
@@ -13,10 +12,13 @@ HttpServer::HttpServer(std::string ip, uint16_t port)
         [this](const std::shared_ptr<TcpConnection>& conn) {
             connect_callback(conn);
         });
-
     tcpServer->set_message_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
             message_callback(conn);
+        });
+    tcpServer->set_close_callback(
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            close_callback(conn);
         });
 }
 
@@ -26,34 +28,19 @@ void HttpServer::start() {
 
 void HttpServer::connect_callback(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
-    if (/* conn->is_connected() */1) {
-        // LOG::LOG_DEBUG("[HttpServer] New connection established. fd=%d", fd);
-        spdlog::debug("[HttpServer] New connection established. fd={}", fd);
-
-        // contexts.emplace(fd, HttpContext{});
-        httpContexts[fd].reset(new HttpContext());
-    }
-    else {
-        // LOG::LOG_ERROR("[HttpServer] Connection closed. fd=%d", fd);
-        httpContexts.erase(fd);
-    }
+    httpContexts[fd].reset(new HttpContext());
+    spdlog::debug("HttpServer: on_connection fd={}", fd);
 }
 
 void HttpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
-    // LOG::LOG_DEBUG("[HttpServer] on_message fd=%d", conn->get_fd());
+    spdlog::debug("HttpServer: on_message fd={}", conn->get_fd());
 
     int fd = conn->get_fd();
     auto it = httpContexts.find(fd);
     if (it == httpContexts.end()) {
-        // 没有上下文，直接丢弃本次数据
-        // conn->receive();
-        // return;
-        // 没有上下文就创建一个，避免丢失
-        // it = contexts.emplace(fd, HttpContext{}).first;
-        it->second.reset(new HttpContext());
-        // LOG::LOG_DEBUG("[HttpServer] Created new HttpContext for fd=%d", fd);
+        spdlog::error("HttpServer: No HttpContext found for fd={}", fd);
+        return;
     }
-
     HttpContext& ctx = *(it->second);
 
     // 目前 TcpConnection 只暴露 receive()，先用一次性读取实现简单版本
@@ -63,47 +50,40 @@ void HttpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
     while (true) {
         std::string chunk = conn->receive();
         if (chunk.empty()) break;
-        data.append(chunk);
+        data.append(std::move(chunk));
     }
-    // LOG::LOG_DEBUG("[HttpServer] data size = %zu", data.size());
     if (data.empty()) {
+        spdlog::debug("HttpServer: Received empty data from fd={}", fd);
         return;
     }
 
     size_t nparsed = 0;
-    // LOG::LOG_DEBUG("[HttpServer] before parse");
     bool ok = ctx.parse(data.data(), data.size(), nparsed);
-    // LOG::LOG_DEBUG("[HttpServer] after parse");
-    // LOG::LOG_DEBUG("[HttpServer] parse ok=%d complete=%d nparsed=%zu len=%zu", ok, ctx.is_complete(), nparsed, data.size());
     if (!ok) {
-        // LOG::LOG_ERROR("[HttpServer] parse error, close connection");
-        HttpResponse resp;
-        resp.set_status(400, "Bad Request");
-        resp.set_close_connection(true);
-        resp.set_body("Bad Request");
-        resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
-        resp.add_header("Content-Type", "text/plain");
-        conn->send(resp.package_to_string());
+        spdlog::debug("HttpServer: Bad request from fd={}", fd);
+        conn->send(generate_bad_response());
         // conn->shutdown();
         return;
     }
 
     if (ctx.is_complete()) {
-        handle_request(conn, ctx);
+        handle_message(conn, ctx);
         ctx.reset();
     }
 }
 
+
 void HttpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
-    // LOG::LOG_DEBUG("[HttpServer] Connection closed. fd=%d", fd);
     httpContexts.erase(fd);
+    spdlog::debug("HttpServer: Connection closed. fd={}", fd);
 }
 
-void HttpServer::handle_request(const std::shared_ptr<TcpConnection>& conn,
+
+void HttpServer::handle_message(const std::shared_ptr<TcpConnection>& conn,
     HttpContext& ctx) {
     if (!messageCallback) {
-        conn->send(generate_404_page()); // 默认返回 404
+        conn->send(generate_404_response()); // 默认返回 404
         // conn->shutdown();
         return;
     }
@@ -127,7 +107,18 @@ void HttpServer::handle_request(const std::shared_ptr<TcpConnection>& conn,
     }
 }
 
-std::string HttpServer::generate_404_page() {
+
+std::string HttpServer::generate_bad_response() {
+    HttpResponse resp;
+    resp.set_status(400, "Bad Request");
+    resp.set_close_connection(true);
+    resp.set_body("Bad Request");
+    resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
+    resp.add_header("Content-Type", "text/plain");
+    return std::move(resp.package_to_string());
+}
+
+std::string HttpServer::generate_404_response() {
     HttpResponse resp;
     resp.set_status(404, "Not Found");
     resp.set_close_connection(true);

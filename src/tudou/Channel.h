@@ -31,15 +31,12 @@
  */
 
 #pragma once
-#include <cstdint>
 #include <functional>
 #include <sys/epoll.h>
 
-#include "../base/NonCopyable.h"
 
-class Timestamp;
 class EventLoop;
-class Channel : public NonCopyable {
+class Channel {
 private:
     static const uint32_t kNoneEvent; // 类所有实例共享，节省空间
     static const uint32_t kReadEvent;
@@ -56,6 +53,8 @@ private:
 
 public:
     explicit Channel(EventLoop* loop, int fd);
+    Channel(const Channel&) = delete;
+    Channel& operator=(const Channel&) = delete;
     ~Channel();
 
     int get_fd() const;
@@ -80,10 +79,10 @@ public:
     void remove_in_register();
 
     // 核心函数：事件发生后调用回调
-    void handle_events(Timestamp receiveTime);
+    void handle_events();
 
 private:
-    void handle_events_with_guard(Timestamp receiveTime);
+    void handle_events_with_guard();
     void handle_read();
     void handle_write();
     void handle_close();

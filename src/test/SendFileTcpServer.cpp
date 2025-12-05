@@ -5,6 +5,7 @@
 #include "../tudou/EventLoop.h"
 #include "../tudou/EpollPoller.h"
 #include "../tudou/TcpConnection.h"
+#include "spdlog/spdlog.h"
 
 #include <iostream>
 #include <fstream>
@@ -41,7 +42,7 @@ void SendFileTcpServer::start() {
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑
 void SendFileTcpServer::connect_callback(const std::shared_ptr<TcpConnection>& conn) {
-    std::cout << "New connection established. fd: " << conn->get_fd() << std::endl;
+    spdlog::info("New connection established. fd: {}", conn->get_fd());
 }
 
 void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
@@ -58,7 +59,7 @@ void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& c
 }
 
 void SendFileTcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    std::cout << "Connection closed. fd: " << conn->get_fd() << std::endl;
+    spdlog::info("Connection closed. fd: {}", conn->get_fd());
 }
 
 // 1. 接收数据

@@ -41,7 +41,6 @@ public:
     bool parse(const char* data, size_t len, size_t& nparsed);
 
     bool is_complete() const { return messageComplete; }
-
     const HttpRequest& get_request() const { return request; }
 
     void reset();

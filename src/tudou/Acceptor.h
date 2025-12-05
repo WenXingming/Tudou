@@ -28,12 +28,11 @@
 #include <memory>
 
 #include "../base/InetAddress.h"
-#include "../base/NonCopyable.h"
 
 class EventLoop;
 class Channel;
 class InetAddress;
-class Acceptor : public NonCopyable {
+class Acceptor {
     // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
     // using ConnectCallback = std::function<void(const Acceptor&)>;
     // 直接传递 connFd 更简单，因为上层只需要这个 fd 来创建 TcpConnection。Acceptor 只能提供 listenFd，没有 connFd
@@ -48,6 +47,8 @@ private:
 
 public:
     Acceptor(EventLoop* _loop, const InetAddress& _listenAddr);
+    Acceptor(const Acceptor&) = delete;
+    Acceptor& operator=(const Acceptor&) = delete;
     ~Acceptor();
 
     int get_listen_fd() const;

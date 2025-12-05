@@ -79,7 +79,6 @@ void Acceptor::write_callback() {
     // 理论上不应该触发写事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::write_callback() is called.");
     spdlog::error("Acceptor::listenFd {} write event.", this->listenFd);
-    assert(false);
 }
 
 void Acceptor::read_callback() {

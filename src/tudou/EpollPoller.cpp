@@ -8,8 +8,8 @@
 
 #include "EpollPoller.h"
 
-#include <assert.h>
-#include <string.h>
+#include <cassert>
+#include <cstring>
 #include <unistd.h>
 
 #include "spdlog/spdlog.h"
@@ -23,7 +23,6 @@ EpollPoller::EpollPoller() {
 EpollPoller::~EpollPoller() {
     int ret = ::close(epollFd);
     assert(ret == 0);
-    channels.clear();
 }
 
 void EpollPoller::set_poll_timeout_ms(int timeoutMs) {
@@ -74,12 +73,12 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
 }
 
 // eventList 自动扩容和缩减
-void EpollPoller::resize_event_list(int numReady) {
+void EpollPoller::resize_event_list(const int numReady) {
     if (numReady == eventList.size()) {
-        eventList.resize(eventList.size() * 1.5);
+        eventList.resize(static_cast<size_t>(eventList.size() * 1.5));
     }
     else if (eventList.size() > eventListSize && numReady < eventList.size() * 0.25) {
-        eventList.resize(eventList.size() * 0.5);
+        eventList.resize(static_cast<size_t>(eventList.size() * 0.5));
     }
     else;
 }

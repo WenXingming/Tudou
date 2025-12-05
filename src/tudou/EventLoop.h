@@ -2,7 +2,7 @@
  * @file EventLoop.h
  * @brief 事件循环（Reactor）核心类，驱动 I/O 事件的收集与回调执行。
  * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
+ * @project: https://github.com/WenXingming/Tudou
  * @details
  *
  * 说明：
@@ -15,24 +15,20 @@
  * - 对外暴露 update_channel()/remove_channel() 方法，用于 Channel 向 EventLoop 注册或取消自身。
  *
  * 线程模型与约定：
- * - EventLoop 继承自 NonCopyable，禁止拷贝与赋值以避免多个所有者。
+ * - EventLoop ，禁止拷贝与赋值以避免多个所有者。
  * - EventLoop 通常与线程一一绑定（一个线程一个 EventLoop），非线程安全方法须在所属线程调用。
  *
  */
 
 #pragma once
 #include <memory>
+#include "EpollPoller.h" // std::unique_ptr 的默认删除器（std::default_delete）在析构时需要调用 delete ptr，这要求 EpollPoller 的完整定义必须可见
 
-#include "../base/NonCopyable.h"
-#include "../tudou/EpollPoller.h"
-
-class EpollPoller;
 class Channel;
-class Timestamp;
-
-class EventLoop : NonCopyable {
+class EventLoop {
 private:
     std::unique_ptr<EpollPoller> poller; // 拥有 poller，控制其生命期。智能指针，自动析构
+    bool isLooping{ true };             // 标记事件循环状态
 
 public:
     EventLoop();
@@ -40,7 +36,10 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    void loop(int timeoutMs = 10000);
-    void update_channel(Channel* channel);
-    void remove_channel(Channel* channel);
+    bool get_is_looping() const;
+    void set_is_looping(bool looping);
+
+    void loop(int timeoutMs = 10000) const;
+    void update_channel(Channel* channel) const;
+    void remove_channel(Channel* channel) const;
 };

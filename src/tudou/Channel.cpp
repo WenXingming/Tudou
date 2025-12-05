@@ -8,12 +8,12 @@
 
 #include "Channel.h"
 
+#include <cassert>
 #include <sys/epoll.h>
-#include <assert.h>
 
 #include "spdlog/spdlog.h"
-#include "../base/Timestamp.h"
 #include "EventLoop.h"
+
 
 const uint32_t Channel::kNoneEvent = 0;
 const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
@@ -97,11 +97,11 @@ void Channel::remove_in_register() {
     loop->remove_channel(this);
 }
 
-void Channel::handle_events(Timestamp receiveTime) {
-    handle_events_with_guard(receiveTime);
+void Channel::handle_events() {
+    handle_events_with_guard();
 }
 
-void Channel::handle_events_with_guard(Timestamp receiveTime) {
+void Channel::handle_events_with_guard() {
     spdlog::debug("poller find event, channel handle event: {}", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {

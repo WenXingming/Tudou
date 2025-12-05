@@ -39,8 +39,8 @@ class Channel;
 class Buffer;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     // 上层业务回调函数类型定义
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
-    // 使用 shared_ptr，避免回调过程中对象被析构
+    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 虽然理论上 MessageCallback 参数只使用 string，CloseCallback 参数只使用 fd，但是其实传入 TcpConnection 更方便上层获取更多信息。特别是使用 shared_ptr，避免回调过程中对象被析构
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
@@ -58,8 +58,8 @@ public:
     ~TcpConnection();
 
     int get_fd() const;
-    void set_message_callback(MessageCallback _cb); // TcpConnection <==> 业务层，TcpServer 只是中间商
-    void set_close_callback(CloseCallback _cb); // TcpConnection <==> TcpServer
+    void set_message_callback(MessageCallback _cb);
+    void set_close_callback(CloseCallback _cb);
 
     // 公开接口，供上层业务层调用
     void send(const std::string& msg);

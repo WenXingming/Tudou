@@ -39,10 +39,10 @@ private:
     void message_callback(const std::shared_ptr<TcpConnection>& conn);
     void close_callback(const std::shared_ptr<TcpConnection>& conn);
 
-    void handle_request(const std::shared_ptr<TcpConnection>& conn,
+    void handle_message(const std::shared_ptr<TcpConnection>& conn,
         HttpContext& ctx);
 
-    std::string generate_404_page();
+    std::string generate_bad_response();
+    std::string generate_404_response();
 
 };
-

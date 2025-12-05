@@ -1,41 +1,42 @@
 #include "EventLoop.h"
-
-#include <assert.h>
-#include <sys/eventfd.h>
-#include <sys/syscall.h> // 定义 SYS_gettid
-#include <unistd.h>
-
-#include "spdlog/spdlog.h"
-#include "../base/Timestamp.h"
 #include "Channel.h"
-#include "EpollPoller.h"
+#include "spdlog/spdlog.h"
+
 
 EventLoop::EventLoop()
     : poller(new EpollPoller()) {
 }
 
-void EventLoop::loop(int timeoutMs) {
-    spdlog::info("EventLoop start looping...");
+bool EventLoop::get_is_looping() const {
+    return isLooping;
+}
+
+void EventLoop::set_is_looping(bool looping) {
+    isLooping = looping;
+}
+
+void EventLoop::loop(int timeoutMs) const {
+    spdlog::debug("EventLoop start looping...");
 
     poller->set_poll_timeout_ms(timeoutMs);
-    while (true) {
-        spdlog::info("EventLoop is looping...");
+    while (this->isLooping) {
+        spdlog::debug("EventLoop is looping...");
 
         // 使用 poller 监听发生事件的 channels
         std::vector<Channel*> activeChannels = poller->poll();
         // 通知 channel 进行事件分发处理回调
         for (auto channel : activeChannels) {
-            channel->handle_events(Timestamp::now());
+            channel->handle_events();
         }
     }
 
-    spdlog::info("EventLoop stop looping.");
+    spdlog::debug("EventLoop stop looping.");
 }
 
-void EventLoop::update_channel(Channel* channel) {
+void EventLoop::update_channel(Channel* channel) const {
     poller->update_channel(channel);
 }
 
-void EventLoop::remove_channel(Channel* channel) {
+void EventLoop::remove_channel(Channel* channel) const {
     poller->remove_channel(channel);
 }
