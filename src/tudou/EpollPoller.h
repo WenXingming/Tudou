@@ -40,7 +40,7 @@ public:
     void set_poll_timeout_ms(int timeoutMs);
     int get_poll_timeout_ms() const;
 
-    std::vector<Channel*> poll();
+    void poll();
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
 

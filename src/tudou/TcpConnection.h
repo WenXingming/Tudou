@@ -68,10 +68,10 @@ public:
 
 private:
     // 处理 channel 事件的上层回调函数
-    void read_callback();
-    void write_callback();
-    void close_callback();
-    void error_callback();
+    void read_callback(Channel& channel);
+    void write_callback(Channel& channel);
+    void close_callback(Channel& channel);
+    void error_callback(Channel& channel);
 
     // 触发上层回调
     void handle_message();

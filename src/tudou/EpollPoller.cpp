@@ -34,7 +34,7 @@ int EpollPoller::get_poll_timeout_ms() const {
 }
 
 // 使用 epoll_wait() 返回活动的 channels 列表
-std::vector<Channel*> EpollPoller::poll() {
+void EpollPoller::poll() {
     spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels.size());
 
     int numReady = get_ready_num();
@@ -42,7 +42,6 @@ std::vector<Channel*> EpollPoller::poll() {
     dispatch_events(activeChannels);
     resize_event_list(numReady); // get_activate_channels 完成后调用，防止使用过程中 eventList 大小变化
 
-    return std::move(activeChannels);
 }
 
 int EpollPoller::get_ready_num() {
@@ -99,14 +98,14 @@ void EpollPoller::resize_event_list(const int numReady) {
 // 维护注册中心 epollfd、channels。使用 epoll_ctl() 更新, 包括 EPOLL_CTL_ADD、EPOLL_CTL_MOD
 void EpollPoller::update_channel(Channel* channel) {
     int fd = channel->get_fd();
-    auto event = channel->get_event();
+    uint32_t event = channel->get_event();
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.data.fd = fd;
     ev.events = event;
 
-    spdlog::debug("update_channel(): fd is {}", fd);
+    spdlog::debug("EpollPoller::update_channel(): fd is {}", fd);
 
     auto findIt = channels.find(fd);
     if (findIt == channels.end()) {
@@ -127,6 +126,6 @@ void EpollPoller::remove_channel(Channel* channel) {
 
     // epollfd、channels 应该同步。后续还有 channels 和 Acceptor/TcpConnection 之间的同步问题需要解决（如何保证同步？）
     int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
-    channels.erase(fd);
     assert(epollCtlRet == 0);
+    channels.erase(fd);
 }

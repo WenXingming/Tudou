@@ -42,7 +42,7 @@ void SendFileTcpServer::start() {
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑
 void SendFileTcpServer::connect_callback(const std::shared_ptr<TcpConnection>& conn) {
-    spdlog::info("New connection established. fd: {}", conn->get_fd());
+    spdlog::debug("New connection established. fd: {}", conn->get_fd());
 }
 
 void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {

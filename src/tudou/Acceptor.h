@@ -59,10 +59,10 @@ private:
     void start_listen(int listenFd);
 
     // 理论上 Acceptor 不会触发 error、close、write 事件，只监听读事件（新连接到来）。但为了完整性，仍然预留这些回调接口处理逻辑
-    void error_callback();
-    void close_callback();
-    void write_callback();
-    void read_callback();
+    void error_callback(Channel& channel);
+    void close_callback(Channel& channel);
+    void write_callback(Channel& channel);
+    void read_callback(Channel& channel); // 有新连接到来，循环 accept
 
     void handle_connect(int connFd); // 触发上层回调
 };

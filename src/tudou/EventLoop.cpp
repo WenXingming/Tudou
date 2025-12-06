@@ -19,11 +19,11 @@ void EventLoop::loop(int timeoutMs) const {
     spdlog::debug("EventLoop start looping...");
 
     poller->set_poll_timeout_ms(timeoutMs);
-    while (this->isLooping) {
+    while (isLooping) {
         spdlog::debug("EventLoop is looping...");
 
         // 使用 poller 监听发生事件的 channels
-        std::vector<Channel*> activeChannels = poller->poll();
+        poller->poll();
     }
 
     spdlog::debug("EventLoop stop looping.");

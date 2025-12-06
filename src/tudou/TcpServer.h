@@ -53,9 +53,10 @@ private:
     std::unique_ptr<EventLoop> loop;
     std::string ip;
     uint16_t port;
-    InetAddress listenAddr;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
+
+    // std::shared_ptr<TcpConnection> removeConnection;; // 用于 close_callback 中暂存，避免悬空指针
 
     ConnectionCallback connectionCallback{ nullptr };
     MessageCallback messageCallback{ nullptr };

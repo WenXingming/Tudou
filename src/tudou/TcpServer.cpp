@@ -22,12 +22,11 @@
 
 TcpServer::TcpServer(std::string ip, uint16_t port)
     : ip(std::move(ip))
-    , port(port)
-    , listenAddr(this->ip, this->port) {
-    
+    , port(port) {
+
     this->loop.reset(new EventLoop());
-    
-    acceptor.reset(new Acceptor(this->loop.get(), listenAddr));
+
+    acceptor.reset(new Acceptor(this->loop.get(), InetAddress(this->ip, this->port)));
     acceptor->set_connect_callback(std::bind(&TcpServer::connect_callback, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
@@ -97,6 +96,7 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     auto findIt = connections.find(fd);
     if (findIt != connections.end()) {
+        // removeConnection = findIt->second; // 暂存，避免悬空指针
         connections.erase(findIt);
     }
     else {

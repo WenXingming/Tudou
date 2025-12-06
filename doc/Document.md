@@ -115,7 +115,7 @@ fd 和 channel 生命期进行绑定，因为从逻辑上讲，channel 就是对
    - get_activate_channels是一个函数
    - 对每个channel通知事件分发也是一个函数
 
-2. ✅（已完成，例如 Channel 和 Epoller）。画一颗类图，类之间只进行相邻类之间的通信（立马就清晰许多了），因此我们知道，Channel 的 update_to_register() 和 remove_in_register() 应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用！因为 Channel 封装了 fd，因此 close(fd) 也应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用（生命期：虽然 fd 的创建是由上层负责，但销毁应该由 Channel 负责）！
+2. ✅（已完成，例如 Channel 和 Epoller）。画一颗类图，类之间只进行相邻类之间的通信（立马就清晰许多了），因此我们知道，Channel 的 update_in_register() 和 remove_in_register() 应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用！因为 Channel 封装了 fd，因此 close(fd) 也应该由 Channel 自己调用，而不是上层 Acceptor 和 TcpConnection 调用（生命期：虽然 fd 的创建是由上层负责，但销毁应该由 Channel 负责）！
 
 3. **Tudou 复杂在：1、类组织设计结构非树，而是有环；2、需要自下到上通信。为了减轻复杂度，所以我们在设计类（的方法）时，尽量只让相邻类通信，避免跨越多层类通信。这样就能把复杂度降低很多。**
 

@@ -20,13 +20,14 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
     this->start_listen(listenFd);
 
     // 初始化 channel. 也可以放在初始化列表里，但注意初始化顺序（依赖 listenFd）
+    // callback 参数使用 std::bind 绑定成员函数和 this 指针，函数被调用时（底层）参数的实际传入由底层传入（自身引用）
     this->channel.reset(new Channel(this->loop, listenFd)); // unique_ptr 无法拷贝，所以使用 reset + new
-    this->channel->set_read_callback(std::bind(&Acceptor::read_callback, this));
-    this->channel->set_error_callback(std::bind(&Acceptor::error_callback, this));
-    this->channel->set_close_callback(std::bind(&Acceptor::close_callback, this));
-    this->channel->set_write_callback([this]() { this->write_callback(); });
+    this->channel->set_read_callback(std::bind(&Acceptor::read_callback, this, std::placeholders::_1));
+    this->channel->set_error_callback(std::bind(&Acceptor::error_callback, this, std::placeholders::_1));
+    this->channel->set_close_callback(std::bind(&Acceptor::close_callback, this, std::placeholders::_1));
+    this->channel->set_write_callback(std::bind(&Acceptor::write_callback, this, std::placeholders::_1));
     this->channel->enable_reading();
-    this->channel->update_to_register(); // 注册到 poller，和 fd 创建同步
+    this->channel->update_in_register(); // 注册到 poller，和 fd 创建同步
 
     // connectCallback 已经在类声明时初始化为 nullptr。无需在此重复初始化
 }
@@ -60,29 +61,30 @@ void Acceptor::start_listen(int listenFd) {
     assert(listenRet != -1);
 }
 
-void Acceptor::error_callback() {
+void Acceptor::error_callback(Channel& channel) {
+    // 在函数体里，同名的形参 channel 会屏蔽掉成员变量 channel；想访问成员变量，需要写成 this->channel
     // 理论上不应该触发错误事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::error_callback() is called.");
-    spdlog::error("Acceptor::listenFd {} error.", this->channel->get_fd());
+    spdlog::error("Acceptor::listenFd {} error.", channel.get_fd());
 }
 
-void Acceptor::close_callback() {
+void Acceptor::close_callback(Channel& channel) {
     // 理论上不应该触发关闭事件
     spdlog::error("Acceptor::close_callback() is called.");
-    spdlog::error("Acceptor::listenFd {} is closed.", this->channel->get_fd());
+    spdlog::error("Acceptor::listenFd {} is closed.", channel.get_fd());
     assert(false);
 }
 
-void Acceptor::write_callback() {
+void Acceptor::write_callback(Channel& channel) {
     // 理论上不应该触发写事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::write_callback() is called.");
-    spdlog::error("Acceptor::listenFd {} write event.", this->channel->get_fd());
+    spdlog::error("Acceptor::listenFd {} write event.", channel.get_fd());
 }
 
-void Acceptor::read_callback() {
+void Acceptor::read_callback(Channel& channel) {
     sockaddr_in clientAddr;
     socklen_t len = sizeof(clientAddr);
-    int connFd = ::accept(this->channel->get_fd(), (sockaddr*)&clientAddr, &len);
+    int connFd = ::accept(channel.get_fd(), (sockaddr*)&clientAddr, &len);
     if (connFd < 0) {
         spdlog::error("Acceptor::read_callback(). accept error, errno: {}", errno);
     }

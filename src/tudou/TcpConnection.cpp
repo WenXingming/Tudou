@@ -23,12 +23,12 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
     channel.reset(new Channel(_loop, _connFd));
-    channel->set_read_callback(std::bind(&TcpConnection::read_callback, this));
-    channel->set_write_callback([this]() { this->write_callback(); });
-    channel->set_close_callback([this]() { this->close_callback(); });
-    channel->set_error_callback([this]() { this->error_callback(); });
+    channel->set_read_callback(std::bind(&TcpConnection::read_callback, this, std::placeholders::_1));
+    channel->set_write_callback([this](Channel& channel) { this->write_callback(channel); });
+    channel->set_close_callback([this](Channel& channel) { this->close_callback(channel); });
+    channel->set_error_callback([this](Channel& channel) { this->error_callback(channel); });
     channel->enable_reading();
-    channel->update_to_register(); // 注册到 poller，和 TcpConnection 创建同步
+    channel->update_in_register(); // 注册到 poller，和 TcpConnection 创建同步
 
     // 初始化缓冲区, unique_ptr 自动管理内存。Don't forget! Or cause segfault!
     readBuffer.reset(new Buffer());
@@ -66,39 +66,39 @@ std::string TcpConnection::receive() {
 } */
 
 // 从 fd 读数据到 readBuffer，然后触发上层回调处理数据
-void TcpConnection::read_callback() {
+void TcpConnection::read_callback(Channel& channel) {
     int savedErrno = 0;
-    ssize_t n = readBuffer->read_from_fd(this->channel->get_fd(), &savedErrno);
+    ssize_t n = readBuffer->read_from_fd(channel.get_fd(), &savedErrno);
     if (n > 0) {
         // 从 fd 读取到了数据到 buffer，触发上层回调逻辑处理数据
         this->handle_message();
     }
     else if (n == 0) { // 对端关闭
-        this->close_callback();
+        this->close_callback(channel);
     }
     else {
         spdlog::error("TcpConnection::read_callback(). read error: {}", savedErrno);
-        this->close_callback();
+        this->close_callback(channel);
     }
 }
 
 // 从 writeBuffer 写数据到 fd，写完了就取消对写事件的关注
-void TcpConnection::write_callback() {
+void TcpConnection::write_callback(Channel& channel) {
     int savedErrno = 0;
-    ssize_t n = writeBuffer->write_to_fd(this->channel->get_fd(), &savedErrno);
+    ssize_t n = writeBuffer->write_to_fd(channel.get_fd(), &savedErrno);
     if (n > 0) {
         if (writeBuffer->readable_bytes() == 0) { // writeBuffer 里的数据写完了
-            channel->disable_writing();
+            channel.disable_writing();
         }
     }
     else {
         spdlog::error("TcpConnection::write_callback(). write error: {}", savedErrno);
-        this->close_callback(); // 是否需要关闭连接？
+        this->close_callback(channel); // 是否需要关闭连接？
     }
 }
 
-void TcpConnection::close_callback() {
-    channel->disable_all();
+void TcpConnection::close_callback(Channel& channel) {
+    channel.disable_all();
     // channel->remove_in_register();
     // fd 生命期由 TcpConnection 管理（绑定）。因此这里不关闭 fd，析构函数中关闭
 
@@ -106,9 +106,9 @@ void TcpConnection::close_callback() {
     this->handle_close();
 }
 
-void TcpConnection::error_callback() {
+void TcpConnection::error_callback(Channel& channel) {
     spdlog::error("TcpConnection::error_callback() called.");
-    this->close_callback();
+    this->close_callback(channel);
 }
 
 void TcpConnection::handle_message() {

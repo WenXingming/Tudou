@@ -12,14 +12,14 @@ TestNetlib::TestNetlib() {
 
     channel.reset(new Channel(loop.get(), 0)); // fd = 0 (标准输入)
     channel->enable_reading();
-    channel->set_read_callback([&](/* Timestamp receivetime */) {
+    channel->set_read_callback([&](Channel& channel) {
         char buf[1024]{};
         ssize_t n = read(0, buf, sizeof(buf) - 1);
         if (n > 0) {
             std::cout << "stdin: " << buf << std::endl;
         }
         });
-    channel->update_to_register(); // 创建 channel 后，注册到 poller。
+    channel->update_in_register(); // 创建 channel 后，注册到 poller。
 }
 
 TestNetlib::~TestNetlib() {

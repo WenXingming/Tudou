@@ -11,7 +11,7 @@
  *  - 保存该 fd 在可读/可写/关闭/错误等情况下需要触发的回调函数。
  *  - 在事件发生时（EventLoop 从 Poller 得到活动事件并设置 revent），
  *    调用 handle_events，按 revent 分发并触发相应的回调。
- *  - 当对感兴趣事件做修改（enable/disable）时，通过 update_to_register 通知
+ *  - 当对感兴趣事件做修改（enable/disable）时，通过 update_in_register 通知
  * EventLoop/ Poller 更新注册信息。
  *
  * 重要注意点：
@@ -37,6 +37,11 @@
 
 class EventLoop;
 class Channel {
+    using ReadEventCallback = std::function<void(Channel&)>;
+    using WriteEventCallback = std::function<void(Channel&)>;
+    using CloseEventCallback = std::function<void(Channel&)>;
+    using ErrorEventCallback = std::function<void(Channel&)>;
+
 private:
     static const uint32_t kNoneEvent; // 类所有实例共享，节省空间
     static const uint32_t kReadEvent;
@@ -46,10 +51,14 @@ private:
     int fd;                         // 并不持有，无需负责 close
     uint32_t event{ kNoneEvent };   // interesting events
     uint32_t revent{ kNoneEvent };  // received events types of poller, channel 调用
-    std::function<void()> readCallback{ nullptr };  // 回调函数，执行上层逻辑，回调函数的参数由下层传入
-    std::function<void()> writeCallback{ nullptr };
-    std::function<void()> closeCallback{ nullptr };
-    std::function<void()> errorCallback{ nullptr };
+
+    // std::weak_ptr<void> tie;        // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁
+    // bool isTied{ false };
+
+    ReadEventCallback readCallback{ nullptr };  // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+    WriteEventCallback writeCallback{ nullptr };
+    CloseEventCallback closeCallback{ nullptr };
+    ErrorEventCallback errorCallback{ nullptr };
 
 public:
     explicit Channel(EventLoop* loop, int fd);
@@ -69,13 +78,13 @@ public:
     void set_revent(uint32_t _revent);
 
     // 上层注入回调函数
-    void set_read_callback(std::function<void()> cb);
-    void set_write_callback(std::function<void()> cb);
-    void set_close_callback(std::function<void()> cb);
-    void set_error_callback(std::function<void()> cb);
+    void set_read_callback(ReadEventCallback _cb);
+    void set_write_callback(WriteEventCallback _cb);
+    void set_close_callback(CloseEventCallback _cb);
+    void set_error_callback(ErrorEventCallback _cb);
 
     // 内部属性改变时，需要在 poller 上更新（epoll）
-    void update_to_register();
+    void update_in_register();
     void remove_in_register();
 
     // 核心函数：事件发生后调用回调
