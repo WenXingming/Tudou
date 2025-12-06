@@ -17,18 +17,18 @@ SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::s
 
     tcpServer.reset(new TcpServer(ip, port));
     tcpServer->set_connection_callback(
-        [this](const std::shared_ptr<TcpConnection>& conn) {
-            connect_callback(conn);
+        [this](int fd) {
+            connect_callback(fd);
         }
     );
     tcpServer->set_message_callback(
-        [this](const std::shared_ptr<TcpConnection>& conn) {
-            message_callback(conn);
+        [this](int fd, const std::string& msg) {
+            message_callback(fd, msg);
         }
     );
     tcpServer->set_close_callback(
-        [this](const std::shared_ptr<TcpConnection>& conn) {
-            close_callback(conn);
+        [this](int fd) {
+            close_callback(fd);
         }
     );
 
@@ -41,13 +41,14 @@ void SendFileTcpServer::start() {
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑
-void SendFileTcpServer::connect_callback(const std::shared_ptr<TcpConnection>& conn) {
-    spdlog::debug("New connection established. fd: {}", conn->get_fd());
+void SendFileTcpServer::connect_callback(int fd) {
+    spdlog::debug("New connection established. fd: {}", fd);
 }
 
-void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
+void SendFileTcpServer::message_callback(int fd, const std::string& msg) {
     // 1. 接收数据
-    std::string data = receive_data(conn);
+    // std::string data = receive_data(fd);
+    std::string data(msg);
     // 2. 解析数据
     std::string request = parse_data(data);
     // 3. 业务逻辑处理
@@ -55,18 +56,18 @@ void SendFileTcpServer::message_callback(const std::shared_ptr<TcpConnection>& c
     // 4. 构造响应报文
     std::string response = construct_response(body);
     // 5. 发送响应
-    send_response(conn, response);
+    send_response(fd, response);
 }
 
-void SendFileTcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    spdlog::debug("Connection closed. fd: {}", conn->get_fd());
+void SendFileTcpServer::close_callback(int fd) {
+    spdlog::debug("Connection closed. fd: {}", fd);
 }
 
 // 1. 接收数据
-std::string SendFileTcpServer::receive_data(const std::shared_ptr<TcpConnection>& conn) {
-    std::string msg(conn->receive());
-    return std::move(msg);
-}
+// std::string SendFileTcpServer::receive_data(int fd) {
+//     std::string msg(conn->receive());
+//     return std::move(msg);
+// }
 
 // 2. 解析数据（简单起见，Tcp 层可以不做任何解析）
 std::string SendFileTcpServer::parse_data(const std::string& data) {
@@ -110,6 +111,6 @@ std::string SendFileTcpServer::construct_response(const std::string& body) {
 }
 
 // 5. 发送响应
-void SendFileTcpServer::send_response(const std::shared_ptr<TcpConnection>& conn, const std::string& response) {
-    conn->send(response);
+void SendFileTcpServer::send_response(int fd, const std::string& response) {
+    tcpServer->send(fd, response);
 }

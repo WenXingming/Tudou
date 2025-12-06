@@ -34,15 +34,15 @@ public:
     void start();
 
 private:
-    void connect_callback(const std::shared_ptr<TcpConnection>& conn);
-    void message_callback(const std::shared_ptr<TcpConnection>& conn);
-    void close_callback(const std::shared_ptr<TcpConnection>& conn);
+    void connect_callback(int fd);
+    void message_callback(int fd, const std::string& msg);
+    void close_callback(int fd);
 
-    std::string receive_data(const std::shared_ptr<TcpConnection>& conn);
+    // std::string receive_data(int fd);
     std::string parse_data(const std::string& data);
     std::string process_business(const std::string& request);
     std::string construct_response(const std::string& body);
-    void send_response(const std::shared_ptr<TcpConnection>& conn, const std::string& response);
+    void send_response(int fd, const std::string& response);
 
 private:
     std::string ip{ "127.0.0.1" };

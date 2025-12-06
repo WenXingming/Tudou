@@ -50,6 +50,17 @@ void TcpServer::start() {
     this->loop->loop();
 }
 
+void TcpServer::send(int fd, const std::string& msg) {
+    auto findIt = connections.find(fd);
+    if (findIt != connections.end()) {
+        auto conn = findIt->second;
+        conn->send(msg);
+    }
+    else {
+        spdlog::error("TcpServer::send(). connection not found, fd: {}", fd);
+    }
+}
+
 void TcpServer::connect_callback(const int connFd) {
     spdlog::debug("New connection created. fd is: {}", connFd);
 
@@ -64,34 +75,38 @@ void TcpServer::connect_callback(const int connFd) {
     connections[connFd] = conn;
 
     // 触发上层回调。上层可以设置连接建立时的逻辑
-    this->handle_connection(conn);
+    this->handle_connection(connFd);
 }
 
 void TcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑
-    this->handle_message(conn);
+    // TcpServer 不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。
+    // 但是为了类之间的屏蔽，TcpServer 需要向上提供 fd 和 msg，而不是 TcpConnection 对象本身
+    int fd = conn->get_fd();
+    std::string msg = conn->receive();
+    this->handle_message(fd, msg);
 }
 
 void TcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
     this->remove_connection(conn);
 
     // 触发上层回调。上层可以设置连接关闭时的逻辑
-    this->handle_close(conn);
+    int fd = conn->get_fd();
+    this->handle_close(fd);
 }
 
-void TcpServer::handle_connection(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::handle_connection(int fd) {
     assert(this->connectionCallback != nullptr);
-    this->connectionCallback(conn);
+    this->connectionCallback(fd);
 }
 
-void TcpServer::handle_message(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::handle_message(int fd, const std::string& msg) {
     assert(this->messageCallback != nullptr);
-    this->messageCallback(conn);
+    this->messageCallback(fd, msg);
 }
 
-void TcpServer::handle_close(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::handle_close(int fd) {
     assert(this->closeCallback != nullptr);
-    this->closeCallback(conn);
+    this->closeCallback(fd);
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {

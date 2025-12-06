@@ -44,10 +44,11 @@ class InetAddress;
 
 class TcpServer {
     // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 使用 shared_ptr，避免回调过程中对象被析构
-    using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    // 但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息
+    // 之前使用的参数是 std::shared_ptr<TcpConnection>，同时了避免回调过程中对象被析构
+    using ConnectionCallback = std::function<void(int fd)>;
+    using MessageCallback = std::function<void(int fd, const std::string& msg)>;
+    using CloseCallback = std::function<void(int fd)>;
 
 private:
     std::unique_ptr<EventLoop> loop;
@@ -70,11 +71,13 @@ public:
     uint16_t get_port() const { return port; }
 
     // TcpConnection 发布。不是 TcpServer 发布，Server 只是作为消息传递中间商
-    void set_connection_callback(ConnectionCallback cb);
-    void set_message_callback(MessageCallback cb);
-    void set_close_callback(CloseCallback cb);
+    void set_connection_callback(ConnectionCallback _cb);
+    void set_message_callback(MessageCallback _cb);
+    void set_close_callback(CloseCallback _cb);
 
     void start(); // 启动服务器，开始监听
+
+    void send(int fd, const std::string& msg);
 
 private:
     // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
@@ -83,9 +86,9 @@ private:
     void message_callback(const std::shared_ptr<TcpConnection>& conn);
     void close_callback(const std::shared_ptr<TcpConnection>& conn);
 
-    void handle_connection(const std::shared_ptr<TcpConnection>& conn);
-    void handle_message(const std::shared_ptr<TcpConnection>& conn);
-    void handle_close(const std::shared_ptr<TcpConnection>& conn);
+    void handle_connection(int fd);
+    void handle_message(int fd, const std::string& msg);
+    void handle_close(int fd);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
 };
