@@ -36,7 +36,6 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
         this->on_error(channel); }
     );
     channel->enable_reading();
-    channel->update_in_register(); // 注册到 poller，和 TcpConnection 创建同步
 
     // 初始化缓冲区, unique_ptr 自动管理内存。Don't forget! Or cause segfault!
     readBuffer.reset(new Buffer());
@@ -52,15 +51,15 @@ void TcpConnection::init_channel() {
 }
 
 int TcpConnection::get_fd() const {
-    return this->channel->get_fd();
+    return channel->get_fd();
 }
 
 void TcpConnection::set_message_callback(MessageCallback _cb) {
-    this->messageCallback = std::move(_cb);
+    messageCallback = std::move(_cb);
 }
 
 void TcpConnection::set_close_callback(CloseCallback _cb) {
-    this->closeCallback = std::move(_cb);
+    closeCallback = std::move(_cb);
 }
 
 void TcpConnection::send(const std::string& msg) {
@@ -87,18 +86,19 @@ void TcpConnection::on_read(Channel& channel) {
         this->handle_message_callback();
     }
     else if (n == 0) { // 对端关闭
-        this->on_close(channel);
+        on_close(channel);
     }
     else {
         spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-        this->on_close(channel);
+        on_close(channel); // 发生错误就关闭连接
     }
 }
 
 // 从 writeBuffer 写数据到 fd，写完了就取消对写事件的关注
 void TcpConnection::on_write(Channel& channel) {
     int savedErrno = 0;
-    ssize_t n = writeBuffer->write_to_fd(channel.get_fd(), &savedErrno);
+    int fd = channel.get_fd();
+    ssize_t n = writeBuffer->write_to_fd(fd, &savedErrno);
     if (n > 0) {
         if (writeBuffer->readable_bytes() == 0) { // writeBuffer 里的数据写完了
             channel.disable_writing();
@@ -106,21 +106,19 @@ void TcpConnection::on_write(Channel& channel) {
     }
     else {
         spdlog::error("TcpConnection::on_write(). write error: {}", savedErrno);
-        this->on_close(channel); // 是否需要关闭连接？
+        on_close(channel); // 发生错误就关闭连接
     }
 }
 
 void TcpConnection::on_close(Channel& channel) {
     spdlog::info("TcpConnection::on_close() called. fd: {}", channel.get_fd());
     channel.disable_all();
-
-    // 触发上层 TcpServer 回调，进行资源回收（删除 TcpConnection shared_ptr 对象）
-    this->handle_close_callback();
+    this->handle_close_callback(); // 触发上层 TcpServer 回调，进行资源回收（TcpServer 删除 TcpConnection shared_ptr 对象）
 }
 
 void TcpConnection::on_error(Channel& channel) {
     spdlog::error("TcpConnection::on_error() called.");
-    this->on_close(channel);
+    on_close(channel);
 }
 
 void TcpConnection::handle_message_callback() {

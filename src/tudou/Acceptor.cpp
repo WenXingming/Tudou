@@ -82,18 +82,17 @@ void Acceptor::on_write(Channel& channel) {
 }
 
 void Acceptor::on_read(Channel& channel) {
+    int fd = channel.get_fd();
     sockaddr_in clientAddr;
     socklen_t len = sizeof(clientAddr);
-    int connFd = ::accept(channel.get_fd(), (sockaddr*)&clientAddr, &len);
+    int connFd = ::accept(fd, (sockaddr*)&clientAddr, &len);
     if (connFd < 0) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
     }
-
-    // wrk 测试时注释掉日志，避免影响性能测试结果
     spdlog::info("Acceptor::ConnectFd {} is accepted.", connFd);
 
     // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理
-    this->handle_connect_callback(connFd);
+    handle_connect_callback(connFd);
 }
 
 void Acceptor::handle_connect_callback(int connFd) {

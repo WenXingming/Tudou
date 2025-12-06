@@ -47,7 +47,7 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 }
 
 void TcpServer::start() {
-    this->loop->loop();
+    loop->loop();
 }
 
 void TcpServer::send(int fd, const std::string& msg) {
@@ -64,34 +64,35 @@ void TcpServer::send(int fd, const std::string& msg) {
 void TcpServer::on_connect(const int connFd) {
     spdlog::info("New connection created. fd is: {}", connFd);
 
-    // 初始化 conn。设置业务层回调函数，callback 是由业务传入的，TcpServer 并不实现 callback 只是做中间者
     auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
-    conn->init_channel();
+    conn->init_channel(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
 
-    conn->set_message_callback(std::bind(&TcpServer::on_message, this, std::placeholders::_1));
-    conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& c) {
-        this->on_close(c);
+    conn->set_message_callback(
+        std::bind(&TcpServer::on_message, this, std::placeholders::_1)
+    );
+    conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+        this->on_close(_conn);
         });
     connections[connFd] = conn;
 
     // 触发上层回调。上层可以设置连接建立时的逻辑
-    this->handle_connection_callback(connFd);
+    handle_connection_callback(connFd);
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。
+    // TcpServer 本不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。
     // 但是为了类之间的屏蔽，TcpServer 需要向上提供 fd 和 msg，而不是 TcpConnection 对象本身
     int fd = conn->get_fd();
     std::string msg = conn->receive();
-    this->handle_message_callback(fd, msg);
+    handle_message_callback(fd, msg);
 }
 
 void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
-    this->remove_connection(conn);
+    remove_connection(conn);
 
     // 触发上层回调。上层可以设置连接关闭时的逻辑
     int fd = conn->get_fd();
-    this->handle_close_callback(fd);
+    handle_close_callback(fd);
 }
 
 void TcpServer::handle_connection_callback(int fd) {

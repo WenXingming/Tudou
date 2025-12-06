@@ -43,15 +43,16 @@ class Buffer;
 class InetAddress;
 
 class TcpServer {
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息。1 vs n，所以需要传递连接相关参数
-    // 之前使用的参数是 std::shared_ptr<TcpConnection>，同时了避免回调过程中对象被析构
+    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 通常：using ConnectionCallback = std::function<void(const TcpServer&)>;
+    // But：但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息。1(TcpServer) vs n(Connection)，所以需要传递连接相关参数
+    // 解释：之前使用的参数是 using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>，同时了避免回调过程中对象被析构。但是缺点是类之间的通信耦性不好，TcpServer 直接暴露了 TcpConnection 给上层业务逻辑（在我的设计里类之间只应在相邻层通信）
     using ConnectionCallback = std::function<void(int fd)>;
     using MessageCallback = std::function<void(int fd, const std::string& msg)>;
     using CloseCallback = std::function<void(int fd)>;
 
 private:
-    std::unique_ptr<EventLoop> loop;
+    std::unique_ptr<EventLoop> loop; // IO 线程的事件循环。还有一种线程是业务线程，负责处理业务逻辑，该线程是多线程，还没有实现
     std::string ip;
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;

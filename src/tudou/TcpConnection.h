@@ -38,8 +38,9 @@ class EventLoop;
 class Channel;
 class Buffer;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
-    // 上层业务回调函数类型定义
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 通常：using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    // 解释：
     // 虽然理论上 MessageCallback 参数只使用 string，CloseCallback 参数只使用 fd，但是其实传入 TcpConnection 更方便上层获取更多信息。特别是使用 shared_ptr，避免回调过程中对象被析构
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;

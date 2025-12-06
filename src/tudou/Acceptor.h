@@ -33,9 +33,9 @@ class EventLoop;
 class Channel;
 class InetAddress;
 class Acceptor {
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
-    // using ConnectCallback = std::function<void(const Acceptor&)>;
-    // 但这里直接传递 connFd 更简单，因为上层只需要这个 fd 来创建 TcpConnection；且 Acceptor 只能提供 listenFd，没有 connFd
+    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 通常：using ConnectCallback = std::function<void(const Acceptor&)>;
+    // But：但这里直接传递 connFd ，因为上层只需要这个 fd 来创建 TcpConnection；且 Acceptor 只能提供 listenFd，没有 connFd
     using ConnectCallback = std::function<void(int)>;
 
 private:
