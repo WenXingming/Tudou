@@ -89,8 +89,13 @@ void TcpConnection::on_read(Channel& channel) {
         on_close(channel);
     }
     else {
-        spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-        on_close(channel); // 发生错误就关闭连接
+        if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
+            return; // 本轮数据读完，等下次 EPOLLIN 事件再读
+        }
+        else {
+            spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
+            on_error(channel);
+        }
     }
 }
 

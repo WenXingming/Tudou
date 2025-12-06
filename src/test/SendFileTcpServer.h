@@ -44,6 +44,7 @@ private:
     void on_message(int fd, const std::string& msg);
     void on_close(int fd);
 
+    // on_message 的辅助函数
     // std::string receive_data(int fd);
     std::string parse_data(const std::string& data);
     std::string process_business(const std::string& request);
