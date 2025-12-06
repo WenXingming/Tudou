@@ -32,6 +32,7 @@
 
 #pragma once
 #include <functional>
+#include <memory>
 #include <sys/epoll.h>
 
 
@@ -52,8 +53,8 @@ private:
     uint32_t event{ kNoneEvent };   // interesting events
     uint32_t revent{ kNoneEvent };  // received events types of poller, channel 调用
 
-    // std::weak_ptr<void> tie;        // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁
-    // bool isTied{ false };
+    std::weak_ptr<void> tie;        // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。void 因为下层不需要知道上层类型
+    bool isTied{ false };
 
     ReadEventCallback readCallback{ nullptr };  // 回调函数，执行上层逻辑，回调函数的参数由下层传入
     WriteEventCallback writeCallback{ nullptr };
@@ -76,6 +77,10 @@ public:
     uint32_t get_event() const;
 
     void set_revent(uint32_t _revent);
+
+    // 不放在构造函数里，因为 Acceptor 无需 tie，而 TcpConnection 需要 tie 自身(shared_ptr, shared_from_this)
+    // 因此设置了 tie 和 isTied 标志
+    void tie_to_object(const std::shared_ptr<void>& obj); // 绑定生命周期更长的对象
 
     // 上层注入回调函数
     void set_read_callback(ReadEventCallback _cb);

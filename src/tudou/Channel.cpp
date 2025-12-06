@@ -72,6 +72,11 @@ void Channel::set_revent(uint32_t _revent) {
     revent = _revent;
 }
 
+void Channel::tie_to_object(const std::shared_ptr<void>& obj) {
+    tie = obj;
+    isTied = true;
+}
+
 void Channel::set_read_callback(ReadEventCallback _cb) {
     this->readCallback = std::move(_cb);
 }
@@ -98,11 +103,20 @@ void Channel::remove_in_register() {
 }
 
 void Channel::handle_events() {
-    handle_events_with_guard();
+    std::shared_ptr<void> guard;
+    if (isTied) {
+        guard = tie.lock(); // 只有对象是通过 shared_ptr 管理的，才能成功锁定
+        if (guard) {
+            this->handle_events_with_guard();
+        }
+    }
+    else {
+        handle_events_with_guard();
+    }
 }
 
 // 断开连接的处理并不简单：对方关闭连接，会触发 Channel::handle_event()，后者调用 handle_close()。
-// handle_close() 调用上层注册的 closeCallback，TcpConnection::close_callback()。
+// handle_close() 调用上层注册的 closeCallback，TcpConnection::close_callback().
 // TcpConnection::close_callback() 负责关闭连接，在 TcpServer 中销毁 TcpConnection 对象。此时 Channel 对象也会被销毁
 // 然而此时 handle_events_with_guard() 还没有返回，后续代码继续执行，可能访问已经被销毁的 Channel 对象，导致段错误
 // 见书籍 p274。muduo 的做法是通过 Channel::tie() 绑定一个弱智能指针，延长其生命周期，保证 Channel 对象在 handle_events_with_guard() 执行期间不会被销毁

@@ -55,6 +55,8 @@ void TcpServer::connect_callback(const int connFd) {
 
     // 初始化 conn。设置业务层回调函数，callback 是由业务传入的，TcpServer 并不实现 callback 只是做中间者
     auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
+    conn->init_channel();
+
     conn->set_message_callback(std::bind(&TcpServer::message_callback, this, std::placeholders::_1));
     conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& c) {
         this->close_callback(c);

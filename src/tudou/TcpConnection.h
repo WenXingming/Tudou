@@ -56,6 +56,8 @@ public:
     TcpConnection(EventLoop* _loop, int _sockfd);
     ~TcpConnection();
 
+    void init_channel();
+
     int get_fd() const;
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);

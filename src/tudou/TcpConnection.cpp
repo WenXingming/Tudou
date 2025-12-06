@@ -22,7 +22,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
     : loop(_loop) {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
-    channel.reset(new Channel(_loop, _connFd));
+    channel.reset(new Channel(_loop, _connFd)); // 传入 shared_from_this 作为 tie，防止 handle_events_with_guard 过程中被销毁
     channel->set_read_callback(std::bind(&TcpConnection::read_callback, this, std::placeholders::_1));
     channel->set_write_callback([this](Channel& channel) { this->write_callback(channel); });
     channel->set_close_callback([this](Channel& channel) { this->close_callback(channel); });
@@ -37,6 +37,10 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
 
 TcpConnection::~TcpConnection() {
 
+}
+
+void TcpConnection::init_channel() {
+    channel->tie_to_object(shared_from_this());
 }
 
 int TcpConnection::get_fd() const {
