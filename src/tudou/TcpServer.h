@@ -20,8 +20,8 @@
  *
  * 运行流程：
  * - start(): 启动监听（Acceptor 注册读事件）。
- * - connect_callback(): 接受连接并创建 TcpConnection，注册读/写/关闭/错误回调。
- * - close_callback()/remove_connection(): 从映射中移除并清理。
+ * - on_connect(): 接受连接并创建 TcpConnection，注册读/写/关闭/错误回调。
+ * - on_close()/remove_connection(): 从映射中移除并清理。
  *
  * 错误处理：
  * - 接受新连接失败或资源不足时记录并忽略本次事件，保持服务可用。
@@ -44,7 +44,7 @@ class InetAddress;
 
 class TcpServer {
     // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息
+    // 但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息。1 vs n，所以需要传递连接相关参数
     // 之前使用的参数是 std::shared_ptr<TcpConnection>，同时了避免回调过程中对象被析构
     using ConnectionCallback = std::function<void(int fd)>;
     using MessageCallback = std::function<void(int fd, const std::string& msg)>;
@@ -56,8 +56,6 @@ private:
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
-
-    // std::shared_ptr<TcpConnection> removeConnection;; // 用于 close_callback 中暂存，避免悬空指针
 
     ConnectionCallback connectionCallback{ nullptr };
     MessageCallback messageCallback{ nullptr };
@@ -82,13 +80,13 @@ public:
 private:
     // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
     // TcpConnection 的回调函数。处理消息解析、连接关闭等逻辑
-    void connect_callback(const int);
-    void message_callback(const std::shared_ptr<TcpConnection>& conn);
-    void close_callback(const std::shared_ptr<TcpConnection>& conn);
+    void on_connect(const int);
+    void on_message(const std::shared_ptr<TcpConnection>& conn);
+    void on_close(const std::shared_ptr<TcpConnection>& conn);
 
-    void handle_connection(int fd);
-    void handle_message(int fd, const std::string& msg);
-    void handle_close(int fd);
+    void handle_connection_callback(int fd);
+    void handle_message_callback(int fd, const std::string& msg);
+    void handle_close_callback(int fd);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
 };

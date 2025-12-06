@@ -19,10 +19,10 @@
  * - 持有 Channel/Buffer 的唯一所有权；不拥有上层对象，仅保存回调函数。
  *
  * I/O 与回调：
- * - read_callback(): 读取数据至 readBuffer，触发 message 回调。
- * - write_callback(): 将 writeBuffer 数据写入内核，必要时关闭写事件关注。
- * - close_callback(): 处理对端关闭并发布 close 回调，由上层完成资源回收。
- * - error_callback(): 记录错误并执行必要清理。
+ * - on_read(): 读取数据至 readBuffer，触发 message 回调。
+ * - on_write(): 将 writeBuffer 数据写入内核，必要时关闭写事件关注。
+ * - on_close(): 处理对端关闭并发布 close 回调，由上层完成资源回收。
+ * - on_error(): 记录错误并执行必要清理。
  *
  * 错误处理与边界：
  * - 考虑 EAGAIN/EWOULDBLOCK、短读/短写、对端半关闭等场景。
@@ -70,12 +70,12 @@ public:
 
 private:
     // 处理 channel 事件的上层回调函数
-    void read_callback(Channel& channel);
-    void write_callback(Channel& channel);
-    void close_callback(Channel& channel);
-    void error_callback(Channel& channel);
+    void on_read(Channel& channel);
+    void on_write(Channel& channel);
+    void on_close(Channel& channel);
+    void on_error(Channel& channel);
 
     // 触发上层回调
-    void handle_message();
-    void handle_close();
+    void handle_message_callback();
+    void handle_close_callback();
 };

@@ -16,17 +16,17 @@ void EventLoop::set_is_looping(bool looping) {
 }
 
 void EventLoop::loop(int timeoutMs) const {
-    spdlog::debug("EventLoop start looping...");
+    spdlog::info("EventLoop start looping...");
 
     poller->set_poll_timeout_ms(timeoutMs);
     while (isLooping) {
-        spdlog::debug("EventLoop is looping...");
+        spdlog::info("EventLoop is looping...");
 
         // 使用 poller 监听发生事件的 channels
         poller->poll();
     }
 
-    spdlog::debug("EventLoop stop looping.");
+    spdlog::info("EventLoop stop looping.");
 }
 
 void EventLoop::update_channel(Channel* channel) const {

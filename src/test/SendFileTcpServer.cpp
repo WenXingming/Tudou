@@ -42,7 +42,7 @@ void SendFileTcpServer::start() {
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑
 void SendFileTcpServer::connect_callback(int fd) {
-    spdlog::debug("New connection established. fd: {}", fd);
+    spdlog::info("New connection established. fd: {}", fd);
 }
 
 void SendFileTcpServer::message_callback(int fd, const std::string& msg) {
@@ -60,7 +60,7 @@ void SendFileTcpServer::message_callback(int fd, const std::string& msg) {
 }
 
 void SendFileTcpServer::close_callback(int fd) {
-    spdlog::debug("Connection closed. fd: {}", fd);
+    spdlog::info("Connection closed. fd: {}", fd);
 }
 
 // 1. 接收数据

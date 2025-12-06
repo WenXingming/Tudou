@@ -78,7 +78,7 @@ int main() {
 
 
     // // 测试 HttpServer 服务器：TcpServer + HttpServer
-    // spdlog::debug("Starting HttpServer test...");
+    // spdlog::info("Starting HttpServer test...");
     // std::thread t4([]() {
     //     TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
     //     // TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");
