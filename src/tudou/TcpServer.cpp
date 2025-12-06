@@ -50,7 +50,7 @@ void TcpServer::start() {
     loop->loop();
 }
 
-void TcpServer::send(int fd, const std::string& msg) {
+void TcpServer::send_message(int fd, const std::string& msg) {
     auto findIt = connections.find(fd);
     if (findIt != connections.end()) {
         auto conn = findIt->second;

@@ -76,7 +76,7 @@ public:
 
     void start(); // 启动服务器，开始监听
 
-    void send(int fd, const std::string& msg);
+    void send_message(int fd, const std::string& msg);
 
 private:
     // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
