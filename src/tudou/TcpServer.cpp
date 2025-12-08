@@ -96,8 +96,12 @@ void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
 }
 
 void TcpServer::handle_connection_callback(int fd) {
-    assert(this->connectionCallback != nullptr);
-    this->connectionCallback(fd);
+    if (this->connectionCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", fd);
+    }
+    else {
+        this->connectionCallback(fd);
+    }
 }
 
 void TcpServer::handle_message_callback(int fd, const std::string& msg) {
@@ -106,8 +110,12 @@ void TcpServer::handle_message_callback(int fd, const std::string& msg) {
 }
 
 void TcpServer::handle_close_callback(int fd) {
-    assert(this->closeCallback != nullptr);
-    this->closeCallback(fd);
+    if (this->closeCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", fd);
+    }
+    else {
+        this->closeCallback(fd);
+    }
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
