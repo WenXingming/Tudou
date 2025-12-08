@@ -21,30 +21,22 @@
 #include "TcpConnection.h"
 
 TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum)
-    : ip(std::move(ip))
+    :
+    mainLoop(new EventLoop()) // 初始化监听线程的 EventLoop
+    , ip(std::move(ip))
     , port(port)
-    , ioThreadPool(static_cast<int>(ioLoopNum)) {
+    , acceptor(new Acceptor(mainLoop.get(), InetAddress(ip, port)))
+    , connections()
+    , ioLoopThreadPool(new EventLoopThreadPool(ioLoopNum))
+    , connectionCallback(nullptr)
+    , messageCallback(nullptr)
+    , closeCallback(nullptr) {
 
-    // 初始化监听线程的 EventLoop
-    this->loop.reset(new EventLoop());
-
-    // 向线程池提交任务，运行每个 IO 线程的事件循环
-    for (size_t i = 0; i < ioThreadPool.get_thread_pool_size(); ++i) {
-        ioThreadPool.submit_task([this, i]() {
-            std::unique_ptr<EventLoop> ioLoop(new EventLoop());
-
-            this->ioLoops.push_back(ioLoop.get());
-            this->ioLoopThreadIds.push_back(std::this_thread::get_id());
-            ioLoop->loop();
-            });
-    }
-
-    acceptor.reset(new Acceptor(this->loop.get(), InetAddress(this->ip, this->port)));
     acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
 TcpServer::~TcpServer() {
-    this->connections.clear();
+    // this->connections.clear();
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -60,7 +52,7 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 }
 
 void TcpServer::start() {
-    loop->loop();
+    mainLoop->loop();
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
@@ -77,15 +69,20 @@ void TcpServer::send_message(int fd, const std::string& msg) {
 void TcpServer::on_connect(const int connFd) {
     spdlog::info("New connection created. fd is: {}", connFd);
 
-    // 选择一个 IO 线程的 EventLoop 来管理该连接，轮询选择
-    EventLoop* ioLoop = ioLoops[nextLoopIndex];
-    std::thread::id ioThreadId = ioLoopThreadIds[nextLoopIndex];
-
-    nextLoopIndex = (nextLoopIndex + 1) % ioLoops.size();
+    // 选择一个 EventLoop 来管理该连接，轮询选择
+    EventLoop* loop;
+    EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
+    if (ioLoop == nullptr) {
+        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead. fd: {}", connFd);
+        loop = mainLoop.get();
+    }
+    else {
+        loop = ioLoop;
+    }
 
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
-    ioLoop->run_in_loop([this, connFd, ioLoop]() {
-        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
+    loop->run_in_loop([this, connFd, loop]() {
+        auto conn = std::make_shared<TcpConnection>(loop, connFd);
         // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)
@@ -98,6 +95,19 @@ void TcpServer::on_connect(const int connFd) {
         // 触发上层回调。上层可以设置连接建立时的逻辑
         handle_connection_callback(connFd);
         });
+
+    // auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
+    // // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
+    // conn->set_message_callback(
+    //     std::bind(&TcpServer::on_message, this, std::placeholders::_1)
+    // );
+    // conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+    //     this->on_close(_conn);
+    //     });
+    // connections[connFd] = conn;
+    // conn->init_channel(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
+    // // 触发上层回调。上层可以设置连接建立时的逻辑
+    // handle_connection_callback(connFd);
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {

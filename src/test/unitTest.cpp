@@ -60,9 +60,12 @@ int main() {
     // std::cout << "Netlib test finished." << std::endl;
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
-    std::string ip = "8.138.231.140"; // 外网 IP，用于远程测试
+    // std::string ip = "8.138.231.140"; // 外网 IP，用于远程测试
+    // int port = 8080;
+    // std::string filepath = "/home/admin/Tudou/assets/homepage.html";
+    std::string ip = "127.0.0.1";
     int port = 8080;
-    std::string filepath = "/home/admin/Tudou/assets/homepage.html";
+    std::string filepath = "/home/wxm/Tudou/assets/homepage.html";
     spdlog::debug("Starting TcpServer test on {}:{}...", ip, port);
     std::thread t2([ip, port, filepath]() {
         SendFileTcpServer sendFileTcpServer(ip, port, filepath);

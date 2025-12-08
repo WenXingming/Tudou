@@ -1,42 +1,44 @@
-#include "EventLoopThread.h"
-#include "EventLoop.h"
+// #include "EventLoopThread.h"
+// #include "EventLoop.h"
 
-EventLoopThread::EventLoopThread() = default;
+// EventLoopThread::EventLoopThread() = default;
 
-EventLoopThread::~EventLoopThread() {
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        exiting = true;
-    }
-    if (loop) {
-        loop->set_is_looping(false);
-    }
-    if (thread.joinable()) {
-        thread.join();
-    }
-}
+// EventLoopThread::~EventLoopThread() {
+//     {
+//         std::lock_guard<std::mutex> lock(mutex);
+//         exiting = true;
+//     }
+//     if (loop) {
+//         // loop->set_is_looping(false);
+//         loop->quit();
+//     }
+//     if (thread.joinable()) {
+//         thread.join();
+//     }
+// }
 
-EventLoop* EventLoopThread::start_loop() {
-    thread = std::thread(&EventLoopThread::thread_func, this);
+// EventLoop* EventLoopThread::start_loop() {
+//     thread = std::thread(&EventLoopThread::thread_func, this);
 
-    std::unique_lock<std::mutex> lock(mutex);
-    cond.wait(lock, [this]() { return loop != nullptr; });
-    return loop;
-}
+//     std::unique_lock<std::mutex> lock(mutex);
+//     cond.wait(lock, [this]() { return loop != nullptr; });
+//     return loop;
+// }
 
-void EventLoopThread::thread_func() {
-    EventLoop eventLoop;
+// void EventLoopThread::thread_func() {
+//     // 创建该线程的 EventLoop 对象
+//     EventLoop eventLoop;
 
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        loop = &eventLoop;
-        cond.notify_one();
-    }
+//     {
+//         std::lock_guard<std::mutex> lock(mutex);
+//         loop = &eventLoop;
+//         cond.notify_one();
+//     }
 
-    eventLoop.loop();
+//     eventLoop.loop();
 
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        loop = nullptr;
-    }
-}
+//     {
+//         std::lock_guard<std::mutex> lock(mutex);
+//         loop = nullptr;
+//     }
+// }

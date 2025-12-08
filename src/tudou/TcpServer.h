@@ -37,7 +37,7 @@
 #include <thread>
 
 #include "../base/InetAddress.h"
-#include "threadpool/ThreadPool.h"
+#include "EventLoopThreadPool.h"
 
 class EventLoop;
 class Acceptor;
@@ -55,21 +55,17 @@ class TcpServer {
     using CloseCallback = std::function<void(int fd)>;
 
 private:
-    std::unique_ptr<EventLoop> loop; // IO 线程的事件循环。还有一种线程是业务线程，负责处理业务逻辑，该线程是多线程，还没有实现
+    std::unique_ptr<EventLoop> mainLoop; // 监听线程的事件循环。还有一种线程是 IO 线程，负责处理业务逻辑，该线程是多线程，还没有实现
     std::string ip;
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
 
-    // 多 Reactor 模型: 1 个监听线程 + N 个 IO 线程
-    std::vector<EventLoop*> ioLoops; // 线程池中的 IO 线程事件循环指针列表
-    std::vector<std::thread::id> ioLoopThreadIds; // 线程池中的 IO 线程 id 列表
-    size_t nextLoopIndex{ 0 };       // 轮询选择下一个 IO 线程的索引
-    wxm::ThreadPool ioThreadPool;    // IO 线程池，负责运行 ioLoops 中的 EventLoop
+    std::unique_ptr<EventLoopThreadPool> ioLoopThreadPool; // IO 线程池
 
-    ConnectionCallback connectionCallback{ nullptr };
-    MessageCallback messageCallback{ nullptr };
-    CloseCallback closeCallback{ nullptr };
+    ConnectionCallback connectionCallback;
+    MessageCallback messageCallback;
+    CloseCallback closeCallback;
 
 public:
     TcpServer(std::string ip, uint16_t port
