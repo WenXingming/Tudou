@@ -9,6 +9,7 @@
 #include <cassert>
 #include <thread>
 #include <unistd.h>
+#include <string>
 
 #include "TestNetlib.h"
 #include "SendFileTcpServer.h"
@@ -59,12 +60,15 @@ int main() {
     // std::cout << "Netlib test finished." << std::endl;
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
-    std::thread t2([]() {
-        SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/happy-birthday.html");
+    std::string ip = "8.138.231.140"; // 外网 IP，用于远程测试
+    int port = 8080;
+    std::string filepath = "/home/admin/Tudou/assets/homepage.html";
+    spdlog::debug("Starting TcpServer test on {}:{}...", ip, port);
+    std::thread t2([ip, port, filepath]() {
+        SendFileTcpServer sendFileTcpServer(ip, port, filepath);
         sendFileTcpServer.start();
         });
     t2.join();
-    std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
     // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null
