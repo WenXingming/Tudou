@@ -70,15 +70,7 @@ void TcpServer::on_connect(const int connFd) {
     spdlog::info("New connection created. fd is: {}", connFd);
 
     // 选择一个 EventLoop 来管理该连接，轮询选择
-    EventLoop* loop;
-    EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
-    if (ioLoop == nullptr) {
-        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead. fd: {}", connFd);
-        loop = mainLoop.get();
-    }
-    else {
-        loop = ioLoop;
-    }
+    EventLoop* loop = get_loop();
 
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
     loop->run_in_loop([this, connFd, loop]() {
@@ -159,4 +151,19 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     else {
         spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
     }
+}
+
+EventLoop* TcpServer::get_loop() {
+    EventLoop* loop;
+    EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
+    if (ioLoop == nullptr) {
+        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
+        loop = mainLoop.get();
+    }
+    else {
+        loop = ioLoop;
+    }
+
+    assert(loop != nullptr);
+    return loop;
 }

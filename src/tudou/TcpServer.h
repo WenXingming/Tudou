@@ -96,4 +96,5 @@ private:
     void handle_close_callback(int fd);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
+    EventLoop* get_loop();
 };
