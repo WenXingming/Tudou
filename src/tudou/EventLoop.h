@@ -25,16 +25,18 @@
 #include <functional>
 #include <mutex>
 #include <cassert>
-#include "EpollPoller.h" // std::unique_ptr 的默认删除器（std::default_delete）在析构时需要调用 delete ptr，这要求 EpollPoller 的完整定义必须可见
+
+#include "EpollPoller.h"
 
 class Channel;
 class EventLoop {
 private:
-    std::unique_ptr<EpollPoller> poller; // 拥有 poller，控制其生命期。智能指针，自动析构
-    bool isLooping;              // 标记事件循环状态
+    std::unique_ptr<EpollPoller> poller;                    // 拥有 poller，控制其生命期。智能指针，自动析构
+    bool isLooping;                                         // 标记事件循环状态
+    bool isQuit;                                            // 标记退出循环
 
-    std::mutex mtx; // 保护函数队列的互斥锁（其他线程入队时需要加锁）
-    std::queue<std::function<void()>> pendingFunctors; // 存放 loop 线程需要执行的函数列表
+    std::mutex mtx;                                         // 保护函数队列的互斥锁（其他线程入队时需要加锁）
+    std::queue<std::function<void()>> pendingFunctors;      // 存放 loop 线程需要执行的函数列表
 
 public:
     EventLoop();
@@ -42,18 +44,17 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    bool get_is_looping() const;
-    void set_is_looping(bool looping);
+    void quit();                                            // 退出事件循环
 
     void loop(int timeoutMs = 10000);
     void update_channel(Channel* channel) const;
     void remove_channel(Channel* channel) const;
 
-    void run_in_loop(const std::function<void()>& cb);
+    void run_in_loop(const std::function<void()>& cb);      // 如果在 loop 线程，直接执行 cb，否则入队（后续加入唤醒机制）
 
 private:
-    void assert_in_loop_thread() const; // 确保在当前线程调用
-    bool is_in_loop_thread() const;
-    void queue_in_loop(const std::function<void()>& cb);
-    void do_pending_functors();
+    void assert_in_loop_thread() const;                     // 确保在当前线程调用
+    bool is_in_loop_thread() const;                         // 判断是否在当前线程调用
+    void queue_in_loop(const std::function<void()>& cb);    // 将函数入队到 pendingFunctors 中
+    void do_pending_functors();                             // 执行 pendingFunctors 中的函数
 };
