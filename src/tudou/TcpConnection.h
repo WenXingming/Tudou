@@ -19,10 +19,10 @@
  * - 持有 Channel/Buffer 的唯一所有权；不拥有上层对象，仅保存回调函数。
  *
  * I/O 与回调：
- * - read_callback(): 读取数据至 readBuffer，触发 message 回调。
- * - write_callback(): 将 writeBuffer 数据写入内核，必要时关闭写事件关注。
- * - close_callback(): 处理对端关闭并发布 close 回调，由上层完成资源回收。
- * - error_callback(): 记录错误并执行必要清理。
+ * - on_read(): 读取数据至 readBuffer，触发 message 回调。
+ * - on_write(): 将 writeBuffer 数据写入内核，必要时关闭写事件关注。
+ * - on_close(): 处理对端关闭并发布 close 回调，由上层完成资源回收。
+ * - on_error(): 记录错误并执行必要清理。
  *
  * 错误处理与边界：
  * - 考虑 EAGAIN/EWOULDBLOCK、短读/短写、对端半关闭等场景。
@@ -38,8 +38,9 @@ class EventLoop;
 class Channel;
 class Buffer;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
-    // 上层业务回调函数类型定义
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 通常：using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    // 解释：
     // 虽然理论上 MessageCallback 参数只使用 string，CloseCallback 参数只使用 fd，但是其实传入 TcpConnection 更方便上层获取更多信息。特别是使用 shared_ptr，避免回调过程中对象被析构
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
@@ -70,12 +71,12 @@ public:
 
 private:
     // 处理 channel 事件的上层回调函数
-    void read_callback(Channel& channel);
-    void write_callback(Channel& channel);
-    void close_callback(Channel& channel);
-    void error_callback(Channel& channel);
+    void on_read(Channel& channel);
+    void on_write(Channel& channel);
+    void on_close(Channel& channel);
+    void on_error(Channel& channel);
 
     // 触发上层回调
-    void handle_message();
-    void handle_close();
+    void handle_message_callback();
+    void handle_close_callback();
 };

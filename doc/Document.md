@@ -1,5 +1,9 @@
 # 开发 Tudou 过程中学到的一些东西
 
+## 使用 std::weak_ptr 防止回调过程中对象被销毁，延长对象生命周期
+
+使用实例：Channel 类的 tie 机制。而且只有通过 shared_ptr 管理的对象，才需要 tie 机制，因此设置了 isTied 标志位，对于非 shared_ptr 管理的对象，不需要 tie 机制，也不能调用 tie.lock()。
+
 ## Reactor 模式
 
 ```mermaid

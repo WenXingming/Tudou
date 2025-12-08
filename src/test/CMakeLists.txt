@@ -17,16 +17,22 @@ add_library(llhttp STATIC ${llhttp_source_files})
 
 
 # 编译生成可执行文件
-set(source_dir_tudou ${CMAKE_CURRENT_SOURCE_DIR}/../tudou/)
-set(source_dir_http ${CMAKE_CURRENT_SOURCE_DIR}/../http/)
-set(source_dir_base ${CMAKE_CURRENT_SOURCE_DIR}/../base/)
+set(source_dir_threadpool ${CMAKE_SOURCE_DIR}/lib/threadpool/)
+set(source_dir_llhttp ${CMAKE_SOURCE_DIR}/lib/llhttp/)
+
+set(source_dir_http ${CMAKE_SOURCE_DIR}/src/http/)
+set(source_dir_tudou ${CMAKE_SOURCE_DIR}/src/tudou/)
+set(source_dir_base ${CMAKE_SOURCE_DIR}/src/base/)
 set(source_dir_test ${CMAKE_CURRENT_SOURCE_DIR}/) # test 目录
+
 file(GLOB all_source_files #  CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
-    ${source_dir_tudou}/*.cpp
-    ${source_dir_http}/*.cpp
-    ${source_dir_http}/*.c
+    ${source_dir_threadpool}/*.cpp
+    ${source_dir_llhttp}/*.c
+
     ${source_dir_base}/*.cpp
+    ${source_dir_http}/*.cpp
     ${source_dir_test}/*.cpp
+    ${source_dir_tudou}/*.cpp
 )
 
 add_executable(unitTest ${all_source_files})

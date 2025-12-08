@@ -33,9 +33,9 @@ class EventLoop;
 class Channel;
 class InetAddress;
 class Acceptor {
-    // 上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类。参数一般是指针或引用
-    // using ConnectCallback = std::function<void(const Acceptor&)>;
-    // 直接传递 connFd 更简单，因为上层只需要这个 fd 来创建 TcpConnection。Acceptor 只能提供 listenFd，没有 connFd
+    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
+    // 通常：using ConnectCallback = std::function<void(const Acceptor&)>;
+    // But：但这里直接传递 connFd ，因为上层只需要这个 fd 来创建 TcpConnection；且 Acceptor 只能提供 listenFd，没有 connFd
     using ConnectCallback = std::function<void(int)>;
 
 private:
@@ -59,10 +59,10 @@ private:
     void start_listen(int listenFd);
 
     // 理论上 Acceptor 不会触发 error、close、write 事件，只监听读事件（新连接到来）。但为了完整性，仍然预留这些回调接口处理逻辑
-    void error_callback(Channel& channel);
-    void close_callback(Channel& channel);
-    void write_callback(Channel& channel);
-    void read_callback(Channel& channel); // 有新连接到来，循环 accept
+    void on_error(Channel& channel);
+    void on_close(Channel& channel);
+    void on_write(Channel& channel);
+    void on_read(Channel& channel); // 有新连接到来，循环 accept
 
-    void handle_connect(int connFd); // 触发上层回调
+    void handle_connect_callback(int connFd); // 触发上层回调
 };

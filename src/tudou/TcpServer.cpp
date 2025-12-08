@@ -20,14 +20,27 @@
 #include "EventLoop.h"
 #include "TcpConnection.h"
 
-TcpServer::TcpServer(std::string ip, uint16_t port)
+TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum)
     : ip(std::move(ip))
-    , port(port) {
+    , port(port)
+    , ioThreadPool(static_cast<int>(ioLoopNum)) {
 
+    // 初始化监听线程的 EventLoop
     this->loop.reset(new EventLoop());
 
+    // 向线程池提交任务，运行每个 IO 线程的事件循环
+    for (size_t i = 0; i < ioThreadPool.get_thread_pool_size(); ++i) {
+        ioThreadPool.submit_task([this, i]() {
+            std::unique_ptr<EventLoop> ioLoop(new EventLoop());
+
+            this->ioLoops.push_back(ioLoop.get());
+            this->ioLoopThreadIds.push_back(std::this_thread::get_id());
+            ioLoop->loop();
+            });
+    }
+
     acceptor.reset(new Acceptor(this->loop.get(), InetAddress(this->ip, this->port)));
-    acceptor->set_connect_callback(std::bind(&TcpServer::connect_callback, this, std::placeholders::_1)); // 或者可以使用 lambda
+    acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
 TcpServer::~TcpServer() {
@@ -47,51 +60,83 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 }
 
 void TcpServer::start() {
-    this->loop->loop();
+    loop->loop();
 }
 
-void TcpServer::connect_callback(const int connFd) {
-    spdlog::debug("New connection created. fd is: {}", connFd);
+void TcpServer::send_message(int fd, const std::string& msg) {
+    auto findIt = connections.find(fd);
+    if (findIt != connections.end()) {
+        auto conn = findIt->second;
+        conn->send(msg);
+    }
+    else {
+        spdlog::error("TcpServer::send(). connection not found, fd: {}", fd);
+    }
+}
 
-    // 初始化 conn。设置业务层回调函数，callback 是由业务传入的，TcpServer 并不实现 callback 只是做中间者
-    auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
-    conn->init_channel();
+void TcpServer::on_connect(const int connFd) {
+    spdlog::info("New connection created. fd is: {}", connFd);
 
-    conn->set_message_callback(std::bind(&TcpServer::message_callback, this, std::placeholders::_1));
-    conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& c) {
-        this->close_callback(c);
+    // 选择一个 IO 线程的 EventLoop 来管理该连接，轮询选择
+    EventLoop* ioLoop = ioLoops[nextLoopIndex];
+    std::thread::id ioThreadId = ioLoopThreadIds[nextLoopIndex];
+
+    nextLoopIndex = (nextLoopIndex + 1) % ioLoops.size();
+
+    // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
+    ioLoop->run_in_loop([this, connFd, ioLoop]() {
+        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
+        // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
+        conn->set_message_callback(
+            std::bind(&TcpServer::on_message, this, std::placeholders::_1)
+        );
+        conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+            this->on_close(_conn);
+            });
+        connections[connFd] = conn;
+        conn->init_channel(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
+        // 触发上层回调。上层可以设置连接建立时的逻辑
+        handle_connection_callback(connFd);
         });
-    connections[connFd] = conn;
-
-    // 触发上层回调。上层可以设置连接建立时的逻辑
-    this->handle_connection(conn);
 }
 
-void TcpServer::message_callback(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑
-    this->handle_message(conn);
+void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
+    // TcpServer 本不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。
+    // 但是为了类之间的屏蔽，TcpServer 需要向上提供 fd 和 msg，而不是 TcpConnection 对象本身
+    int fd = conn->get_fd();
+    std::string msg = conn->receive();
+    handle_message_callback(fd, msg);
 }
 
-void TcpServer::close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    this->remove_connection(conn);
+void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
+    remove_connection(conn);
 
     // 触发上层回调。上层可以设置连接关闭时的逻辑
-    this->handle_close(conn);
+    int fd = conn->get_fd();
+    handle_close_callback(fd);
 }
 
-void TcpServer::handle_connection(const std::shared_ptr<TcpConnection>& conn) {
-    assert(this->connectionCallback != nullptr);
-    this->connectionCallback(conn);
+void TcpServer::handle_connection_callback(int fd) {
+    if (this->connectionCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", fd);
+    }
+    else {
+        this->connectionCallback(fd);
+    }
 }
 
-void TcpServer::handle_message(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::handle_message_callback(int fd, const std::string& msg) {
     assert(this->messageCallback != nullptr);
-    this->messageCallback(conn);
+    this->messageCallback(fd, msg);
 }
 
-void TcpServer::handle_close(const std::shared_ptr<TcpConnection>& conn) {
-    assert(this->closeCallback != nullptr);
-    this->closeCallback(conn);
+void TcpServer::handle_close_callback(int fd) {
+    if (this->closeCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", fd);
+    }
+    else {
+        this->closeCallback(fd);
+    }
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {

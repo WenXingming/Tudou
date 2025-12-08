@@ -35,7 +35,7 @@ int EpollPoller::get_poll_timeout_ms() const {
 
 // 使用 epoll_wait() 返回活动的 channels 列表
 void EpollPoller::poll() {
-    spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels.size());
+    spdlog::info("Epoll is running... poller monitors channels's size is: {}", channels.size());
 
     int numReady = get_ready_num();
     std::vector<Channel*> activeChannels = get_activate_channels(numReady);
@@ -53,7 +53,7 @@ int EpollPoller::get_ready_num() {
     if (numReady < 0) {
         spdlog::error("EpollPoller::poll() error: epoll_wait return {}", numReady);
     }
-    spdlog::debug("EpollPoller::poll() return numReady: {}", numReady);
+    spdlog::info("EpollPoller::poll() return numReady: {}", numReady);
 
     return numReady;
 }
@@ -105,7 +105,7 @@ void EpollPoller::update_channel(Channel* channel) {
     ev.data.fd = fd;
     ev.events = event;
 
-    spdlog::debug("EpollPoller::update_channel(): fd is {}", fd);
+    spdlog::info("EpollPoller::update_channel(): fd is {}", fd);
 
     auto findIt = channels.find(fd);
     if (findIt == channels.end()) {

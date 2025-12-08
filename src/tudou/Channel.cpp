@@ -115,46 +115,46 @@ void Channel::handle_events() {
     }
 }
 
-// 断开连接的处理并不简单：对方关闭连接，会触发 Channel::handle_event()，后者调用 handle_close()。
-// handle_close() 调用上层注册的 closeCallback，TcpConnection::close_callback().
+// 断开连接的处理并不简单：对方关闭连接，会触发 Channel::handle_event()，后者调用 handle_close_callback()。
+// handle_close_callback() 调用上层注册的 closeCallback，TcpConnection::close_callback().
 // TcpConnection::close_callback() 负责关闭连接，在 TcpServer 中销毁 TcpConnection 对象。此时 Channel 对象也会被销毁
 // 然而此时 handle_events_with_guard() 还没有返回，后续代码继续执行，可能访问已经被销毁的 Channel 对象，导致段错误
 // 见书籍 p274。muduo 的做法是通过 Channel::tie() 绑定一个弱智能指针，延长其生命周期，保证 Channel 对象在 handle_events_with_guard() 执行期间不会被销毁
 void Channel::handle_events_with_guard() {
-    spdlog::debug("poller find event, channel handle event: {}", revent);
+    spdlog::info("poller find event, channel handle event: {}", revent);
 
     if ((revent & EPOLLHUP) && !(revent & EPOLLIN)) {
-        this->handle_close();
+        this->handle_close_callback();
         return;
     }
     if (revent & (EPOLLERR)) {
-        this->handle_error();
+        this->handle_error_callback();
         return;
     }
     if (revent & (EPOLLIN | EPOLLPRI)) {
-        this->handle_read();
+        this->handle_read_callback();
     }
     if (revent & EPOLLOUT) {
-        this->handle_write();
+        this->handle_write_callback();
     }
 }
 
-void Channel::handle_read() {
+void Channel::handle_read_callback() {
     assert(this->readCallback != nullptr);
     this->readCallback(*this);
 }
 
-void Channel::handle_write() {
+void Channel::handle_write_callback() {
     assert(this->writeCallback != nullptr);
     this->writeCallback(*this);
 }
 
-void Channel::handle_close() {
+void Channel::handle_close_callback() {
     assert(this->closeCallback != nullptr);
     this->closeCallback(*this);
 }
 
-void Channel::handle_error() {
+void Channel::handle_error_callback() {
     assert(this->errorCallback != nullptr);
     this->errorCallback(*this);
 }
