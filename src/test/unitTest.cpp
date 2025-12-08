@@ -40,9 +40,9 @@ void set_logger() {
     spdlog::set_default_logger(my_logger);
 
     // 设置日志级别和格式
-    spdlog::set_level(spdlog::level::debug);
+    // spdlog::set_level(spdlog::level::debug);
     // spdlog::set_level(spdlog::level::info);
-    // spdlog::set_level(spdlog::level::err);
+    spdlog::set_level(spdlog::level::err);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v");
 }
 
@@ -51,20 +51,20 @@ int main() {
     set_logger();
 
     // 测试网络库：EventLoop、Epoller、Channel
-    std::thread t1([]() {
-        TestNetlib testNetlib;
-        testNetlib.start();
-        });
-    t1.join();
-    std::cout << "Netlib test finished." << std::endl;
+    // std::thread t1([]() {
+    //     TestNetlib testNetlib;
+    //     testNetlib.start();
+    //     });
+    // t1.join();
+    // std::cout << "Netlib test finished." << std::endl;
 
     // 测试 TcpServer 服务器：网络库 + TcpServer、Acceptor、TcpConnection、Buffer
-    // std::thread t2([]() {
-    //     SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/happy-birthday.html");
-    //     sendFileTcpServer.start();
-    //     });
-    // t2.join();
-    // std::cout << "TcpServer test finished." << std::endl;
+    std::thread t2([]() {
+        SendFileTcpServer sendFileTcpServer("127.0.0.1", 8080, "/home/wxm/Tudou/assets/happy-birthday.html");
+        sendFileTcpServer.start();
+        });
+    t2.join();
+    std::cout << "TcpServer test finished." << std::endl;
 
     // 测试 HTTP 报文解析器
     // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null

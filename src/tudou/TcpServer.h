@@ -33,8 +33,11 @@
 #include <string>
 #include <functional>
 #include <unordered_map>
+#include <vector>
+#include <thread>
 
 #include "../base/InetAddress.h"
+#include "threadpool/ThreadPool.h"
 
 class EventLoop;
 class Acceptor;
@@ -58,12 +61,19 @@ private:
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
 
+    // 多 Reactor 模型: 1 个监听线程 + N 个 IO 线程
+    std::vector<EventLoop*> ioLoops; // 线程池中的 IO 线程事件循环指针列表
+    std::vector<std::thread::id> ioLoopThreadIds; // 线程池中的 IO 线程 id 列表
+    size_t nextLoopIndex{ 0 };       // 轮询选择下一个 IO 线程的索引
+    wxm::ThreadPool ioThreadPool;    // IO 线程池，负责运行 ioLoops 中的 EventLoop
+
     ConnectionCallback connectionCallback{ nullptr };
     MessageCallback messageCallback{ nullptr };
     CloseCallback closeCallback{ nullptr };
 
 public:
-    TcpServer(std::string ip, uint16_t port);
+    TcpServer(std::string ip, uint16_t port
+        , size_t ioLoopNum = std::thread::hardware_concurrency() == 0 ? 2 : std::thread::hardware_concurrency());
     ~TcpServer();
 
     const std::string& get_ip() const { return ip; }

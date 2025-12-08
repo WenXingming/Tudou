@@ -16,30 +16,44 @@
  *
  * 线程模型与约定：
  * - EventLoop ，禁止拷贝与赋值以避免多个所有者。
- * - EventLoop 通常与线程一一绑定（一个线程一个 EventLoop），非线程安全方法须在所属线程调用。
- *
+ * - EventLoop 通常与线程一一绑定（一个线程一个 EventLoop），非线程安全方法（例如 IO 线程的 TcpConnection 的初始化等）须在所属线程调用。
  */
 
 #pragma once
 #include <memory>
+#include <queue>
+#include <functional>
+#include <mutex>
+#include <cassert>
 #include "EpollPoller.h" // std::unique_ptr 的默认删除器（std::default_delete）在析构时需要调用 delete ptr，这要求 EpollPoller 的完整定义必须可见
 
 class Channel;
 class EventLoop {
 private:
     std::unique_ptr<EpollPoller> poller; // 拥有 poller，控制其生命期。智能指针，自动析构
-    bool isLooping{ true };             // 标记事件循环状态
+    bool isLooping;              // 标记事件循环状态
+
+    std::mutex mtx; // 保护函数队列的互斥锁（其他线程入队时需要加锁）
+    std::queue<std::function<void()>> pendingFunctors; // 存放 loop 线程需要执行的函数列表
 
 public:
     EventLoop();
-    ~EventLoop() = default;
+    ~EventLoop();
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
     bool get_is_looping() const;
     void set_is_looping(bool looping);
 
-    void loop(int timeoutMs = 10000) const;
+    void loop(int timeoutMs = 10000);
     void update_channel(Channel* channel) const;
     void remove_channel(Channel* channel) const;
+
+    void run_in_loop(const std::function<void()>& cb);
+
+private:
+    void assert_in_loop_thread() const; // 确保在当前线程调用
+    bool is_in_loop_thread() const;
+    void queue_in_loop(const std::function<void()>& cb);
+    void do_pending_functors();
 };

@@ -16,7 +16,8 @@ SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::s
     , port(port)
     , responseFilepath(responseFilepath) {
 
-    tcpServer.reset(new TcpServer(this->ip, this->port));
+    int ioLoopNum = 20; // IO 线程数量
+    tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
         [this](int fd) {
             on_connect(fd);
