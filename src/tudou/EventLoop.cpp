@@ -73,6 +73,11 @@ void EventLoop::loop(int timeoutMs) {
     spdlog::info("EventLoop stop looping.");
 }
 
+bool EventLoop::has_channel(Channel* channel) const {
+    assert_in_loop_thread();
+    return poller->has_channel(channel);
+}
+
 void EventLoop::update_channel(Channel* channel) const {
     assert_in_loop_thread();
     poller->update_channel(channel);

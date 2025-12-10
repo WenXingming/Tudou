@@ -27,7 +27,7 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
     this->channel->set_close_callback(std::bind(&Acceptor::on_close, this, std::placeholders::_1));
     this->channel->set_write_callback(std::bind(&Acceptor::on_write, this, std::placeholders::_1));
     this->channel->enable_reading();
-    this->channel->update_in_register(); // 注册到 poller，和 fd 创建同步
+    // this->channel->update_in_register(); // 注册到 poller，和 fd 创建同步
 
     // connectCallback 已经在类声明时初始化为 nullptr。无需在此重复初始化
 }
