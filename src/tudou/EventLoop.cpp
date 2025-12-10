@@ -10,7 +10,7 @@
 thread_local EventLoop* loopInthisThread = nullptr;
 
 EventLoop::EventLoop()
-    : poller(new EpollPoller())
+    : poller(new EpollPoller(this))
     , isLooping(true)
     , isQuit(false) {
 

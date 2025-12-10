@@ -16,7 +16,7 @@
  *
  * 线程模型与约定：
  * - EventLoop ，禁止拷贝与赋值以避免多个所有者。
- * - EventLoop 通常与线程一一绑定（一个线程一个 EventLoop），非线程安全方法（例如 IO 线程的 TcpConnection 的初始化等）须在所属线程调用。
+ * - EventLoop 通常与线程一一绑定（One loop per thread），非线程安全方法（例如 IO 线程的 TcpConnection 的初始化等）须在所属线程调用。
  */
 
 #pragma once
@@ -53,9 +53,9 @@ public:
 
     void run_in_loop(const std::function<void()>& cb);      // 如果在 loop 线程，直接执行 cb，否则入队（后续加入唤醒机制）
     bool is_in_loop_thread() const;                         // 判断是否在当前线程调用
+    void assert_in_loop_thread() const;                     // 确保在当前线程调用
 
 private:
-    void assert_in_loop_thread() const;                     // 确保在当前线程调用
     void queue_in_loop(const std::function<void()>& cb);    // 将函数入队到 pendingFunctors 中
     void do_pending_functors();                             // 执行 pendingFunctors 中的函数
 };

@@ -14,11 +14,12 @@
  * 设计要点：
  * - 非线程安全：所有操作应在所属 EventLoop 所在线程执行（除非上层做了线程同步）。
  * - 内部维护一个可自动扩缩的 eventList（std::vector<epoll_event>），当返回就绪数量达到容量时自动扩容以避免丢事件。
- * - 不拥有 Channel（仅保存裸指针），Channel 的生存期由上层（Acceptor / TcpConnection 等）管理。
+ * - 不拥有 Channel 只访问（仅保存裸指针），Channel 的生存期由上层（Acceptor / TcpConnection 等）管理。
  *
  */
 
 #pragma once
+
 #include <sys/epoll.h>
 #include <vector>
 #include <unordered_map>
@@ -27,14 +28,18 @@ class EventLoop;
 class Channel;
 class EpollPoller {
 private:
+    // const static 可以在类内初始化
+    static const size_t initEventListSize = 16;         // 初始事件数组大小
+    static const size_t initPollTimeoutMs = 5000;       // 初始 poll 超时时间，单位毫秒
+
+    EventLoop* loop;                                    // 依赖注入，所属的 EventLoop 指针
     int epollFd;
-    const size_t eventListSize{ 16 };                    // 初始事件数组大小；声明顺序保证先初始化此常量
-    std::vector<epoll_event> eventList{ eventListSize }; // 存放 epoll_wait 返回的就绪事件列表
-    int pollTimeoutMs{ 5000 };                           // 默认 poll 超时时间，单位毫秒
-    std::unordered_map<int, Channel*> channels;          // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
+    std::vector<epoll_event> eventList;                 // 存放 epoll_wait 返回的就绪事件列表
+    size_t pollTimeoutMs;                               // 默认 poll 超时时间，单位毫秒
+    std::unordered_map<int, Channel*> channels;         // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
 
 public:
-    explicit EpollPoller();
+    explicit EpollPoller(EventLoop* _loop);
     ~EpollPoller();
 
     void set_poll_timeout_ms(int timeoutMs);
@@ -48,7 +53,7 @@ public:
 private:
     // 完成 poll() 的辅助函数（面向过程设计）
     int get_ready_num();
-    std::vector<Channel*> get_activate_channels(int numReady);
+    auto get_activate_channels(int numReady) -> std::vector<Channel*>;
     void dispatch_events(const std::vector<Channel*>& activeChannels);
     void resize_event_list(int numReady);
 };

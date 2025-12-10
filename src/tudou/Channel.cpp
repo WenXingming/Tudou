@@ -2,7 +2,7 @@
  * @file Channel.h
  * @brief Channel 用于把 IO 事件与回调绑定起来的抽象。
  * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
+ * @project: https://github.com/WenXingming/Tudou
  *
  */
 
