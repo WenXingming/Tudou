@@ -26,35 +26,37 @@
 ./wrk -t12 -c400 -d60s --latency http://127.0.0.1:8080
 ```
 
-测试结果：
+测试结果（单 Reactor）：
 
 ```bash
-(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t12 -c400 -d60s --latency http://127.0.0.1:8080
+(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c400 -d60s --latency http://127.0.0.1:8080
 Running 1m test @ http://127.0.0.1:8080
-  12 threads and 400 connections
+  1 threads and 400 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    10.70ms   24.84ms 930.10ms   99.54%
-    Req/Sec     3.55k   259.00    10.58k    97.70%
+    Latency     8.17ms  501.57us  23.67ms   94.87%
+    Req/Sec    48.57k     1.04k   50.18k    88.83%
   Latency Distribution
-     50%    9.31ms
-     75%    9.41ms
-     90%    9.59ms
-     99%   10.30ms
-  2539217 requests in 1.00m, 26.60GB read
-Requests/sec:  42297.37
-Transfer/sec:    453.68MB
+     50%    8.14ms
+     75%    8.27ms
+     90%    8.41ms
+     99%    9.88ms
+  2900309 requests in 1.00m, 30.38GB read
+Requests/sec:  48305.13
+Transfer/sec:    518.12MB
 ```
 
-测试结果显示，在 12 线程 + 400 并发连接下，1 分钟内总共处理了 2539217 个请求，读取了 26.60 GB 数据，具体性能指标如下：
+测试结果显示，在 1 线程 + 400 并发连接下，1 分钟内总共处理了 2900309 个请求，读取了 30.38 GB 数据，具体性能指标如下：
 
 - 响应时间（Latency）：
-  - 平均响应时间：10.70 ms
-  - 最大响应时间： 930.10 ms
-  - 90% 请求的响应时间在 9.59 ms 以下
-  - 99% 请求的响应时间在 10.30 ms 以下
+  - 平均响应时间：8.17 ms
+  - 最大响应时间： 23.67 ms
+  - 90% 请求的响应时间在 8.41 ms 以下
+  - 99% 请求的响应时间在 9.88 ms 以下
 - 吞吐量（Throughput）：
-  - 每秒处理请求数（Requests/sec）：42297.37
-  - 带宽（Transfer/sec）：453.68 MB/s
+  - 每秒处理请求数（Requests/sec）：48305.13
+  - 带宽（Transfer/sec）：518.12 MB/s
+
+这些结果表明该服务器在单 Reactor 模式下能够高效地处理大量并发请求，具有较低的响应时间和较高的吞吐量。
 
 ### Apache Bench 测试
 

@@ -18,7 +18,7 @@ EventLoopThreadPool::EventLoopThreadPool(size_t numThreads)
             std::unique_ptr<EventLoop> loop(new EventLoop());
             {
                 // 保护共享资源 ioLoops
-                std::lock_guard<std::mutex> lock(mtx);
+                std::unique_lock<std::mutex> lock(mtx);
                 ioLoops.push_back(loop.get());
             }
             loop->loop();
@@ -29,7 +29,7 @@ EventLoopThreadPool::EventLoopThreadPool(size_t numThreads)
 
 EventLoop* EventLoopThreadPool::get_next_loop() {
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         if (ioLoops.empty()) {
             return nullptr;
         }

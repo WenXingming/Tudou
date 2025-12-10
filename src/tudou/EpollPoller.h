@@ -30,29 +30,24 @@ class EpollPoller {
 private:
     // const static 可以在类内初始化
     static const size_t initEventListSize = 16;         // 初始事件数组大小
-    static const size_t initPollTimeoutMs = 5000;       // 初始 poll 超时时间，单位毫秒
 
     EventLoop* loop;                                    // 依赖注入，所属的 EventLoop 指针
     int epollFd;
     std::vector<epoll_event> eventList;                 // 存放 epoll_wait 返回的就绪事件列表
-    size_t pollTimeoutMs;                               // 默认 poll 超时时间，单位毫秒
     std::unordered_map<int, Channel*> channels;         // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
 
 public:
     explicit EpollPoller(EventLoop* _loop);
     ~EpollPoller();
 
-    void set_poll_timeout_ms(int timeoutMs);
-    int get_poll_timeout_ms() const;
-
-    void poll();
+    void poll(int timeoutMs);
     bool has_channel(Channel* channel) const;
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
 
 private:
     // 完成 poll() 的辅助函数（面向过程设计）
-    int get_ready_num();
+    int get_ready_num(int timeoutMs);
     auto get_activate_channels(int numReady) -> std::vector<Channel*>;
     void dispatch_events(const std::vector<Channel*>& activeChannels);
     void resize_event_list(int numReady);
