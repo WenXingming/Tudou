@@ -39,28 +39,81 @@ int Channel::get_fd() const {
 }
 
 void Channel::enable_reading() {
-    this->event |= Channel::kReadEvent;
-    update_in_register(); // 必须调用，否则 poller 不知道 event 变化。主要是使用 epoll_ctl 更新 epollFd 上的事件
+    if (loop->is_in_loop_thread()) {
+        this->event |= Channel::kReadEvent;
+        update_in_register(); // 必须调用，否则 poller 不知道 event 变化。主要是使用 epoll_ctl 更新 epollFd 上的事件
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            this->event |= Channel::kReadEvent;
+            this->update_in_register();
+            });
+        return;
+    }
 }
 
 void Channel::enable_writing() {
-    event |= kWriteEvent;
-    update_in_register();
+    if (loop->is_in_loop_thread()) {
+        event |= kWriteEvent;
+        update_in_register();
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            event |= kWriteEvent;
+            update_in_register();
+            });
+        return;
+    }
 }
 
 void Channel::disable_reading() {
-    this->event &= ~Channel::kReadEvent;
-    update_in_register();
+    if (loop->is_in_loop_thread()) {
+        event &= ~kReadEvent;
+        update_in_register();
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            event &= ~kReadEvent;
+            update_in_register();
+            });
+        return;
+    }
 }
 
 void Channel::disable_writing() {
-    event &= ~kWriteEvent;
-    update_in_register();
+    if (loop->is_in_loop_thread()) {
+        event &= ~kWriteEvent;
+        update_in_register();
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            event &= ~kWriteEvent;
+            update_in_register();
+            });
+        return;
+    }
 }
 
 void Channel::disable_all() {
-    event = kNoneEvent;
-    update_in_register();
+    if (loop->is_in_loop_thread()) {
+        event = kNoneEvent;
+        update_in_register();
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            event = kNoneEvent;
+            update_in_register();
+            });
+        return;
+    }
 }
 
 uint32_t Channel::get_event() const {
@@ -95,11 +148,33 @@ void Channel::set_error_callback(ErrorEventCallback _cb) {
 
 // channel 借助依赖注入的 EventLoop 完成在 Poller 的注册、更新、删除操作
 void Channel::update_in_register() {
-    loop->update_channel(this);
+    if (loop->is_in_loop_thread()) {
+        // 在当前 IO 线程，直接更新
+        loop->update_channel(this);
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程更新
+        loop->run_in_loop([this]() {
+            loop->update_channel(this);
+            });
+        return;
+    }
 }
 
 void Channel::remove_in_register() {
-    loop->remove_channel(this);
+    if (loop->is_in_loop_thread()) {
+        // 在当前 IO 线程，直接删除
+        loop->remove_channel(this);
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程删除
+        loop->run_in_loop([this]() {
+            loop->remove_channel(this);
+            });
+        return;
+    }
 }
 
 void Channel::handle_events() {

@@ -51,10 +51,10 @@ public:
     void remove_channel(Channel* channel) const;
 
     void run_in_loop(const std::function<void()>& cb);      // 如果在 loop 线程，直接执行 cb，否则入队（后续加入唤醒机制）
+    bool is_in_loop_thread() const;                         // 判断是否在当前线程调用
 
 private:
     void assert_in_loop_thread() const;                     // 确保在当前线程调用
-    bool is_in_loop_thread() const;                         // 判断是否在当前线程调用
     void queue_in_loop(const std::function<void()>& cb);    // 将函数入队到 pendingFunctors 中
     void do_pending_functors();                             // 执行 pendingFunctors 中的函数
 };

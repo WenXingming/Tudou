@@ -59,6 +59,9 @@ public:
 
     void init_channel();
 
+    EventLoop* get_loop() const {
+        return loop;
+    }
     int get_fd() const;
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);

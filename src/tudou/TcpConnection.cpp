@@ -63,13 +63,36 @@ void TcpConnection::set_close_callback(CloseCallback _cb) {
 }
 
 void TcpConnection::send(const std::string& msg) {
-    writeBuffer->write_to_buffer(msg);
-    channel->enable_writing();
+    if (loop->is_in_loop_thread()) {
+        // 在当前 IO 线程，直接发送
+        writeBuffer->write_to_buffer(msg);
+        channel->enable_writing();
+        return;
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程发送
+        loop->run_in_loop([this, msg]() {
+            writeBuffer->write_to_buffer(msg);
+            channel->enable_writing();
+            });
+        return;
+    }
 }
 
 std::string TcpConnection::receive() {
-    std::string msg(readBuffer->read_from_buffer());
-    return std::move(msg);
+    if (loop->is_in_loop_thread()) {
+        // 在当前 IO 线程，直接接收
+        std::string msg(readBuffer->read_from_buffer());
+        return std::move(msg);
+    }
+    else {
+        // 不在当前 IO 线程，切换到对应线程接收
+        std::string msg;
+        loop->run_in_loop([this, &msg]() {
+            msg = readBuffer->read_from_buffer();
+            });
+        return std::move(msg);
+    }
 }
 
 /* void TcpConnection::shutdown() {

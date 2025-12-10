@@ -142,14 +142,31 @@ void TcpServer::handle_close_callback(int fd) {
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
-    int fd = conn->get_fd();
-    auto findIt = connections.find(fd);
-    if (findIt != connections.end()) {
-        // removeConnection = findIt->second; // 暂存，避免悬空指针
-        connections.erase(findIt);
+    // 在相应的 IO 线程中执行删除操作
+    EventLoop* loop = conn->get_loop();
+    if (loop->is_in_loop_thread()) {
+        // 如果已经在对应的线程中，直接删除
+        int fd = conn->get_fd();
+        auto findIt = connections.find(fd);
+        if (findIt != connections.end()) {
+            connections.erase(findIt);
+        }
+        else {
+            spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+        }
     }
     else {
-        spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+        // 切换到对应的线程中删除
+        loop->run_in_loop([this, conn]() {
+            int fd = conn->get_fd();
+            auto findIt = connections.find(fd);
+            if (findIt != connections.end()) {
+                connections.erase(findIt);
+            }
+            else {
+                spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+            }
+            });
     }
 }
 
@@ -157,8 +174,8 @@ EventLoop* TcpServer::get_loop() {
     EventLoop* loop;
     EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
     if (ioLoop == nullptr) {
-        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
         loop = mainLoop.get();
+        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
     }
     else {
         loop = ioLoop;
