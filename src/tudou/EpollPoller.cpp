@@ -44,6 +44,12 @@ void EpollPoller::poll() {
 
 }
 
+bool EpollPoller::has_channel(Channel* channel) const {
+    int fd = channel->get_fd();
+    auto it = channels.find(fd);
+    return it != channels.end() && it->second == channel;
+}
+
 int EpollPoller::get_ready_num() {
     int numReady = epoll_wait(epollFd
         , eventList.data()
@@ -70,7 +76,7 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
         auto it = channels.find(fd);
         assert(it != channels.end()); // 否则 Error：说明 epoll 和 channels 不同步
         Channel* channel = it->second;
-        channel->set_revent(revent);
+        channel->set_revents(revent);
         activeChannels.push_back(channel);
     }
 
@@ -98,7 +104,7 @@ void EpollPoller::resize_event_list(const int numReady) {
 // 维护注册中心 epollfd、channels。使用 epoll_ctl() 更新, 包括 EPOLL_CTL_ADD、EPOLL_CTL_MOD
 void EpollPoller::update_channel(Channel* channel) {
     int fd = channel->get_fd();
-    uint32_t event = channel->get_event();
+    uint32_t event = channel->get_events();
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));

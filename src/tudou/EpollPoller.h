@@ -41,6 +41,7 @@ public:
     int get_poll_timeout_ms() const;
 
     void poll();
+    bool has_channel(Channel* channel) const;
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
 

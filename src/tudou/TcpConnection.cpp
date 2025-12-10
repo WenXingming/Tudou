@@ -145,7 +145,7 @@ void TcpConnection::on_close(Channel& channel) {
 }
 
 void TcpConnection::on_error(Channel& channel) {
-    spdlog::error("TcpConnection::on_error() called.");
+    // spdlog::error("TcpConnection::on_error() called.");
     on_close(channel);
 }
 

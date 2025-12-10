@@ -47,6 +47,7 @@ public:
     void quit();                                            // 退出事件循环
 
     void loop(int timeoutMs = 10000);
+    bool has_channel(Channel* channel) const;
     void update_channel(Channel* channel) const;
     void remove_channel(Channel* channel) const;
 
