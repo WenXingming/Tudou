@@ -11,7 +11,6 @@
 
 #include <sys/eventfd.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <thread>
 #include <functional>
 
