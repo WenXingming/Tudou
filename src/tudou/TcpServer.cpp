@@ -1,8 +1,8 @@
 /**
- * @file TcpServer.h
- * @brief TCP 服务器：管理 Acceptor 与 TcpConnection，会话创建、回调接线与连接生命周期管理。
- * @author
- * @project: https://github.com/WenXingming/tudou
+ * @file TcpServer.cpp
+ * @brief TCP 服务器：管理 Acceptor 与 TcpConnection
+ * @author WenXingming
+ * @project: https://github.com/WenXingming/Tudou
  *
  */
 
@@ -26,6 +26,7 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", ioLoopNum)),
     ip(std::move(ip)),
     port(port),
+    acceptor(nullptr),
     connections(),
     connectionCallback(nullptr),
     messageCallback(nullptr),
@@ -39,7 +40,7 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
 }
 
 TcpServer::~TcpServer() {
-    // this->connections.clear();
+    spdlog::info("TcpServer::~TcpServer() called.");
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -72,16 +73,18 @@ void TcpServer::send_message(int fd, const std::string& msg) {
 }
 
 void TcpServer::on_connect(const int connFd) {
-    spdlog::info("New connection created. fd is: {}", connFd);
+    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    assert(mainLoop != nullptr);
+    mainLoop->assert_in_loop_thread();
 
-    // 选择一个 EventLoop 来管理该连接，轮询选择
-    EventLoop* loop = loopThreadPool->get_next_loop();
-    assert(loop != nullptr);
+    // 选择一个 EventLoop 来管理该连接，轮询选择（通常是 ioLoop，除非只有一个 mainLoop）
+    EventLoop* ioLoop = loopThreadPool->get_next_loop();
+    assert(ioLoop != nullptr);
 
+    // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
-    loop->run_in_loop([this, connFd, loop]() {
-        auto conn = std::make_shared<TcpConnection>(loop, connFd);
-        // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
+    ioLoop->run_in_loop([this, connFd, ioLoop]() {
+        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)
         );
@@ -90,27 +93,14 @@ void TcpServer::on_connect(const int connFd) {
             });
         connections[connFd] = conn;
         conn->init_channel(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
+
         // 触发上层回调。上层可以设置连接建立时的逻辑
         handle_connection_callback(connFd);
         });
-
-    // auto conn = std::make_shared<TcpConnection>(loop.get(), connFd);
-    // // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
-    // conn->set_message_callback(
-    //     std::bind(&TcpServer::on_message, this, std::placeholders::_1)
-    // );
-    // conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
-    //     this->on_close(_conn);
-    //     });
-    // connections[connFd] = conn;
-    // conn->init_channel(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
-    // // 触发上层回调。上层可以设置连接建立时的逻辑
-    // handle_connection_callback(connFd);
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 本不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。
-    // 但是为了类之间的屏蔽，TcpServer 需要向上提供 fd 和 msg，而不是 TcpConnection 对象本身
+    // TcpServer 本不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。但是为了类之间的屏蔽，设计 TcpServer 向上提供 fd 和 msg，而不是 TcpConnection 对象本身
     int fd = conn->get_fd();
     std::string msg = conn->receive();
     handle_message_callback(fd, msg);

@@ -1,8 +1,8 @@
 /**
  * @file Buffer.h
  * @brief 高效字节缓冲区，管理可读/可写/预留区域，并支持与 fd 的非阻塞读写。
- * @author
- * @project: https://github.com/WenXingming/tudou
+ * @author WenXingming
+ * @project: https://github.com/WenXingming/Tudou
  * @reference: https://www.bilibili.com/video/BV1PS4y1D74z/?spm_id_from=333.337.search-card.all.click&vd_source=5f255b90a5964db3d7f44633d085b6e4
  * @details
  *
@@ -22,10 +22,6 @@
  *   1. 从 fd 读取数据写入 InputBuffer 的 writable bytes 区域（read_from_fd），自动变成可读区域，供上层从缓冲区读取使用（read_from_buffer）
  *   2. 上层写入数据到 OutputBuffer 的 writable bytes 区域（write_to_buffer），自动变成可读区域，供写入 fd 使用（write_to_fd）
  * - 总之：上层通过 read_from_buffer()/write_to_buffer() 与缓冲区进行数据搬运，缓冲区通过 read_from_fd()/write_to_fd() 与 fd 进行数据搬运。
- *
- *
- * 线程模型：
- * - 非线程安全；通常在所属连接的 EventLoop 线程内使用，跨线程需外部同步。
  *
  */
 

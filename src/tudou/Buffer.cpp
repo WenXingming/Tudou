@@ -1,7 +1,7 @@
 /**
- * @file Buffer.h
+ * @file Buffer.cpp
  * @brief 高效字节缓冲区，管理可读/可写/预留区域，并支持与 fd 的非阻塞读写。
- * @author
+ * @author WenXingming
  * @project: https://github.com/WenXingming/tudou
  *
  */
@@ -17,10 +17,10 @@
 #include "spdlog/spdlog.h"
 
  // 构造缓冲区，预留 prepend 区域并初始化读写索引。
-Buffer::Buffer(size_t initialSize)
-    : buffer(kCheapPrepend + initialSize)
-    , readIndex(kCheapPrepend)
-    , writeIndex(kCheapPrepend) {
+Buffer::Buffer(size_t initialSize) :
+    buffer(kCheapPrepend + initialSize),
+    readIndex(kCheapPrepend),
+    writeIndex(kCheapPrepend) {
 
     assert(readable_bytes() == 0);
     assert(writable_bytes() == initialSize);

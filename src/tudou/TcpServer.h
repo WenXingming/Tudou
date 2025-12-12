@@ -1,30 +1,12 @@
 /**
  * @file TcpServer.h
- * @brief TCP 服务器：管理 Acceptor 与 TcpConnection，会话创建、回调接线与连接生命周期管理。
- * @author
- * @project: https://github.com/WenXingming/tudou
+ * @brief TCP 服务器：管理 Acceptor 与 TcpConnection
+ * @author WenXingming
+ * @project: https://github.com/WenXingming/Tudou
  * @details
  *
- * 职责：
  * - 持有 Acceptor，监听并接受新连接，在回调中创建/接管 TcpConnection。
  * - 维护 fd->TcpConnection 的映射，负责连接增删及资源回收。
- * - 将业务层 MessageCallback 与 TcpConnection 的 message/close 回调进行接线与转发。
- *
- * 线程模型与约定：
- * - 与所属 EventLoop 线程绑定，非线程安全；所有对外方法应在该线程调用。
- *
- * 生命周期与所有权：
- * - 唯一拥有 Acceptor（std::unique_ptr）。
- * - 以 std::shared_ptr 管理 TcpConnection 的生命周期，允许业务层持有副本。
- * - 仅保存回调，不持有上层业务对象，避免环依赖。
- *
- * 运行流程：
- * - start(): 启动监听（Acceptor 注册读事件）。
- * - on_connect(): 接受连接并创建 TcpConnection，注册读/写/关闭/错误回调。
- * - on_close()/remove_connection(): 从映射中移除并清理。
- *
- * 错误处理：
- * - 接受新连接失败或资源不足时记录并忽略本次事件，保持服务可用。
  */
 
 #pragma once
@@ -55,20 +37,20 @@ class TcpServer {
     using CloseCallback = std::function<void(int fd)>;
 
 private:
-    std::unique_ptr<EventLoopThreadPool> loopThreadPool; // IO 线程池
+    std::unique_ptr<EventLoopThreadPool> loopThreadPool; // 包括 1 个 mainLoop 和 多个 ioLoops
 
     std::string ip;
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;
-    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
+    std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期、持有者模糊，所以用 shared_ptr
 
     ConnectionCallback connectionCallback;
     MessageCallback messageCallback;
     CloseCallback closeCallback;
+    /// TODO: WriteCompleteCallback writeCompleteCallback;
 
 public:
-    TcpServer(std::string ip, uint16_t port
-        , size_t ioLoopNum = std::thread::hardware_concurrency() == 0 ? 2 : std::thread::hardware_concurrency());
+    TcpServer(std::string ip, uint16_t port, size_t ioLoopNum = 0);
     ~TcpServer();
 
     const std::string& get_ip() const { return ip; }
