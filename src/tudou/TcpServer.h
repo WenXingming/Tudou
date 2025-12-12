@@ -55,13 +55,12 @@ class TcpServer {
     using CloseCallback = std::function<void(int fd)>;
 
 private:
-    std::unique_ptr<EventLoop> mainLoop; // 监听线程的事件循环。还有一种线程是 IO 线程，负责处理业务逻辑，该线程是多线程，还没有实现
+    std::unique_ptr<EventLoopThreadPool> loopThreadPool; // IO 线程池
+
     std::string ip;
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期模糊，用户也可以持有。所以用 shared_ptr
-
-    std::unique_ptr<EventLoopThreadPool> ioLoopThreadPool; // IO 线程池
 
     ConnectionCallback connectionCallback;
     MessageCallback messageCallback;
@@ -96,5 +95,5 @@ private:
     void handle_close_callback(int fd);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
-    EventLoop* get_loop();
+    // EventLoop* get_loop();
 };

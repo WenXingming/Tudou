@@ -14,24 +14,29 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "spdlog/spdlog.h"
 #include "../base/InetAddress.h"
+#include "spdlog/spdlog.h"
 #include "Acceptor.h"
 #include "EventLoop.h"
 #include "TcpConnection.h"
+#include "EventLoopThread.h"
+#include "EventLoopThreadPool.h"
 
-TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum)
-    :
-    mainLoop(new EventLoop()) // 初始化监听线程的 EventLoop
-    , ip(std::move(ip))
-    , port(port)
-    , acceptor(new Acceptor(mainLoop.get(), InetAddress(ip, port)))
-    , connections()
-    , ioLoopThreadPool(new EventLoopThreadPool(ioLoopNum))
-    , connectionCallback(nullptr)
-    , messageCallback(nullptr)
-    , closeCallback(nullptr) {
+TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
+    loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", ioLoopNum)),
+    ip(std::move(ip)),
+    port(port),
+    connections(),
+    connectionCallback(nullptr),
+    messageCallback(nullptr),
+    closeCallback(nullptr) {
 
+    loopThreadPool->start();
+
+    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    InetAddress listenAddr(this->ip, this->port);
+    assert(mainLoop != nullptr);
+    acceptor.reset(new Acceptor(mainLoop, listenAddr));
     acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 或者可以使用 lambda
 }
 
@@ -52,7 +57,9 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 }
 
 void TcpServer::start() {
-    mainLoop->loop();
+    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    assert(mainLoop != nullptr);
+    mainLoop->loop(); // 启动事件循环
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
@@ -70,7 +77,8 @@ void TcpServer::on_connect(const int connFd) {
     spdlog::info("New connection created. fd is: {}", connFd);
 
     // 选择一个 EventLoop 来管理该连接，轮询选择
-    EventLoop* loop = get_loop();
+    EventLoop* loop = loopThreadPool->get_next_loop();
+    assert(loop != nullptr);
 
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
     loop->run_in_loop([this, connFd, loop]() {
@@ -170,17 +178,17 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     }
 }
 
-EventLoop* TcpServer::get_loop() {
-    EventLoop* loop;
-    EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
-    if (ioLoop == nullptr) {
-        loop = mainLoop.get();
-        spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
-    }
-    else {
-        loop = ioLoop;
-    }
+// EventLoop* TcpServer::get_loop() {
+//     EventLoop* loop;
+//     EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
+//     if (ioLoop == nullptr) {
+//         loop = mainLoop.get();
+//         spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
+//     }
+//     else {
+//         loop = ioLoop;
+//     }
 
-    assert(loop != nullptr);
-    return loop;
-}
+//     assert(loop != nullptr);
+//     return loop;
+// }

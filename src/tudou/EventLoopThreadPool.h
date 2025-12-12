@@ -34,7 +34,7 @@ private:
     int numThreads;                                              // 线程池中的线程数量，感觉没必要单独存这个变量了，直接用 ioLoopThreads.size() 就行
 
 public:
-    EventLoopThreadPool(const std::string& nameArg = std::string(), int numThreadsArg = 0);
+    EventLoopThreadPool(const std::string& nameArg = std::string(), int numThreadsArg = 0, const ThreadInitCallback& cb = ThreadInitCallback());
     EventLoopThreadPool(const EventLoopThreadPool&) = delete;
     EventLoopThreadPool& operator=(const EventLoopThreadPool&) = delete;
     ~EventLoopThreadPool() = default;

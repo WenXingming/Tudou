@@ -12,7 +12,7 @@
 
 #include <cassert>
 
-EventLoopThreadPool::EventLoopThreadPool(const std::string& nameArg, int numThreadsArg) :
+EventLoopThreadPool::EventLoopThreadPool(const std::string& nameArg, int numThreadsArg, const ThreadInitCallback& cb) :
     mainLoop(new EventLoop()),
     ioLoopThreads(),
     // ioLoops(),
@@ -21,11 +21,12 @@ EventLoopThreadPool::EventLoopThreadPool(const std::string& nameArg, int numThre
     started(false),
     numThreads(numThreadsArg) {
 
+    mainLoop->assert_in_loop_thread();
 }
 
 void EventLoopThreadPool::start(const ThreadInitCallback& cb) {
     assert(!started);
-    mainLoop->assert_in_loop_thread();
+
 
     started = true;
     for (int i = 0; i < numThreads; ++i) {
@@ -60,7 +61,7 @@ std::vector<EventLoop*> EventLoopThreadPool::get_all_loops() const {
     for (int i = 0; i < ioLoopThreads.size(); ++i) {
         loops.push_back(ioLoopThreads[i]->get_loop());
     }
-    return loops;
+    return std::move(loops);
 }
 
 
