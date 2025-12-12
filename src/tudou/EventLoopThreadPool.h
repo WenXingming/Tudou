@@ -30,7 +30,6 @@ private:
     size_t ioLoopsIndex;                                         // 轮询索引
 
     std::string name;                                            // 线程池名称
-    bool started;                                                // 线程池是否已经启动
     int numThreads;                                              // 线程池中的线程数量，感觉没必要单独存这个变量了，直接用 ioLoopThreads.size() 就行
 
 public:
@@ -39,14 +38,12 @@ public:
     EventLoopThreadPool& operator=(const EventLoopThreadPool&) = delete;
     ~EventLoopThreadPool() = default;
 
-    void start(const ThreadInitCallback& cb = ThreadInitCallback());
 
     EventLoop* get_main_loop() { return mainLoop.get(); }
     EventLoop* get_next_loop(); // 默认轮询算法获取下一个 IO 线程的 EventLoop
     std::vector<EventLoop*> get_all_loops() const; // 获取所有 IO 线程的 EventLoop
 
     std::string get_name() const { return name; }
-    bool is_started() const { return started; }
     void set_thread_num(int numThreads) { this->numThreads = numThreads; }
 };
 

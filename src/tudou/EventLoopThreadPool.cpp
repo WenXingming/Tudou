@@ -18,17 +18,10 @@ EventLoopThreadPool::EventLoopThreadPool(const std::string& nameArg, int numThre
     // ioLoops(),
     ioLoopsIndex(0),
     name(nameArg),
-    started(false),
     numThreads(numThreadsArg) {
 
     mainLoop->assert_in_loop_thread();
-}
 
-void EventLoopThreadPool::start(const ThreadInitCallback& cb) {
-    assert(!started);
-
-
-    started = true;
     for (int i = 0; i < numThreads; ++i) {
         std::unique_ptr<EventLoopThread> ioThread(new EventLoopThread(cb));
         ioLoopThreads.push_back(std::move(ioThread));
@@ -41,7 +34,6 @@ void EventLoopThreadPool::start(const ThreadInitCallback& cb) {
 }
 
 EventLoop* EventLoopThreadPool::get_next_loop() {
-    assert(started);
     mainLoop->assert_in_loop_thread();
 
     EventLoop* loop = mainLoop.get();

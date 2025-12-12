@@ -31,8 +31,6 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     messageCallback(nullptr),
     closeCallback(nullptr) {
 
-    loopThreadPool->start();
-
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     InetAddress listenAddr(this->ip, this->port);
     assert(mainLoop != nullptr);
@@ -59,7 +57,7 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 void TcpServer::start() {
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     assert(mainLoop != nullptr);
-    mainLoop->loop(); // 启动事件循环
+    mainLoop->loop(); // 启动监听事件循环
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
