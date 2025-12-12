@@ -34,15 +34,15 @@ class Channel;
 class InetAddress;
 class Acceptor {
     // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 通常：using ConnectCallback = std::function<void(const Acceptor&)>;
+    // 通常：using NewConnectCallback = std::function<void(const Acceptor&)>;
     // But：但这里直接传递 connFd ，因为上层只需要这个 fd 来创建 TcpConnection；且 Acceptor 只能提供 listenFd，没有 connFd
-    using ConnectCallback = std::function<void(int)>;
+    using NewConnectCallback = std::function<void(int)>;
 
 private:
     EventLoop* loop;
     InetAddress listenAddr;
     std::unique_ptr<Channel> channel;
-    ConnectCallback connectCallback{ nullptr }; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+    NewConnectCallback newConnectCallback; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
 
 public:
     Acceptor(EventLoop* _loop, const InetAddress& _listenAddr);

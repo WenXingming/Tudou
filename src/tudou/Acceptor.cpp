@@ -10,26 +10,24 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr)
-    : loop(_loop)
-    , listenAddr(_listenAddr) {
+Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) :
+    loop(_loop),
+    listenAddr(_listenAddr),
+    channel(),
+    newConnectCallback(nullptr) {
 
-    // 初始化 this->listenFd
+    // 创建 listenFd
     int listenFd = this->create_fd();
     this->bind_address(listenFd);
     this->start_listen(listenFd);
-
-    // 初始化 channel. 也可以放在初始化列表里，但注意初始化顺序（依赖 listenFd）
-    // callback 参数使用 std::bind 绑定成员函数和 this 指针，函数被调用时（底层）参数的实际传入由底层传入（自身引用）
+    // 初始化 channel
     this->channel.reset(new Channel(this->loop, listenFd)); // unique_ptr 无法拷贝，所以使用 reset + new
     this->channel->set_read_callback(std::bind(&Acceptor::on_read, this, std::placeholders::_1));
     this->channel->set_error_callback(std::bind(&Acceptor::on_error, this, std::placeholders::_1));
     this->channel->set_close_callback(std::bind(&Acceptor::on_close, this, std::placeholders::_1));
     this->channel->set_write_callback(std::bind(&Acceptor::on_write, this, std::placeholders::_1));
     this->channel->enable_reading();
-    // this->channel->update_in_register(); // 注册到 poller，和 fd 创建同步
 
-    // connectCallback 已经在类声明时初始化为 nullptr。无需在此重复初始化
 }
 
 Acceptor::~Acceptor() {
@@ -37,32 +35,41 @@ Acceptor::~Acceptor() {
 }
 
 int Acceptor::get_listen_fd() const {
-    return this->channel->get_fd();
+    return channel->get_fd();
 }
 
-void Acceptor::set_connect_callback(std::function<void(int)> cb) {
-    this->connectCallback = std::move(cb);
+void Acceptor::set_connect_callback(std::function<void(int)> _cb) {
+    this->newConnectCallback = std::move(_cb);
 }
 
 int Acceptor::create_fd() {
-    int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0); // 创建非阻塞 socket
-    assert(listenFd > 0);
+    // 创建 listenFd, 指定非阻塞 IO 套接字
+    int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP /* 0 */);
+    if (listenFd < 0) {
+        spdlog::critical("Acceptor::create_fd(). socket error, errno: {}", errno);
+        assert(false);
+    }
     return listenFd;
 }
 
 void Acceptor::bind_address(int listenFd) {
     sockaddr_in address = this->listenAddr.get_sockaddr();
     int bindRet = ::bind(listenFd, (sockaddr*)&address, sizeof(address));
-    assert(bindRet != -1);
+    if (bindRet == -1) {
+        spdlog::critical("Acceptor::bind_address(). bind error, errno: {}", errno);
+        assert(false);
+    }
 }
 
 void Acceptor::start_listen(int listenFd) {
     int listenRet = ::listen(listenFd, SOMAXCONN);
-    assert(listenRet != -1);
+    if (listenRet == -1) {
+        spdlog::critical("Acceptor::start_listen(). listen error, errno: {}", errno);
+        assert(false);
+    }
 }
 
 void Acceptor::on_error(Channel& channel) {
-    // 在函数体里，同名的形参 channel 会屏蔽掉成员变量 channel；想访问成员变量，需要写成 this->channel
     // 理论上不应该触发错误事件，但触发了也不应该崩溃
     spdlog::error("Acceptor::on_error() is called.");
     spdlog::error("Acceptor::listenFd {} error.", channel.get_fd());
@@ -96,7 +103,6 @@ void Acceptor::on_read(Channel& channel) {
 }
 
 void Acceptor::handle_connect_callback(int connFd) {
-    // 回调函数的又一个特点：参数由底层传入，逻辑由上层实现
-    assert(this->connectCallback != nullptr);
-    this->connectCallback(connFd);
+    assert(this->newConnectCallback != nullptr);
+    this->newConnectCallback(connFd);
 }
