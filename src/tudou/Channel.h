@@ -31,12 +31,12 @@ private:
 
     EventLoop* loop;                    // 依赖注入
     int fd;                             // channel 负责管理的 fd
-    uint32_t events;                     // interesting events
-    uint32_t revents;                    // received events types of poller, channel 调用
+    uint32_t events;                    // interesting events
+    uint32_t revents;                   // received events
     int index;                          // 暂时不知道作用，先保留
 
     std::weak_ptr<void> tie;            // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。void 因为下层不需要知道上层类型
-    bool isTied;                        // Acceptor 不需要 tie，TcpConnection 需要 tie 自身(shared_ptr, shared_from_this)
+    bool isTied;                        // Acceptor 不需要 tie，TcpConnection 需要 tie (shared_ptr, shared_from_this)
 
     ReadEventCallback readCallback;     // 回调函数，执行上层逻辑，回调函数的参数由下层传入
     WriteEventCallback writeCallback;
@@ -62,7 +62,7 @@ public:
     bool is_reading() const;
     uint32_t get_events() const;
 
-    void set_revents(uint32_t _revents);
+    void set_revents(uint32_t _revents);  // poller 监听到事件后调用此函数设置 revents
 
     void set_index(int _idx);
     int get_index() const;
@@ -86,6 +86,7 @@ private:
     void remove_in_register();
 
     void handle_events_with_guard();
+
     void handle_read_callback();
     void handle_write_callback();
     void handle_close_callback();

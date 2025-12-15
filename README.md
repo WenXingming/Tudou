@@ -115,12 +115,12 @@ apr_pollset_poll: The timeout specified has expired (70007)
 
 ## Citation
 
-- 网络库：https://github.com/chenshuo/muduo
-- Http 协议解析库：https://github.com/nodejs/llhttp
-- 日志库：https://github.com/gabime/spdlog
-- 压力测试工具：https://github.com/wg/wrk
+- 网络库（muduo）：https://github.com/chenshuo/muduo
+- Http 协议解析库（llhttp）：https://github.com/nodejs/llhttp
+- 日志库（spdlog）：https://github.com/gabime/spdlog
+- 压力测试工具（wrk）：https://github.com/wg/wrk
 
-## References
+## Others
 
 - 陈硕. 《Linux 多线程服务器编程：使用 muduo C++ 网络库》. 电子工业出版社, 2013.
 - [muduo 源码剖析 - bilibili](https://www.bilibili.com/video/BV1nu411Q7Gq?spm_id_from=333.788.videopod.sections&vd_source=5f255b90a5964db3d7f44633d085b6e4)
