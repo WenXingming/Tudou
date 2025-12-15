@@ -27,9 +27,10 @@ private:
     std::string responseFilepath{ "/home/wxm/Tudou/assets/homepage.html" };
 
     std::unique_ptr<TcpServer> tcpServer;
+    int threadNum;
 
 public:
-    SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath);
+    SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath, const int threadNum = 12);
     ~SendFileTcpServer();
 
     std::string get_ip() const { return ip; }

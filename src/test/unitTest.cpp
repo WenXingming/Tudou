@@ -66,9 +66,11 @@ int main() {
     std::string ip = "127.0.0.1";
     int port = 8080;
     std::string filepath = "/home/wxm/Tudou/assets/homepage.html";
+    int threadNum = 1;
+
     spdlog::debug("Starting TcpServer test on {}:{}...", ip, port);
-    std::thread t2([ip, port, filepath]() {
-        SendFileTcpServer sendFileTcpServer(ip, port, filepath);
+    std::thread t2([ip, port, filepath, threadNum]() {
+        SendFileTcpServer sendFileTcpServer(ip, port, filepath, threadNum);
         sendFileTcpServer.start();
         });
     t2.join();

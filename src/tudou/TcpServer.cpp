@@ -62,16 +62,9 @@ void TcpServer::start() {
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
-    std::shared_ptr<TcpConnection> conn;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex);
-        auto findIt = connections.find(fd);
-        if (findIt != connections.end()) {
-            conn = findIt->second; // 拿到一份 shared_ptr 副本，锁外使用
-        }
-    }
-
-    if (conn) {
+    auto findIt = connections.find(fd);
+    if (findIt != connections.end()) {
+        auto conn = findIt->second;
         conn->send(msg);
     }
     else {
@@ -80,9 +73,6 @@ void TcpServer::send_message(int fd, const std::string& msg) {
 }
 
 void TcpServer::on_connect(const int connFd) {
-    spdlog::info("TcpServer::on_connect(), connFd={}", connFd);
-    assert(connFd >= 0 && connFd < 1000000); // 简单 sanity check
-
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     assert(mainLoop != nullptr);
     mainLoop->assert_in_loop_thread();
@@ -94,9 +84,6 @@ void TcpServer::on_connect(const int connFd) {
     // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
     ioLoop->run_in_loop([this, connFd, ioLoop]() {
-        spdlog::info("TcpServer lambda start, connFd={}", connFd);
-        assert(connFd >= 0 && connFd < 1000000); // 简单 sanity check
-
         auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)
@@ -104,10 +91,7 @@ void TcpServer::on_connect(const int connFd) {
         conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
             this->on_close(_conn);
             });
-        {
-            std::lock_guard<std::mutex> lock(connectionsMutex);
-            connections[connFd] = conn;
-        }
+        connections[connFd] = conn;
         conn->connection_establish(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
 
         // 触发上层回调。上层可以设置连接建立时的逻辑
@@ -159,17 +143,11 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     if (loop->is_in_loop_thread()) {
         // 如果已经在对应的线程中，直接删除
         int fd = conn->get_fd();
-        bool erased = false;
-        {
-            std::lock_guard<std::mutex> lock(connectionsMutex);
-            auto findIt = connections.find(fd);
-            if (findIt != connections.end()) {
-                connections.erase(findIt);
-                erased = true;
-            }
+        auto findIt = connections.find(fd);
+        if (findIt != connections.end()) {
+            connections.erase(findIt);
         }
-
-        if (!erased) {
+        else {
             spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
         }
     }
@@ -177,17 +155,11 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
         // 切换到对应的线程中删除
         loop->run_in_loop([this, conn]() {
             int fd = conn->get_fd();
-            bool erased = false;
-            {
-                std::lock_guard<std::mutex> lock(connectionsMutex);
-                auto findIt = connections.find(fd);
-                if (findIt != connections.end()) {
-                    connections.erase(findIt);
-                    erased = true;
-                }
+            auto findIt = connections.find(fd);
+            if (findIt != connections.end()) {
+                connections.erase(findIt);
             }
-
-            if (!erased) {
+            else {
                 spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
             }
             });

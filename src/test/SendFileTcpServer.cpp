@@ -11,12 +11,13 @@
 #include <fstream>
 #include <sstream>
 
-SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath)
-    : ip(std::move(ip))
-    , port(port)
-    , responseFilepath(responseFilepath) {
+SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath, const int threadNum) :
+    ip(std::move(ip)),
+    port(port),
+    responseFilepath(responseFilepath),
+    threadNum(threadNum) {
 
-    int ioLoopNum = 12; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
+    int ioLoopNum = threadNum; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
     tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
         [this](int fd) {

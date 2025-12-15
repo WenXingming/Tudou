@@ -175,7 +175,7 @@ void EventLoop::do_pending_functors() {
     }
 
     while (!functors.empty()) {
-        // auto& functor = functors.front(); // !!! 找了半天的 bug
+        // auto& functor = functors.front(); // !!! 找了半天的 bug。现象是 lambda 表达式里访问的变量值总是错误的，后来发现是这里的引用导致的悬空引用
         auto functor = functors.front();
         functors.pop();
         functor();

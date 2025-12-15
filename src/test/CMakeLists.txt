@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(multi_io)
 
+# 设置多线程编译选项
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
 # 设置 C++ 标准。设置 C++ 标准是一个好习惯，这能确保你的代码在不同编译器上行为一致
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
