@@ -65,8 +65,8 @@ int main() {
     // std::string filepath = "/home/admin/Tudou/assets/homepage.html";
     std::string ip = "127.0.0.1";
     int port = 8080;
-    std::string filepath = "/home/wxm/Tudou/assets/homepage.html";
-    int threadNum = 1;
+    std::string filepath = "/home/wxm/Tudou/assets/hello-world.html";
+    int threadNum = 16;
 
     spdlog::debug("Starting TcpServer test on {}:{}...", ip, port);
     std::thread t2([ip, port, filepath, threadNum]() {

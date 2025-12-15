@@ -62,9 +62,16 @@ void TcpServer::start() {
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
-    auto findIt = connections.find(fd);
-    if (findIt != connections.end()) {
-        auto conn = findIt->second;
+    std::shared_ptr<TcpConnection> conn;
+    {
+        std::lock_guard<std::mutex> lock(connectionsMutex);
+        auto findIt = connections.find(fd);
+        if (findIt != connections.end()) {
+            conn = findIt->second; // 拿一份 shared_ptr 副本，锁外使用
+        }
+    }
+
+    if (conn) {
         conn->send(msg);
     }
     else {
@@ -91,7 +98,10 @@ void TcpServer::on_connect(const int connFd) {
         conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
             this->on_close(_conn);
             });
-        connections[connFd] = conn;
+        {
+            std::lock_guard<std::mutex> lock(connectionsMutex);
+            connections[connFd] = conn;
+        }
         conn->connection_establish(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
 
         // 触发上层回调。上层可以设置连接建立时的逻辑
@@ -143,11 +153,17 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     if (loop->is_in_loop_thread()) {
         // 如果已经在对应的线程中，直接删除
         int fd = conn->get_fd();
-        auto findIt = connections.find(fd);
-        if (findIt != connections.end()) {
-            connections.erase(findIt);
+        bool erased = false;
+        {
+            std::lock_guard<std::mutex> lock(connectionsMutex);
+            auto findIt = connections.find(fd);
+            if (findIt != connections.end()) {
+                connections.erase(findIt);
+                erased = true;
+            }
         }
-        else {
+
+        if (!erased) {
             spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
         }
     }
@@ -155,11 +171,17 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
         // 切换到对应的线程中删除
         loop->run_in_loop([this, conn]() {
             int fd = conn->get_fd();
-            auto findIt = connections.find(fd);
-            if (findIt != connections.end()) {
-                connections.erase(findIt);
+            bool erased = false;
+            {
+                std::lock_guard<std::mutex> lock(connectionsMutex);
+                auto findIt = connections.find(fd);
+                if (findIt != connections.end()) {
+                    connections.erase(findIt);
+                    erased = true;
+                }
             }
-            else {
+
+            if (!erased) {
                 spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
             }
             });

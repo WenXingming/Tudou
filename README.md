@@ -6,13 +6,15 @@
 
 ## Benchmark
 
-### 硬件配置
+硬件配置：
 
 - CPU: Intel(R) Xeon(R) Silver 4214R CPU (12 Cores, 24 Threads)
 - RAM: 64 GB
 - Disk: SSD
 - Network: localhost loopback interface
 - Operating System: Ubuntu 22.04.5 LTS
+
+----
 
 ### Wrk 测试
 
@@ -23,6 +25,7 @@
 # cd wrk
 # make -j12
 # 编译后 wrk 文件夹下会生成可执行文件 wrk，然后运行以下命令进行测试：
+# ./wrk -t${线程数} -c${连接数} -d${测试时间}s --latency http://127.0.0.1:8080
 ./wrk -t12 -c400 -d60s --latency http://127.0.0.1:8080
 ```
 
@@ -57,6 +60,29 @@ Transfer/sec:    518.12MB
   - 带宽（Transfer/sec）：518.12 MB/s
 
 这些结果表明该服务器在单 Reactor 模式下能够高效地处理大量并发请求，具有较低的响应时间和较高的吞吐量。
+
+----
+
+测试结果（多 Reactor），在开启 1 个 mainLoop 线程 + 16 个 ioLoop 线程后：
+
+```bash
+(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t4 -c800 -d10s --latency http://127.0.0.1:8080
+Running 10s test @ http://127.0.0.1:8080
+  4 threads and 800 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.07ms  417.66us   5.71ms   70.15%
+    Req/Sec   110.33k    21.31k  143.51k    68.25%
+  Latency Distribution
+     50%    1.02ms
+     75%    1.25ms
+     90%    1.61ms
+     99%    2.18ms
+  4390904 requests in 10.03s, 1.08GB read
+Requests/sec: 437672.95
+Transfer/sec:    110.61MB
+```
+
+测试结果显示，在 4 线程 + 400 并发连接下，10s 内总共处理了 4390904 个请求，读取了 1.08GB 数据，Requests/sec: 437672.95。
 
 ### Apache Bench 测试
 

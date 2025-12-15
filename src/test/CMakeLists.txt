@@ -3,6 +3,10 @@ project(multi_io)
 
 # 设置多线程编译选项
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+# 设置编译类型为 Debug，以启用调试信息和关闭优化
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
 # 设置 C++ 标准。设置 C++ 标准是一个好习惯，这能确保你的代码在不同编译器上行为一致
 set(CMAKE_CXX_STANDARD 11)

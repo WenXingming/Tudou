@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 #include <thread>
+#include <mutex>
 
 #include "../base/InetAddress.h"
 #include "EventLoopThreadPool.h"
@@ -43,6 +44,7 @@ private:
     uint16_t port;
     std::unique_ptr<Acceptor> acceptor;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections; // 生命期、持有者模糊，所以用 shared_ptr
+    std::mutex connectionsMutex; // 保护 connections，在多线程 IO loop 场景下避免数据竞争
     // std::mutex connectionsMutex; // 保护 connections，在多线程 IO loop 场景下避免数据竞争
 
     ConnectionCallback connectionCallback;
