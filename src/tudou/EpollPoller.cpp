@@ -22,7 +22,11 @@ EpollPoller::EpollPoller(EventLoop* _loop)
     , eventList(initEventListSize)
     , channels() {
 
-    assert(epollFd > 0);
+    if (epollFd < 0) {
+        spdlog::error("EpollPoller::EpollPoller() error: epoll_create1 failed, errno={} ({})",
+            errno, strerror(errno));
+        assert(false);
+    }
 }
 
 EpollPoller::~EpollPoller() {
@@ -31,7 +35,7 @@ EpollPoller::~EpollPoller() {
 }
 
 void EpollPoller::poll(int timeoutMs) {
-    spdlog::info("Epoll is running... poller monitors channels's size is: {}", channels.size());
+    spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels.size());
 
     int numReady = get_ready_num(timeoutMs);
     std::vector<Channel*> activeChannels = get_activate_channels(numReady);
@@ -41,6 +45,8 @@ void EpollPoller::poll(int timeoutMs) {
 }
 
 bool EpollPoller::has_channel(Channel* channel) const {
+    loop->assert_in_loop_thread();
+
     int fd = channel->get_fd();
     auto it = channels.find(fd);
     if (it == channels.end()) {
@@ -89,9 +95,13 @@ void EpollPoller::remove_channel(Channel* channel) {
     int fd = channel->get_fd();
 
     // epollfd、channels 应该同步
-    int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
-    assert(epollCtlRet == 0);
     channels.erase(fd);
+    int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
+    if (epollCtlRet != 0) {
+        spdlog::error("epoll_ctl DEL failed, fd={}, errno={} ({})",
+            fd, errno, strerror(errno));
+        assert(false);
+    }
 }
 
 int EpollPoller::get_ready_num(int timeoutMs) {
@@ -103,7 +113,7 @@ int EpollPoller::get_ready_num(int timeoutMs) {
     if (numReady < 0) {
         spdlog::error("EpollPoller::poll() error: epoll_wait return {}", numReady);
     }
-    spdlog::info("EpollPoller::poll() return numReady: {}", numReady);
+    spdlog::debug("EpollPoller::poll() return numReady: {}", numReady);
 
     return numReady;
 }

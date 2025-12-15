@@ -11,7 +11,7 @@
  * - 维护 epoll fd，用于监听多个文件描述符的 I/O 事件。
  * - 维护 fd -> Channel* 的映射（注册中心），将内核返回的就绪事件翻译为 Channel 列表返回给 EventLoop。
  *
- * 设计要点：
+ * 注意：
  * - 非线程安全：所有操作应在所属 EventLoop 所在线程执行（除非上层做了线程同步）。
  * - 内部维护一个可自动扩缩的 eventList（std::vector<epoll_event>），当返回就绪数量达到容量时自动扩容以避免丢事件。
  * - 不拥有 Channel 只访问（仅保存裸指针），Channel 的生存期由上层（Acceptor / TcpConnection 等）管理。
