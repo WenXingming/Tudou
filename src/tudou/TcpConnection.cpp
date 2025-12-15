@@ -1,8 +1,8 @@
 /**
- * @file TcpConnection.h
+ * @file TcpConnection.cpp
  * @brief 面向连接的 TCP 会话封装，负责收发缓冲、事件回调与状态管理。
  * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
+ * @project: https://github.com/WenXingming/Tudou
  *
  */
 
@@ -18,8 +18,17 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
-    : loop(_loop) {
+TcpConnection::TcpConnection(EventLoop* _loop, int _connFd/* , const InetAddress& _localAddr, const InetAddress& _peerAddr */) :
+    loop(_loop),
+    channel(nullptr),
+    highWaterMark(64 * 1024 * 1024), // 64 MB
+    readBuffer(new Buffer()),
+    writeBuffer(new Buffer()), // Don't forget! Or cause segfault!
+    messageCallback(nullptr),
+    closeCallback(nullptr)
+    /* ,
+    localAddr(_localAddr),
+    peerAddr(_peerAddr) */ {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
     channel.reset(new Channel(_loop, _connFd)); // 传入 shared_from_this 作为 tie，防止 handle_events_with_guard 过程中被销毁
@@ -37,16 +46,13 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd)
     );
     channel->enable_reading();
 
-    // 初始化缓冲区, unique_ptr 自动管理内存。Don't forget! Or cause segfault!
-    readBuffer.reset(new Buffer());
-    writeBuffer.reset(new Buffer());
 }
 
 TcpConnection::~TcpConnection() {
-
+    spdlog::info("TcpConnection::~TcpConnection() called. fd: {}", channel->get_fd());
 }
 
-void TcpConnection::init_channel() {
+void TcpConnection::connection_establish() {
     channel->tie_to_object(shared_from_this());
 }
 
@@ -63,6 +69,7 @@ void TcpConnection::set_close_callback(CloseCallback _cb) {
 }
 
 void TcpConnection::send(const std::string& msg) {
+    // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用。为了保险起见，还是做线程切换处理
     if (loop->is_in_loop_thread()) {
         // 在当前 IO 线程，直接发送
         writeBuffer->write_to_buffer(msg);
@@ -101,6 +108,8 @@ std::string TcpConnection::receive() {
 
 // 从 fd 读数据到 readBuffer，然后触发上层回调处理数据
 void TcpConnection::on_read(Channel& channel) {
+    loop->assert_in_loop_thread();
+
     int fd = channel.get_fd();
     int savedErrno = 0;
     ssize_t n = readBuffer->read_from_fd(fd, &savedErrno);
@@ -112,18 +121,26 @@ void TcpConnection::on_read(Channel& channel) {
         on_close(channel);
     }
     else {
-        if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
-            return; // 本轮数据读完，等下次 EPOLLIN 事件再读
-        }
-        else {
-            spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-            on_error(channel);
-        }
+        // if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
+        //     return; // 本轮数据读完，等下次 EPOLLIN 事件再读
+        // }
+        // else {
+        //     spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
+        //     on_error(channel);
+        // }
+        spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
+        on_error(channel);
     }
 }
 
 // 从 writeBuffer 写数据到 fd，写完了就取消对写事件的关注
 void TcpConnection::on_write(Channel& channel) {
+    loop->assert_in_loop_thread();
+    if (!channel.is_writing()) {
+        spdlog::warn("TcpConnection::on_write() but channel is not writing.");
+        return; // 避免重复触发?
+    }
+
     int savedErrno = 0;
     int fd = channel.get_fd();
     ssize_t n = writeBuffer->write_to_fd(fd, &savedErrno);
@@ -139,7 +156,9 @@ void TcpConnection::on_write(Channel& channel) {
 }
 
 void TcpConnection::on_close(Channel& channel) {
+    loop->assert_in_loop_thread();
     spdlog::info("TcpConnection::on_close() called. fd: {}", channel.get_fd());
+
     channel.disable_all();
     this->handle_close_callback(); // 触发上层 TcpServer 回调，进行资源回收（TcpServer 删除 TcpConnection shared_ptr 对象）
 }
@@ -156,5 +175,7 @@ void TcpConnection::handle_message_callback() {
 
 void TcpConnection::handle_close_callback() {
     assert(closeCallback != nullptr);
+
+    std::shared_ptr<TcpConnection> guardThis{ shared_from_this() }; // 防止回调过程中对象被析构，延长生命周期
     closeCallback(shared_from_this());
 }

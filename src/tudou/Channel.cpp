@@ -32,6 +32,9 @@ Channel::Channel(EventLoop* _loop, int _fd)
 
     // 创建 channel 后立即注册到 poller 上，保证 epoller 访问 channel 有效（生命周期）
     // channel 负责和 epoller 同步（相邻类），不再交给上层 Acceptor / TcpConnection 负责，它们应该感知不到 poller 的存在
+    // loop->run_in_loop([this]() {
+    //     this->update_in_register();
+    //     });
     update_in_register();
 }
 

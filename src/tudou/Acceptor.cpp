@@ -95,6 +95,7 @@ void Acceptor::on_read(Channel& channel) {
     int connFd = ::accept(fd, (sockaddr*)&clientAddr, &len);
     if (connFd < 0) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
+        return; // ★ 失败一定要直接返回，不能继续执行后续逻辑（回调）
     }
     spdlog::info("Acceptor::ConnectFd {} is accepted.", connFd);
 

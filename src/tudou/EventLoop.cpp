@@ -175,7 +175,8 @@ void EventLoop::do_pending_functors() {
     }
 
     while (!functors.empty()) {
-        auto& functor = functors.front();
+        // auto& functor = functors.front(); // !!! 找了半天的 bug
+        auto functor = functors.front();
         functors.pop();
         functor();
     }

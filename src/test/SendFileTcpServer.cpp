@@ -16,7 +16,7 @@ SendFileTcpServer::SendFileTcpServer(std::string ip, uint16_t port, const std::s
     , port(port)
     , responseFilepath(responseFilepath) {
 
-    int ioLoopNum = 0; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
+    int ioLoopNum = 12; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
     tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
         [this](int fd) {

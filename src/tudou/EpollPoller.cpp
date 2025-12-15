@@ -64,14 +64,24 @@ void EpollPoller::update_channel(Channel* channel) {
 
     auto findIt = channels.find(fd);
     if (findIt == channels.end()) {
-        int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_ADD, ev.data.fd, &ev);
         channels[fd] = channel;
-        assert(epollCtlRet == 0);
+        int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_ADD, ev.data.fd, &ev);
+        if (epollCtlRet != 0) {
+            spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
+                (findIt == channels.end() ? "ADD" : "MOD"),
+                fd, events, errno, strerror(errno));
+            assert(false);
+        }
     }
     else {
-        int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_MOD, ev.data.fd, &ev);
-        assert(epollCtlRet == 0);
         assert(channels[fd] == channel);
+        int epollCtlRet = epoll_ctl(epollFd, EPOLL_CTL_MOD, ev.data.fd, &ev);
+        if (epollCtlRet != 0) {
+            spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
+                (findIt == channels.end() ? "ADD" : "MOD"),
+                fd, events, errno, strerror(errno));
+            assert(false);
+        }
     }
 }
 

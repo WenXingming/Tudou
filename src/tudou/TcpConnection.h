@@ -2,7 +2,7 @@
  * @file TcpConnection.h
  * @brief 面向连接的 TCP 会话封装，负责收发缓冲、事件回调与状态管理。
  * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
+ * @project: https://github.com/WenXingming/Tudou
  * @details
  *
  * 职责：
@@ -30,9 +30,12 @@
  */
 
 #pragma once
+
 #include <memory>
 #include <functional>
 #include <string>
+
+#include "../base/InetAddress.h"
 
 class EventLoop;
 class Channel;
@@ -48,20 +51,22 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 private:
     EventLoop* loop;
     std::unique_ptr<Channel> channel;
+    // const InetAddress localAddr;
+    // const InetAddress peerAddr;
+    size_t highWaterMark; // 高水位标记，暂未使用
     std::unique_ptr<Buffer> readBuffer;
     std::unique_ptr<Buffer> writeBuffer;
-    MessageCallback messageCallback{ nullptr }; // 业务层回调（类似于 ROS 发布话题）
-    CloseCallback closeCallback{ nullptr }; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
+    MessageCallback messageCallback; // 业务层回调（类似于 ROS 发布话题）
+    CloseCallback closeCallback; // 应该是 TcpServer 回调（类似于 ROS 发布话题）
+    /// TODO: writeCompleteCallback、highWaterMarkCallback
 
 public:
-    TcpConnection(EventLoop* _loop, int _sockfd);
+    TcpConnection(EventLoop* _loop, int _connFd/* , const InetAddress& _localAddr, const InetAddress& _peerAddr */);
     ~TcpConnection();
 
-    void init_channel();
+    void connection_establish();
 
-    EventLoop* get_loop() const {
-        return loop;
-    }
+    EventLoop* get_loop() const { return loop; }
     int get_fd() const;
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);
