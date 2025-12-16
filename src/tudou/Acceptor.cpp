@@ -1,3 +1,12 @@
+/**
+ * @file Acceptor.cpp
+ * @brief 监听新连接的接入器（封装 listenFd 及持有其 Channel），在有连接到来时接受并上报给上层
+ * @author wenxingming
+ * @date 2025-12-16
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
+
 #include "Acceptor.h"
 
 #include <arpa/inet.h>
@@ -13,13 +22,15 @@
 Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) :
     loop(_loop),
     listenAddr(_listenAddr),
-    channel(),
+    listenFd(-1),
+    channel(nullptr),
     newConnectCallback(nullptr) {
 
     // 创建 listenFd
-    int listenFd = this->create_fd();
+    listenFd = this->create_fd();
     this->bind_address(listenFd);
     this->start_listen(listenFd);
+
     // 初始化 channel
     this->channel.reset(new Channel(this->loop, listenFd)); // unique_ptr 无法拷贝，所以使用 reset + new
     this->channel->set_read_callback(std::bind(&Acceptor::on_read, this, std::placeholders::_1));
@@ -27,7 +38,6 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) :
     this->channel->set_close_callback(std::bind(&Acceptor::on_close, this, std::placeholders::_1));
     this->channel->set_write_callback(std::bind(&Acceptor::on_write, this, std::placeholders::_1));
     this->channel->enable_reading();
-
 }
 
 Acceptor::~Acceptor() {
@@ -44,9 +54,9 @@ void Acceptor::set_connect_callback(std::function<void(int)> _cb) {
 
 int Acceptor::create_fd() {
     // 创建 listenFd, 指定非阻塞 IO 套接字
-    int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP /* 0 */);
+    listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP /* 0 */);
     if (listenFd < 0) {
-        spdlog::critical("Acceptor::create_fd(). socket error, errno: {}", errno);
+        spdlog::error("Acceptor::create_fd(). socket error, errno: {}", errno);
         assert(false);
     }
     return listenFd;
@@ -56,7 +66,7 @@ void Acceptor::bind_address(int listenFd) {
     sockaddr_in address = this->listenAddr.get_sockaddr();
     int bindRet = ::bind(listenFd, (sockaddr*)&address, sizeof(address));
     if (bindRet == -1) {
-        spdlog::critical("Acceptor::bind_address(). bind error, errno: {}", errno);
+        spdlog::error("Acceptor::bind_address(). bind error, errno: {}", errno);
         assert(false);
     }
 }
@@ -64,7 +74,7 @@ void Acceptor::bind_address(int listenFd) {
 void Acceptor::start_listen(int listenFd) {
     int listenRet = ::listen(listenFd, SOMAXCONN);
     if (listenRet == -1) {
-        spdlog::critical("Acceptor::start_listen(). listen error, errno: {}", errno);
+        spdlog::error("Acceptor::start_listen(). listen error, errno: {}", errno);
         assert(false);
     }
 }
@@ -89,10 +99,9 @@ void Acceptor::on_write(Channel& channel) {
 }
 
 void Acceptor::on_read(Channel& channel) {
-    int fd = channel.get_fd();
     sockaddr_in clientAddr;
     socklen_t len = sizeof(clientAddr);
-    int connFd = ::accept(fd, (sockaddr*)&clientAddr, &len);
+    int connFd = ::accept(listenFd, (sockaddr*)&clientAddr, &len);
     if (connFd < 0) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
         return; // ★ 失败一定要直接返回，不能继续执行后续逻辑（回调）

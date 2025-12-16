@@ -2,7 +2,8 @@
  * @file Acceptor.h
  * @brief 监听新连接的接入器（封装 listenFd 及持有其 Channel），在有连接到来时接受并上报给上层。
  * @author wenxingming
- * @project: https://github.com/WenXingming/tudou
+ * @date 2025-12-16
+ * @project: https://github.com/WenXingming/Tudou
  * @details
  *
  * 职责：
@@ -17,7 +18,7 @@
  *
  * 生命周期与所有权：
  * - 持有 Channel 的唯一所有权（std::unique_ptr），析构时自动解除注册与释放。
- * - 负责 listenFd 的管理；对已接受的 connFd 仅发布，不负责其后续生命周期（由上层 TcpConnection 管理）。
+ * - 负责 listenFd 的管理；而对已接受的 connFd 仅发布，不负责其后续生命周期（由上层 TcpConnection 管理）。
  *
  * 错误处理：
  * - accept 失败时记录日志并进行必要的失败分支处理（如 EAGAIN、资源耗尽等）。
@@ -41,6 +42,7 @@ class Acceptor {
 private:
     EventLoop* loop;
     InetAddress listenAddr;
+    int listenFd; // accept() 方法被频繁调用，避免重复获取成员变量，所以 Acceptor 保存 listenFd 成员变量（注：只使用，不负责生命周期管理）
     std::unique_ptr<Channel> channel;
     NewConnectCallback newConnectCallback; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
 
