@@ -30,7 +30,7 @@ private:
     int threadNum;
 
 public:
-    SendFileTcpServer(std::string ip, uint16_t port, const std::string& responseFilepath, const int threadNum = 12);
+    SendFileTcpServer(std::string _ip, uint16_t _port, const std::string& _responseFilepath, const int _threadNum = 12);
     ~SendFileTcpServer();
 
     std::string get_ip() const { return ip; }
@@ -45,10 +45,20 @@ private:
     void on_message(int fd, const std::string& msg);
     void on_close(int fd);
 
-    // on_message 的辅助函数
-    // std::string receive_data(int fd);
-    std::string parse_data(const std::string& data);
-    std::string process_business(const std::string& request);
-    std::string construct_response(const std::string& body);
-    void send_response(int fd, const std::string& response);
+    /*
+        on_message 的辅助函数。按理说我们的整个流程分为五步：
+            1. 接收数据
+            2. 解析数据
+            3. 业务逻辑处理
+            4. 构造响应报文
+            5. 发送响应
+        之前的设计中, on_message 函数的参数是 TcpConnection 对象指针，我们可以直接通过该对象接收数据并发送响应。
+        但是现在 on_message 函数的参数变成了 fd 和 msg，这样设计的好处是降低了类之间的耦合，让上层业务逻辑不需要直接依赖 TcpConnection 类，从而提高了代码的灵活性和可维护性。
+        因此第 1 步和第 5 步需要通过 TcpServer 提供的接口来完成，而不是直接通过 TcpConnection 对象。
+    */
+    std::string receive_data(const std::string& data);
+    std::string parse_receive_data(const std::string& data);
+    std::string process_data(const std::string& request);
+    std::string package_response_data(const std::string& body);
+    void send_data(int fd, const std::string& response);
 };

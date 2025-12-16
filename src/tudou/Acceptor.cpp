@@ -106,7 +106,7 @@ void Acceptor::on_read(Channel& channel) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
         return; // ★ 失败一定要直接返回，不能继续执行后续逻辑（回调）
     }
-    spdlog::info("Acceptor::ConnectFd {} is accepted.", connFd);
+    spdlog::debug("Acceptor::ConnectFd {} is accepted.", connFd);
 
     // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理
     handle_connect_callback(connFd);

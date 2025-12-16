@@ -49,7 +49,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd/* , const InetAddress
 }
 
 TcpConnection::~TcpConnection() {
-    spdlog::info("TcpConnection::~TcpConnection() called. fd: {}", channel->get_fd());
+    spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", channel->get_fd());
 }
 
 void TcpConnection::connection_establish() {
@@ -157,7 +157,7 @@ void TcpConnection::on_write(Channel& channel) {
 
 void TcpConnection::on_close(Channel& channel) {
     loop->assert_in_loop_thread();
-    spdlog::info("TcpConnection::on_close() called. fd: {}", channel.get_fd());
+    spdlog::debug("TcpConnection::on_close() called. fd: {}", channel.get_fd());
 
     channel.disable_all();
     this->handle_close_callback(); // 触发上层 TcpServer 回调，进行资源回收（TcpServer 删除 TcpConnection shared_ptr 对象）
