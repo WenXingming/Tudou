@@ -1,3 +1,12 @@
+/**
+ * @file HttpContext.cpp
+ * @brief HTTP 报文解析上下文封装类
+ * @author wenxingming
+ * @date 2025-11-27
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
+
 #include <iostream>
 #include "HttpContext.h"
 

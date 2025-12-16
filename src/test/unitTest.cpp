@@ -41,9 +41,9 @@ void set_logger() {
     spdlog::register_logger(my_logger);
     spdlog::set_default_logger(my_logger);
 
-    // 设置日志级别和格式: debug、info、warn、error、critical 等
-    spdlog::set_level(spdlog::level::info);
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v");
+    // 设置日志级别和格式: debug、info、warn、err、critical 等
+    spdlog::set_level(spdlog::level::err); // 设置全局日志级别
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v"); // 设置日志格式
 }
 
 // ======================================================================================
@@ -113,6 +113,7 @@ void test_http_server() {
 int main() {
     set_logger();
 
+    // test_logger();
     // test_net_library();
     test_tcp_server();
     // test_http_parser();

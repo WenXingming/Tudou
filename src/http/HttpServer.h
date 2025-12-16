@@ -20,6 +20,7 @@
 //     std::string ip{ "127.0.0.1" };
 //     uint16_t port{ 8080 };
 //     std::unique_ptr<TcpServer> tcpServer;
+//     int threadNum;
 
 //     // 以连接 fd 作为 key 维护每个连接的 HttpContext
 //     std::unordered_map<int, std::unique_ptr<HttpContext>> httpContexts;

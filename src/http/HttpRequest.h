@@ -3,7 +3,7 @@
  * @brief HTTP 请求报文封装类
  * @author wenxingming
  * @date 2025-11-27
- * @project: https://github.com/WenXingming/Tudou.git
+ * @project: https://github.com/WenXingming/Tudou
  *
  * - 封装 HTTP 请求报文的各个部分，包括：
  *   - 方法
@@ -18,7 +18,6 @@
  */
 
 #pragma once
-
 #include <string>
 #include <unordered_map>
 

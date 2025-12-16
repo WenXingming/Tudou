@@ -15,7 +15,7 @@ TestNetlib::TestNetlib() {
     channel.reset(new Channel(loop.get(), fd));
     channel->set_read_callback([](Channel& channel) {
         char buf[1024]{};
-        int fd = channel.get_fd();
+        int fd = channel.get_fd(); // 不要直接使用 fd，应通过 channel 获取
         ssize_t n = read(fd, buf, sizeof(buf) - 1);
         if (n > 0) {
             buf[n] = '\0';

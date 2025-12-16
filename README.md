@@ -66,23 +66,23 @@ Transfer/sec:    518.12MB
 测试结果（多 Reactor），在开启 1 个 mainLoop 线程 + 16 个 ioLoop 线程后：
 
 ```bash
-(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t4 -c800 -d10s --latency http://127.0.0.1:8080
+(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t4 -c400 -d10s --latency http://127.0.0.1:8080
 Running 10s test @ http://127.0.0.1:8080
-  4 threads and 800 connections
+  4 threads and 400 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.07ms  417.66us   5.71ms   70.15%
-    Req/Sec   110.33k    21.31k  143.51k    68.25%
+    Latency   470.99us  135.64us   5.22ms   87.61%
+    Req/Sec   110.95k    15.27k  141.64k    76.00%
   Latency Distribution
-     50%    1.02ms
-     75%    1.25ms
-     90%    1.61ms
-     99%    2.18ms
-  4390904 requests in 10.03s, 1.08GB read
-Requests/sec: 437672.95
-Transfer/sec:    110.61MB
+     50%  471.00us
+     75%  512.00us
+     90%  550.00us
+     99%    1.00ms
+  4417089 requests in 10.02s, 484.43MB read
+Requests/sec: 440656.13
+Transfer/sec:     48.33MB
 ```
 
-测试结果显示，在 4 线程 + 400 并发连接下，10s 内总共处理了 4390904 个请求，读取了 1.08GB 数据，Requests/sec: 437672.95。
+测试结果显示，在 4 线程 + 400 并发连接下，10s 内总共处理了 4417089 个请求，读取了 484.43MB 数据，Requests/sec: 440656.13。
 
 ### Apache Bench 测试
 

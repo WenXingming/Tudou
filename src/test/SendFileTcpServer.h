@@ -22,9 +22,9 @@ class TcpConnection;
 
 class SendFileTcpServer {
 private:
-    std::string ip{ "127.0.0.1" };
-    uint16_t port{ 8080 };
-    std::string responseFilepath{ "/home/wxm/Tudou/assets/homepage.html" };
+    std::string ip;
+    uint16_t port;
+    std::string responseFilepath;
 
     std::unique_ptr<TcpServer> tcpServer;
     int threadNum;

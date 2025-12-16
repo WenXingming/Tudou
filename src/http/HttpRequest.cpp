@@ -1,3 +1,12 @@
+/**
+ * @file HttpRequest.cpp
+ * @brief HTTP 请求报文封装类
+ * @author wenxingming
+ * @date 2025-11-27
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
+
 #include "HttpRequest.h"
 
 

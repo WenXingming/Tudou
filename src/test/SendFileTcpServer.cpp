@@ -15,6 +15,7 @@ SendFileTcpServer::SendFileTcpServer(std::string _ip, uint16_t _port, const std:
     ip(std::move(_ip)),
     port(_port),
     responseFilepath(_responseFilepath),
+    tcpServer(nullptr),
     threadNum(_threadNum) {
         
     int ioLoopNum = threadNum; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理

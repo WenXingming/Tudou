@@ -1,3 +1,12 @@
+/**
+ * @file HttpResponse.cpp
+ * @brief HTTP 响应报文封装类
+ * @author wenxingming
+ * @date 2025-11-27
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
+
 #include "HttpResponse.h"
 
 

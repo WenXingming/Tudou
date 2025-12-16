@@ -3,7 +3,7 @@
  * @brief HTTP 报文解析上下文封装类
  * @author wenxingming
  * @date 2025-11-27
- * @project: https://github.com/WenXingming/Tudou.git
+ * @project: https://github.com/WenXingming/Tudou
  *
  * - 解析 HTTP 报文的类，基于 llhttp 库实现。解析 HTTP 请求报文，结果存储在 HttpRequest 对象中。
  *
