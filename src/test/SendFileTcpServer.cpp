@@ -86,7 +86,7 @@ std::string SendFileTcpServer::parse_data(const std::string& data) {
 //  - 简单业务逻辑就是直接 echo 回去：conn->send(msg);
 //  - 或者返回一个固定的 html 页面
 std::string SendFileTcpServer::process_business(const std::string& request) {
-    // return std::string("Hello, world");
+    return std::string("Hello, world"); // 测试用，不从硬盘读取文件。不过测试结果看起来速度还是差不多
 
     std::string filepath = responseFilepath;
     std::ifstream file(filepath, std::ios::binary);

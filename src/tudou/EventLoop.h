@@ -8,15 +8,10 @@
  * 说明：
  * - 封装一个 Poller 如 EpollPoller（持有 poller 的唯一所有权（std::unique_ptr），在 EventLoop 析构时自动释放）
  * -
- * - 提供事件循环 loop() 方法，持续监听和分发事件：
- * -    1. 持续调用 poller->poll(timeoutMs) 获取 Active Channels
- * -    2. 对获取到的 Active Channels，调用其 handle_events() 方法，触发相应的事件回调
- *
+ * - 提供事件循环 loop() 方法，持续监听和分发事件：持续调用 poller->poll(timeoutMs) 进行事件循环
  * - 对外暴露 update_channel()/remove_channel() 方法，用于 Channel 向 EventLoop 注册或取消自身。
  *
- * 线程模型与约定：
- * - EventLoop ，禁止拷贝与赋值以避免多个所有者。
- * - EventLoop 通常与线程一一绑定（One loop per thread），非线程安全方法（例如 IO 线程的 TcpConnection 的初始化等）须在所属线程调用。
+ * 线程模型与约定：EventLoop 禁止拷贝与赋值以避免多个所有者。EventLoop 通常与线程一一绑定（One loop per thread），非线程安全方法须在所属线程调用。
  */
 
 #pragma once
@@ -32,7 +27,7 @@
 
 class Channel;
 class EventLoop {
-    const static int pollTimeoutMs;                         // epoll_wait 超时时间，单位毫秒
+    const static int pollTimeoutMs = 10000;                 // epoll_wait 超时时间，单位毫秒
 
 private:
     std::unique_ptr<EpollPoller> poller;                    // 拥有 poller，控制其生命期。智能指针，自动析构

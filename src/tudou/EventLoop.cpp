@@ -1,6 +1,6 @@
 /**
- * @file EpollPoller.h
- * @brief 基于 epoll 的 Poller 实现 — 多路 I/O 事件监听、分发器（Reactor 的 I/O 多路复用层）
+ * @file EventLoop.cpp
+ * @brief 事件循环（Reactor）核心类的实现
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
@@ -14,10 +14,13 @@
 #include <thread>
 #include <functional>
 
- // one loop per thread。防止一个线程创建多个 EventLoop 实例，实现方式是使用 thread_local 关键字作为线程局部存储的标记即可
+// =================================================================================================
+
+// one loop per thread。防止一个线程创建多个 EventLoop 实例，实现方式是使用 thread_local 关键字作为线程局部存储的标记即可.创建一个 EventLoop 实例时，检查该线程的 loopInthisThread 
 thread_local EventLoop* loopInthisThread = nullptr;
 
-const int EventLoop::pollTimeoutMs = 10000;
+// =================================================================================================
+
 
 // 创建 wakeupFd，用于多线程间 notify，唤醒 loop 线程
 int create_event_fd() {
@@ -29,44 +32,46 @@ int create_event_fd() {
     return eventFd;
 }
 
-EventLoop::EventLoop()
-    : poller(new EpollPoller(this))
-    , isLooping(true)
-    , isQuit(false)
-    , threadId(std::this_thread::get_id())
-    , wakeupFd(::create_event_fd())
-    , wakeupChannel(new Channel(this, wakeupFd))
-    , isCallingPendingFunctors(false)
-    , pendingFunctors()
-    , mtx() {
+EventLoop::EventLoop() :
+    poller(new EpollPoller(this)),
+    isLooping(false),
+    isQuit(false),
+    threadId(std::this_thread::get_id()),
+    wakeupFd(-1),
+    wakeupChannel(nullptr),
+    isCallingPendingFunctors(false),
+    pendingFunctors(),
+    mtx() {
 
+    // 设置 wakeupChannel 的读事件回调函数。每一个 EventLoop 都有一个 wakeupChannel，用于唤醒 loop 线程
+    // 创建 channel 时会将 channel 注册到 poller 上。这里有一个细节，构造函数里先创建了 poller，再创建 wakeupChannel
+    wakeupFd = create_event_fd();
+    if (wakeupFd < 0) {
+        spdlog::error("EventLoop::EventLoop(): Failed to create wakeupFd");
+        assert(false);
+    }
+    wakeupChannel.reset(new Channel(this, wakeupFd));
+    wakeupChannel->set_read_callback(std::bind(&EventLoop::on_read, this));
+    wakeupChannel->enable_reading(); // 关注读事件
+
+    // 确保每个线程只能有一个 EventLoop 实例
     std::hash<std::thread::id> hasher;
     size_t threadId = hasher(std::this_thread::get_id());
-    // 确保每个线程只能有一个 EventLoop 实例
     if (loopInthisThread != nullptr) {
         spdlog::error("Another EventLoop exists in this thread: {}", threadId);
         assert(false);
     }
     else {
         loopInthisThread = this;
-        spdlog::info("EventLoop created in thread: {}", threadId);
+        spdlog::debug("EventLoop created in thread: {}", threadId);
     }
-
-    // 设置 wakeupChannel 的读事件回调函数。每一个 EventLoop 都有一个 wakeupChannel，用于唤醒 loop 线程
-    // 创建 channel 时会将 channel 注册到 poller 上。这里有一个细节，构造函数里先创建了 poller，再创建 wakeupChannel
-    wakeupChannel->set_read_callback(std::bind(&EventLoop::on_read, this));
-    wakeupChannel->enable_reading(); // 关注读事件
 }
 
 EventLoop::~EventLoop() {
-    // 原 muduo 还在这里管理了 wakeupChannel 的析构，感觉并不合理。我放在了 Channel 的析构函数中处理
-
+    // 原 muduo 还在这里管理了 wakeupChannel 的析构时的一些处理，感觉并不合理。我放在了 Channel 的析构函数中处理
     if (loopInthisThread == this) {
         loopInthisThread = nullptr;
-
-        std::hash<std::thread::id> hasher;
-        size_t threadId = hasher(std::this_thread::get_id());
-        spdlog::info("EventLoop destroyed in thread: {}", threadId);
+        spdlog::debug("EventLoop destroyed in its thread");
     }
     else {
         spdlog::error("EventLoop destroyed in wrong thread.");
@@ -75,14 +80,12 @@ EventLoop::~EventLoop() {
 }
 
 void EventLoop::loop(int timeoutMs) {
-    spdlog::info("EventLoop start looping...");
-
+    spdlog::debug("EventLoop start looping...");
     assert_in_loop_thread();
+
     isQuit = false;
     isLooping = true;
     while (!isQuit) {
-        assert_in_loop_thread();
-
         // 使用 poller 监听发生事件的 channels，包括 wakeupChannel
         poller->poll(pollTimeoutMs);
 
@@ -91,7 +94,7 @@ void EventLoop::loop(int timeoutMs) {
     }
     isLooping = false;
 
-    spdlog::info("EventLoop stop looping.");
+    spdlog::debug("EventLoop stop looping.");
 }
 
 void EventLoop::quit() {
@@ -119,13 +122,11 @@ void EventLoop::remove_channel(Channel* channel) const {
 }
 
 void EventLoop::assert_in_loop_thread() const {
-    // assert(loopInthisThread == this);
     assert(is_in_loop_thread());
 }
 
 bool EventLoop::is_in_loop_thread() const {
-    // return loopInthisThread == this;
-    return std::this_thread::get_id() == threadId;
+    return threadId == std::this_thread::get_id(); // 优化：使用一个 thread_local 变量存储当前线程 id，避免每次断言（is_in_loop_thread()）调用都获取线程 id。但 std::this_thread::get_id() 本身开销也不大，无需通过缓存进行优化
 }
 
 void EventLoop::run_in_loop(const std::function<void()>& cb) {
@@ -138,6 +139,7 @@ void EventLoop::run_in_loop(const std::function<void()>& cb) {
 }
 
 void EventLoop::queue_in_loop(const std::function<void()>& cb) {
+    // 如果是当前线程调用，则无需加锁。其他线程调用则需要加锁，保护 pendingFunctors
     {
         std::unique_lock<std::mutex> lock(mtx);
         pendingFunctors.push(cb);
@@ -175,8 +177,7 @@ void EventLoop::do_pending_functors() {
     }
 
     while (!functors.empty()) {
-        // auto& functor = functors.front(); // !!! 找了半天的 bug。现象是 lambda 表达式里访问的变量值总是错误的，后来发现是这里的引用导致的悬空引用
-        auto functor = functors.front();
+        auto functor = functors.front(); // 不能是引用!!! 找了半天的多线程 bug。现象是 lambda 表达式里访问的变量值总是错误的，后来发现是这里的引用导致的悬空引用
         functors.pop();
         functor();
     }
