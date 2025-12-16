@@ -100,14 +100,19 @@ void test_http_parser() {
 
 void test_http_server() {
     // 测试 HttpServer 服务器：TcpServer + HttpServer
-    spdlog::info("Starting HttpServer test...");
-    // std::thread t4([]() {
-    //     TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/homepage.html");
-    //     // TestHttpServer testHttpServer(8080, "/home/wxm/Tudou/assets/hello-world.html");
-    //     testHttpServer.start();
-    //     });
-    // t4.join();
-    // std::cout << "HttpServer test finished." << std::endl;
+    std::cout << "Starting HttpServer test..." << std::endl;
+
+    std::string ip = "127.0.0.1";
+    int port = 8080;
+    std::string baseDir = "/home/wxm/Tudou/assets";
+    int threadNum = 16; // 与 TcpServer 测试保持一致，使用多 Reactor
+
+    std::thread t4([ip, port, baseDir, threadNum]() {
+        TestHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
+        server.start();
+        });
+    t4.join();
+    std::cout << "HttpServer test finished." << std::endl;
 }
 
 int main() {

@@ -28,6 +28,18 @@
 
 
 class HttpContext {
+private:
+    llhttp_t parser;
+    llhttp_settings_t settings;
+
+    HttpRequest request;
+
+    bool messageComplete;
+
+    std::string currentHeaderField;
+    std::string currentHeaderValue;
+    bool lastWasValue;
+
 public:
     HttpContext();
 
@@ -64,17 +76,5 @@ private:
     void on_header_value_impl(const char* at, size_t length);
     void on_body_impl(const char* at, size_t length);
     void on_message_complete_impl();
-
-private:
-    llhttp_t parser{};
-    llhttp_settings_t settings{};
-
-    HttpRequest request;
-
-    bool messageComplete{ false };
-
-    std::string currentHeaderField;
-    std::string currentHeaderValue;
-    bool lastWasValue{ false };
 };
 
