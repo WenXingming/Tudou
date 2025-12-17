@@ -1,0 +1,687 @@
+[2025-12-17 20:09:45] [debug] [thread 109662] EventLoop created in thread: 10553628482348797346
+[2025-12-17 20:09:45] [info] [thread 109662] StaticFileHttpServer listening on 192.168.3.3:8080 with baseDir=/home/wxm/Tudou/assets/wenxingming.github.io
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: Starting HTTP server at 192.168.3.3:8080
+[2025-12-17 20:09:45] [debug] [thread 109662] EventLoop start looping...
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Acceptor::ConnectFd 7 is accepted.
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_connection fd=7
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Acceptor::ConnectFd 8 is accepted.
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_connection fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:09:45] [debug] [thread 109662] Acceptor::ConnectFd 9 is accepted.
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_connection fd=9
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background10.jpg
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:09:45] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/favicon.ico
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:45] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:45] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Acceptor::ConnectFd 10 is accepted.
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_connection fd=10
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 6
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 6
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 6
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Acceptor::ConnectFd 11 is accepted.
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_connection fd=11
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Acceptor::ConnectFd 12 is accepted.
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_connection fd=12
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:09:46] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:09:46] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:46] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:09:46] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:09:48] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 10
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=10
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 10
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 8
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=8
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 8
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 7
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=7
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 7
+[2025-12-17 20:09:48] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:09:48] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 11
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=11
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 11
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 12
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=12
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 12
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::on_close() called. fd: 9
+[2025-12-17 20:09:48] [debug] [thread 109662] HttpServer: Connection closed. fd=9
+[2025-12-17 20:09:48] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 9
+[2025-12-17 20:09:48] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:09:58] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:09:58] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:10:08] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:10:08] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Acceptor::ConnectFd 7 is accepted.
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_connection fd=7
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Acceptor::ConnectFd 8 is accepted.
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_connection fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:10] [debug] [thread 109662] Acceptor::ConnectFd 9 is accepted.
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_connection fd=9
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background3.jpg
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:10:10] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/favicon.ico
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:10] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:10] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Acceptor::ConnectFd 10 is accepted.
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_connection fd=10
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 6
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Acceptor::ConnectFd 11 is accepted.
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_connection fd=11
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:11] [debug] [thread 109662] Acceptor::ConnectFd 12 is accepted.
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_connection fd=12
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:10:11] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:10:11] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:10:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:10:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:31] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:10:31] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:41] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:10:41] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:10:51] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:10:51] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background10.jpg
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/favicon.ico
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 4
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:01] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background1.jpg
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:28] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/favicon.ico
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:28] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 4
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 5
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:11:29] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:11:29] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:11:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:49] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:49] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:11:59] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:11:59] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:09] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:12:09] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:19] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:12:19] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:29] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:12:29] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:34] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 10
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=10
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 10
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 7
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=7
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 7
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 8
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=8
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 8
+[2025-12-17 20:12:34] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:34] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 11
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=11
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 11
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 12
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=12
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 12
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::on_close() called. fd: 9
+[2025-12-17 20:12:34] [debug] [thread 109662] HttpServer: Connection closed. fd=9
+[2025-12-17 20:12:34] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 9
+[2025-12-17 20:12:34] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] Acceptor::ConnectFd 7 is accepted.
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_connection fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] TcpConnection::on_close() called. fd: 7
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: Connection closed. fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 7
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] Acceptor::ConnectFd 7 is accepted.
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_connection fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:12:38] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:38] [debug] [thread 109662] Acceptor::ConnectFd 8 is accepted.
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_connection fd=8
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:38] [debug] [thread 109662] Acceptor::ConnectFd 9 is accepted.
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_connection fd=9
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:12:38] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:12:38] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:12:38] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:12:38] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background6.jpg
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:38] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:38] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Acceptor::ConnectFd 10 is accepted.
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_connection fd=10
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 6
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Acceptor::ConnectFd 11 is accepted.
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_connection fd=11
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=10
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=11
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 7
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Acceptor::ConnectFd 12 is accepted.
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_connection fd=12
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=12
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:12:39] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:12:39] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:39] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:12:39] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 8
+[2025-12-17 20:12:41] [debug] [thread 109662] EpollPoller::poll() return numReady: 6
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 8
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=8
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 8
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 11
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=11
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 11
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 10
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=10
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 10
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 12
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=12
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 12
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 7
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=7
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 7
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::on_close() called. fd: 9
+[2025-12-17 20:12:41] [debug] [thread 109662] HttpServer: Connection closed. fd=9
+[2025-12-17 20:12:41] [debug] [thread 109662] TcpConnection::~TcpConnection() called. fd: 9
+[2025-12-17 20:12:41] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:12:51] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:12:51] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:13:01] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:13:01] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:13:11] [debug] [thread 109662] EpollPoller::poll() return numReady: 0
+[2025-12-17 20:13:11] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 2
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Acceptor::ConnectFd 7 is accepted.
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_connection fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 3
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Acceptor::ConnectFd 8 is accepted.
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_connection fd=8
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-cf8cbd10.js
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/assets/index-d5e56d10.css
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 4
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:13:20] [debug] [thread 109662] Acceptor::ConnectFd 9 is accepted.
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_connection fd=9
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/registerSW.js
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/background3.jpg
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:20] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/favicon.ico
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:20] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:20] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/logo.png
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/bilibili.svg
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 2
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/music-solid.svg
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=7
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/qq.svg
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/Pacifico-Regular.ttf
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/font/UnidreamLED.ttf
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=9
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/email.svg
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer: on_message fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=8
+[2025-12-17 20:13:21] [debug] [thread 109662] StaticFileHttpServer: method=GET, path=/images/icon/github.png
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:21] [debug] [thread 109662] EpollPoller::poll() return numReady: 1
+[2025-12-17 20:13:21] [debug] [thread 109662] Epoll is running... poller monitors channels's size is: 5
+[2025-12-17 20:13:28] [debug] [thread 109662] EpollPoller::poll() return numReady: 3
+[2025-12-17 20:13:28] [debug] [thread 109662] Tcp

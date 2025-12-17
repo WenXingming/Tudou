@@ -75,8 +75,7 @@ std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const
 
     std::string path = urlPath;
     if (path.empty() || path == "/") {
-        // path = "/homepage.html";
-        path = "/hello-world.html"; // 修改为默认返回 hello-world.html，方便测试
+        path = "/index.html";
     }
 
     // 简单防止目录穿越：包含 ".." 的路径一律映射为 404 对应的虚构文件
@@ -102,13 +101,46 @@ std::string StaticFileHttpServer::guess_content_type(const std::string& filepath
     if (ext == "html" || ext == "htm") {
         return "text/html; charset=utf-8";
     }
+    if (ext == "css") {
+        return "text/css; charset=utf-8";
+    }
+    if (ext == "js") {
+        // 对于 ES Module，必须是 JS MIME 类型，否则浏览器会因为 MIME 不匹配拒绝执行
+        return "text/javascript; charset=utf-8";
+    }
     if (ext == "txt") {
         return "text/plain; charset=utf-8";
     }
     if (ext == "json") {
         return "application/json; charset=utf-8";
     }
-
+    if (ext == "webmanifest") {
+        return "application/manifest+json";
+    }
+    if (ext == "png") {
+        return "image/png";
+    }
+    if (ext == "jpg" || ext == "jpeg") {
+        return "image/jpeg";
+    }
+    if (ext == "gif") {
+        return "image/gif";
+    }
+    if (ext == "svg") {
+        return "image/svg+xml";
+    }
+    if (ext == "ico") {
+        return "image/x-icon";
+    }
+    if (ext == "webp") {
+        return "image/webp";
+    }
+    if (ext == "mp4") {
+        return "video/mp4";
+    }
+    if (ext == "mp3") {
+        return "audio/mpeg";
+    }
     return "application/octet-stream";
 }
 

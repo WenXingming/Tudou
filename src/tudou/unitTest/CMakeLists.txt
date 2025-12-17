@@ -12,23 +12,32 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 # GoogleTest：直接使用系统源码 /usr/src/googletest
 # 避免链接 Anaconda 提供的 gtest 动态库，从而避免 libstdc++ 版本冲突
 # =======================================================================
-set(GTEST_SRC_DIR "/usr/src/googletest/googletest")
+# set(GTEST_SRC_DIR "/usr/src/googletest/googletest")
 
-add_library(gtest STATIC
-    ${GTEST_SRC_DIR}/src/gtest-all.cc
-)
-target_include_directories(gtest PUBLIC
-    ${GTEST_SRC_DIR}
-    ${GTEST_SRC_DIR}/include
-)
-find_package(Threads REQUIRED)
-target_link_libraries(gtest PUBLIC Threads::Threads)
+# add_library(gtest STATIC
+#     ${GTEST_SRC_DIR}/src/gtest-all.cc
+# )
+# target_include_directories(gtest PUBLIC
+#     ${GTEST_SRC_DIR}
+#     ${GTEST_SRC_DIR}/include
+# )
+# find_package(Threads REQUIRED)
+# target_link_libraries(gtest PUBLIC Threads::Threads)
 
-add_library(gtest_main STATIC
-    ${GTEST_SRC_DIR}/src/gtest_main.cc
-)
-target_link_libraries(gtest_main PUBLIC gtest)
+# add_library(gtest_main STATIC
+#     ${GTEST_SRC_DIR}/src/gtest_main.cc
+# )
+# target_link_libraries(gtest_main PUBLIC gtest)
 
+# =======================================================================
+# GoogleTest：使用系统安装的 GTest 包（不再手动编译源码）
+# 依赖系统已安装的 gtest/gtest_main 静态或动态库
+# =======================================================================
+find_package(GTest)
+if (NOT GTest_FOUND)
+    message(WARNING "未找到 GTest，跳过 Tudou 单元测试 unitTest 的构建")
+    return()
+endif()
 
 # ===========================================================
 # Tudou 单元测试可执行文件（GoogleTest）

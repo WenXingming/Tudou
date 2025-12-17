@@ -79,10 +79,10 @@ void run_static_http_server() {
     // 测试 HttpServer 服务器：TcpServer + HttpServer
     std::cout << "Starting HttpServer test..." << std::endl;
 
-    std::string ip = "127.0.0.1";
+    std::string ip = "192.168.3.3";
     int port = 8080;
-    std::string baseDir = "/home/wxm/Tudou/assets";
-    int threadNum = 16; // 与 TcpServer 测试保持一致，使用多 Reactor
+    std::string baseDir = "/home/wxm/Tudou/assets/wenxingming.github.io";
+    int threadNum = 0; // 与 TcpServer 测试保持一致，使用多 Reactor
 
     std::thread t4([ip, port, baseDir, threadNum]() {
         StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
@@ -94,7 +94,7 @@ void run_static_http_server() {
 
 int main() {
     set_logger();
-    test_logger();
+    // test_logger();
     
     // run_static_tcp_server();
     run_static_http_server();
