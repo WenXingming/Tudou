@@ -11,26 +11,23 @@
 StaticFileHttpServer::StaticFileHttpServer(const std::string& ip,
                                            uint16_t port,
                                            const std::string& baseDir,
-                                           int threadNum)
-    : ip_(ip),
-      port_(port),
-      baseDir_(baseDir),
-      threadNum_(threadNum),
-      httpServer_(nullptr) {
-}
+                                           int threadNum):
+    ip_(ip),
+    port_(port),
+    baseDir_(baseDir),
+    threadNum_(threadNum),
+    httpServer_(nullptr) {
 
-void StaticFileHttpServer::start() {
-    // 在这里创建 HttpServer 并设置回调，再启动
-    HttpServer server(ip_, port_, threadNum_);
-    httpServer_ = &server;
-
-    server.set_http_callback(
+    httpServer_.reset(new HttpServer(ip_, port_, threadNum_));
+    httpServer_->set_http_callback(
         [this](const HttpRequest& req, HttpResponse& resp) {
             on_http_request(req, resp);
         });
+}
 
+void StaticFileHttpServer::start() {
     spdlog::info("StaticFileHttpServer listening on {}:{} with baseDir={}", ip_, port_, baseDir_);
-    server.start();
+    httpServer_->start();
 }
 
 void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse& resp) {
@@ -70,7 +67,7 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
 
 std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const {
     // 简单路径解析：
-    //  - 空或 "/" -> "/homepage.html"
+    //  - 空或 "/" -> "/index.html"
     //  - 其他：直接使用 urlPath
 
     std::string path = urlPath;

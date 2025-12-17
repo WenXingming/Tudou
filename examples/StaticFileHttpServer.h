@@ -3,6 +3,9 @@
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <memory>
+
+#include "tudou/http/HttpServer.h"
 
 class HttpServer;
 class HttpRequest;
@@ -34,7 +37,7 @@ private:
     std::string baseDir_;
     int threadNum_;
 
-    HttpServer* httpServer_; // 延后定义，实际在 .cpp 中用具体类型
+    std::unique_ptr<HttpServer> httpServer_;
 
     // 简单的文件内容缓存：避免每个请求都从磁盘读取同一个静态文件
     mutable std::mutex cacheMutex_;

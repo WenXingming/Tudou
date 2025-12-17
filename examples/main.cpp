@@ -61,7 +61,7 @@ void test_logger() {
 
 
 void run_static_tcp_server() {
-    std::string ip = "127.0.0.1";
+    std::string ip = "192.168.3.3";
     int port = 8080;
     std::string filepath = "/home/wxm/Tudou/assets/hello-world.html";
     int threadNum = 16; // 线程数量（设置为 N 则多 Reactor；设置为 0 则单 Reactor）
