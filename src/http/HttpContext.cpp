@@ -99,16 +99,18 @@ void HttpContext::on_message_begin_impl() {
 }
 
 void HttpContext::on_url_impl(const char* at, size_t length) {
-    // method
+    // 解析 method、url、path、query、version
+    // Method
     const char* method_str = llhttp_method_name(static_cast<llhttp_method>(parser.method));
     if (method_str) {
         request.set_method(method_str);
     }
 
-    // url
+    // URL
     std::string url(at, length);
     request.set_url(url);
-    // 简单拆分 path 和 query
+
+    // 简单拆分 URL 的 path 和 query
     auto pos = url.find('?');
     if (pos == std::string::npos) {
         request.set_path(url);

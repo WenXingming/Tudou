@@ -10,6 +10,16 @@
 #include "HttpRequest.h"
 
 
+HttpRequest::HttpRequest() :
+    method(),
+    url(),
+    path(),
+    query(),
+    version(),
+    headers(),
+    body() {
+}
+
 void HttpRequest::add_header(const std::string& field, const std::string& value) {
     headers[field] = value;
 }

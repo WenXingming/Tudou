@@ -24,7 +24,18 @@ class HttpResponse {
 public:
     using Headers = std::unordered_map<std::string, std::string>;
 
-    HttpResponse() = default;
+private:
+    std::string httpVersion;
+    int statusCode;
+    std::string statusMessage;
+    Headers headers;
+    std::string body;
+
+    bool closeConnection;
+
+public:
+    HttpResponse();
+    ~HttpResponse() = default;
 
     void set_status(int _code, const std::string& _message) {
         statusCode = _code;
@@ -34,25 +45,18 @@ public:
     int get_status_code() const { return statusCode; }
     const std::string& get_status_message() const { return statusMessage; }
 
-    void set_close_connection(bool _on) { closeConnection = _on; }
-    bool get_close_connection() const { return closeConnection; }
-
-    void set_body(const std::string& _body) { body = _body; }
-    const std::string& get_body() const { return body; }
-
     void add_header(const std::string& field, const std::string& value) {
         headers[field] = value;
     }
     const Headers& get_headers() const { return headers; }
 
+    void set_body(const std::string& _body) { body = _body; }
+    const std::string& get_body() const { return body; }
+
+    void set_close_connection(bool _on) { closeConnection = _on; }
+    bool get_close_connection() const { return closeConnection; }
+
     std::string package_to_string() const;
 
-private:
-    std::string httpVersion = "HTTP/1.1";
-    int statusCode{ 200 };
-    std::string statusMessage = "OK";
-    bool closeConnection{ false };
-    Headers headers;
-    std::string body;
 };
 

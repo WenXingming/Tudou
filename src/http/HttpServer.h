@@ -1,5 +1,13 @@
-#pragma once
+/**
+ * @file HttpServer.h
+ * @brief HTTP 服务器类，基于 Tudou TcpServer 实现 HTTP 协议封装
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
 
+#pragma once
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -26,7 +34,9 @@ private:
     std::unique_ptr<TcpServer> tcpServer;
     int threadNum;
 
-    std::unordered_map<int, std::unique_ptr<HttpContext>> httpContexts; // 以连接 fd 作为 key 维护每个连接的 HttpContext
+    // 以连接 fd 作为 key 维护每个连接的 HttpContext
+    // 使用 shared_ptr 以便在缩小锁粒度后，仍能安全在锁外使用 HttpContext
+    std::unordered_map<int, std::shared_ptr<HttpContext>> httpContexts;
     std::mutex contextsMutex;
 
     HttpCallback httpCallback;

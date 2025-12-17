@@ -49,8 +49,8 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
 
     std::string realPath = resolve_path(path);
 
-    std::ifstream ifs(realPath, std::ios::binary);
-    if (!ifs) {
+    std::string fileContent;
+    if (!get_file_content_cached(realPath, fileContent)) {
         spdlog::warn("StaticFileHttpServer: file not found: {}", realPath);
         resp.set_status(404, "Not Found");
         resp.set_body("Not Found");
@@ -59,14 +59,13 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
         return;
     }
 
-    std::ostringstream oss;
-    oss << ifs.rdbuf();
-
     resp.set_status(200, "OK");
-    resp.set_body(oss.str());
+    resp.set_body(fileContent);
     resp.add_header("Content-Type", guess_content_type(realPath));
     // Content-Length 由 HttpServer 在内部自动添加
-    resp.set_close_connection(true); // 测试场景使用短连接
+    // 为了与 StaticFileTcpServer 测试更可比，这里使用 Keep-Alive
+    resp.set_close_connection(false);
+    resp.add_header("Connection", "Keep-Alive");
 }
 
 std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const {
@@ -76,7 +75,8 @@ std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const
 
     std::string path = urlPath;
     if (path.empty() || path == "/") {
-        path = "/homepage.html";
+        // path = "/homepage.html";
+        path = "/hello-world.html"; // 修改为默认返回 hello-world.html，方便测试
     }
 
     // 简单防止目录穿越：包含 ".." 的路径一律映射为 404 对应的虚构文件
@@ -110,4 +110,38 @@ std::string StaticFileHttpServer::guess_content_type(const std::string& filepath
     }
 
     return "application/octet-stream";
+}
+
+bool StaticFileHttpServer::get_file_content_cached(const std::string& realPath, std::string& content) const {
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex_);
+        auto it = fileCache_.find(realPath);
+        if (it != fileCache_.end()) {
+            content = it->second;
+            return true;
+        }
+    }
+
+    // 缓存中没有，尝试从磁盘读取
+    std::ifstream ifs(realPath, std::ios::binary);
+    if (!ifs) {
+        return false;
+    }
+
+    std::ostringstream oss;
+    oss << ifs.rdbuf();
+    std::string loaded = oss.str();
+
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex_);
+        // 可能在我们读取期间其他线程已经填充了缓存，这里复用已有内容
+        // auto [it, inserted] = fileCache_.emplace(realPath, std::move(loaded));
+        // C++11 不支持结构化绑定
+        auto insertResult = fileCache_.emplace(realPath, std::move(loaded));
+        auto it = insertResult.first;
+        // bool inserted = insertResult.second;
+        content = it->second;
+    }
+
+    return true;
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
+#include <mutex>
 
 class HttpServer;
 class HttpRequest;
@@ -24,6 +26,7 @@ private:
     void on_http_request(const HttpRequest& req, HttpResponse& resp);
     std::string resolve_path(const std::string& urlPath) const;
     std::string guess_content_type(const std::string& filepath) const;
+    bool get_file_content_cached(const std::string& realPath, std::string& content) const;
 
 private:
     std::string ip_;
@@ -32,4 +35,8 @@ private:
     int threadNum_;
 
     HttpServer* httpServer_; // 延后定义，实际在 .cpp 中用具体类型
+
+    // 简单的文件内容缓存：避免每个请求都从磁盘读取同一个静态文件
+    mutable std::mutex cacheMutex_;
+    mutable std::unordered_map<std::string, std::string> fileCache_;
 };

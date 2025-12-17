@@ -10,6 +10,16 @@
 #include "HttpResponse.h"
 
 
+HttpResponse::HttpResponse() :
+    httpVersion("HTTP/1.1"),
+    statusCode(200),
+    statusMessage("OK"),
+    headers(),
+    body(),
+    closeConnection(false) {
+    
+}
+
 std::string HttpResponse::package_to_string() const {
     std::string result;
     result.reserve(128 + body.size());

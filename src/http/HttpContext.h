@@ -42,6 +42,7 @@ private:
 
 public:
     HttpContext();
+    ~HttpContext() = default;
 
     // 禁止拷贝和移动构造。因为 llhttp_t 内部有指针指向 HttpContext 实例，拷贝或移动会导致指针失效。
     HttpContext(const HttpContext&) = delete;

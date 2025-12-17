@@ -1,10 +1,18 @@
+/**
+ * @file HttpServer.cpp
+ * @brief HTTP 服务器类，基于 Tudou TcpServer 实现 HTTP 协议封装
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ *
+ */
+
 #include "HttpServer.h"
-
-#include "spdlog/spdlog.h"
-
 #include "HttpContext.h"
 #include "HttpRequest.h"
 #include "HttpResponse.h"
+
+#include "spdlog/spdlog.h"
 #include "../tudou/TcpServer.h"
 
 
@@ -33,14 +41,20 @@ HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
 }
 
 void HttpServer::start() {
+    spdlog::debug("HttpServer: Starting HTTP server at {}:{}", ip, port);
+    if (!tcpServer) {
+        spdlog::critical("HttpServer: tcpServer is nullptr, cannot start server.");
+        return;
+    }
     tcpServer->start();
 }
 
 void HttpServer::on_connect(int fd) {
     spdlog::debug("HttpServer: on_connection fd={}", fd);
+    {
     std::lock_guard<std::mutex> lock(contextsMutex);
-    // 兼容 C++11：不使用 std::make_unique
-    httpContexts[fd].reset(new HttpContext());
+    httpContexts[fd].reset(new HttpContext()); // 兼容 C++11：不使用 std::make_unique
+    }
 }
 
 void HttpServer::on_message(int fd, const std::string& msg) {
@@ -61,35 +75,38 @@ std::string HttpServer::receive_data(const std::string& data) {
 }
 
 void HttpServer::parse_receive_data(int fd, const std::string& data) {
-    std::lock_guard<std::mutex> lock(contextsMutex);
-    auto it = httpContexts.find(fd);
-    if (it == httpContexts.end()) {
-        spdlog::error("HttpServer: No HttpContext found for fd={}", fd);
-        return;
+    // 1. 在锁内只做 HttpContext 查找和 shared_ptr 拷贝，缩小临界区
+    std::shared_ptr<HttpContext> ctx;
+    {
+        std::lock_guard<std::mutex> lock(contextsMutex);
+        auto it = httpContexts.find(fd);
+        if (it == httpContexts.end()) {
+            spdlog::error("HttpServer: No HttpContext found for fd={}", fd);
+            return;
+        }
+        ctx = it->second; // 拷贝 shared_ptr，保证在锁外使用时对象仍然存活
     }
-    HttpContext& ctx = *(it->second);
 
     size_t nparsed = 0;
-    bool ok = ctx.parse(data.data(), data.size(), nparsed);
+    bool ok = ctx->parse(data.data(), data.size(), nparsed);
     if (!ok) {
+        // 解析失败，返回 400 Bad Request
         spdlog::debug("HttpServer::parse_receive_data wrong. Bad request from fd={}", fd);
-        // 解析失败，返回 400
         std::string respStr = generate_bad_response();
         send_data(fd, respStr);
-        ctx.reset();
+        ctx->reset();
         return;
     }
 
-    if (!ctx.is_complete()) {
-        spdlog::debug("HttpServer::parse_receive_data. HTTP request not complete yet, fd={}", fd);
+    if (!ctx->is_complete()) {
         // 短连接场景下一般一次就收完；长连接场景可多次累积，这里先简单返回等待更多数据
+        spdlog::debug("HttpServer::parse_receive_data. HTTP request not complete yet, fd={}", fd);
         return;
     }
-
     spdlog::debug("HttpServer::parse_receive_data ok. Complete HTTP request received from fd={}", fd);
 
     // 报文完整，进入业务处理逻辑
-    process_data(fd, ctx);
+    process_data(fd, *ctx);
 }
 
 void HttpServer::process_data(int fd, HttpContext& ctx) {
