@@ -2,11 +2,11 @@
 
 #include <iostream>
 #include <unistd.h>
-
-#include "../tudou/Channel.h"
-#include "../tudou/EpollPoller.h"
-#include "../tudou/EventLoop.h"
 #include <cstring>
+
+#include "tudou/Channel.h"
+#include "tudou/EpollPoller.h"
+#include "tudou/EventLoop.h"
 
 TestNetlib::TestNetlib() {
     loop.reset(new EventLoop());

@@ -56,5 +56,6 @@ add_library(tudou STATIC ${tudou_source_files})
 target_link_libraries(tudou PRIVATE llhttp) # tudou 依赖 llhttp 库
 # =============================================================================
 
-add_subdirectory(src/tudou/test)
+add_subdirectory(src/tudou/unitTest)
+add_subdirectory(src/tudou/integrateTest)
 add_subdirectory(examples)
