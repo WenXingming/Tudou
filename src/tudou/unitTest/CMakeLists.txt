@@ -53,7 +53,7 @@ add_executable(unitTest
 
 target_include_directories(unitTest PRIVATE
     "${CMAKE_SOURCE_DIR}/src"   # Tudou 源码头文件（base/, tudou/http/ 等）
-    "${CMAKE_SOURCE_DIR}/lib"   # llhttp 头文件
+    "${CMAKE_SOURCE_DIR}/libs"   # llhttp 头文件
 )
 
 find_package(Threads REQUIRED)

@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 公共头文件搜索路径（便于示例和子目录使用，方便代码里面包含头文件）
 include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR}/lib)
+include_directories(${CMAKE_SOURCE_DIR}/libs)
 
 
 # 打开 ASan/UBSan 重新编译跑 unitTest，这类“谁写坏了哪一块内存” ASan 很擅长直接给出栈回溯；
@@ -26,7 +26,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lib)
 # =============================================================================
 # 添加 llhttp 静态库（源码引入方式。所以需要自己使用 add_library 命令编译生成库）
 file(GLOB llhttp_source_files
-    ${CMAKE_SOURCE_DIR}/lib/llhttp/*.c
+    ${CMAKE_SOURCE_DIR}/libs/llhttp/*.c
 )
 add_library(llhttp STATIC ${llhttp_source_files})
 # =============================================================================
@@ -40,7 +40,7 @@ add_library(llhttp STATIC ${llhttp_source_files})
 # =============================================================================
 # 生成线程池库
 file(GLOB threadpool_source_files
-    ${CMAKE_SOURCE_DIR}/lib/threadpool/*.cpp
+    ${CMAKE_SOURCE_DIR}/libs/threadpool/*.cpp
 )
 add_library(threadpool STATIC ${threadpool_source_files})
 # =============================================================================
