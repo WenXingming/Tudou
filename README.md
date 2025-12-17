@@ -10,9 +10,9 @@ Tudou is a multithreaded C++ network library based on the reactor pattern. It is
 4. **High Performance**: 通过优化的 I/O 处理和线程管理，实现高吞吐量和低延迟。
 5. ...
 
-[Tudou](assets/Tudou.png)
+![Tudou](assets/Tudou.png)
 
-## Benchmark
+## Benchmark: wrk 性能测试
 
 进行性能测试的硬件配置：
 
@@ -22,7 +22,7 @@ Tudou is a multithreaded C++ network library based on the reactor pattern. It is
 - Network: localhost loopback interface
 - Operating System: Ubuntu 22.04.5 LTS
 
-### Wrk 性能测试
+---
 
 wrk 下载编译：
 
