@@ -1,5 +1,5 @@
 /**
- * @file SendFileTcpServer.h
+ * @file StaticFileTcpServer.h
  * @brief 发送文件的 TCP 服务器示例
  * @details 得益于 Tudou 框架的模块化设计，实现一个发送文件的 TCP 服务器变得非常简单。只需持有 Tudou 提供的 TcpServer 类，并设置相应的回调函数即可完成文件发送功能。TcpServer 的回调函数如下：
  * - 连接建立回调: on_connect(int fd)
@@ -20,7 +20,7 @@ class EventLoop;
 class TcpServer;
 class TcpConnection;
 
-class SendFileTcpServer {
+class StaticFileTcpServer {
 private:
     std::string ip;
     uint16_t port;
@@ -30,8 +30,8 @@ private:
     int threadNum;
 
 public:
-    SendFileTcpServer(std::string _ip, uint16_t _port, const std::string& _responseFilepath, const int _threadNum = 12);
-    ~SendFileTcpServer();
+    StaticFileTcpServer(std::string _ip, uint16_t _port, const std::string& _responseFilepath, const int _threadNum = 12);
+    ~StaticFileTcpServer();
 
     std::string get_ip() const { return ip; }
     uint16_t get_port() const { return port; }

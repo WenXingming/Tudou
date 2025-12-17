@@ -1,4 +1,4 @@
-#include "SendFileTcpServer.h"
+#include "StaticFileTcpServer.h"
 
 #include "../base/InetAddress.h"
 #include "../tudou/TcpServer.h"
@@ -11,7 +11,7 @@
 #include <fstream>
 #include <sstream>
 
-SendFileTcpServer::SendFileTcpServer(std::string _ip, uint16_t _port, const std::string& _responseFilepath, const int _threadNum) :
+StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const std::string& _responseFilepath, const int _threadNum) :
     ip(std::move(_ip)),
     port(_port),
     responseFilepath(_responseFilepath),
@@ -38,18 +38,18 @@ SendFileTcpServer::SendFileTcpServer(std::string _ip, uint16_t _port, const std:
 
 }
 
-SendFileTcpServer::~SendFileTcpServer() {}
+StaticFileTcpServer::~StaticFileTcpServer() {}
 
-void SendFileTcpServer::start() {
+void StaticFileTcpServer::start() {
     tcpServer->start();
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（从 HttpServer 中构造 HttpContext 等）
-void SendFileTcpServer::on_connect(int fd) {
-    spdlog::info("SendFileTcpServer::on_connect(): New connection established. fd: {}", fd);
+void StaticFileTcpServer::on_connect(int fd) {
+    spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", fd);
 }
 
-void SendFileTcpServer::on_message(int fd, const std::string& msg) {
+void StaticFileTcpServer::on_message(int fd, const std::string& msg) {
     // 1. 接收数据
     std::string data = receive_data(msg);
     // 2. 解析数据
@@ -63,22 +63,22 @@ void SendFileTcpServer::on_message(int fd, const std::string& msg) {
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（清理 HttpContext 等）
-void SendFileTcpServer::on_close(int fd) {
+void StaticFileTcpServer::on_close(int fd) {
     spdlog::info("Connection closed. fd: {}", fd);
 }
 
-std::string SendFileTcpServer::receive_data(const std::string& _data) {
+std::string StaticFileTcpServer::receive_data(const std::string& _data) {
     // 1. 接收数据。这里直接返回传入的数据，因为 on_message 已经接收到了数据（经过我们修改的 TcpServer 类，使其在回调中直接传递接收到的数据，不再传递 TcpConnection 对象）
     return _data; // 拷贝 + 隐式移动优化
 }
 
-std::string SendFileTcpServer::parse_receive_data(const std::string& data) {
+std::string StaticFileTcpServer::parse_receive_data(const std::string& data) {
     // 2. 解析数据（简单起见，该应用服务基于 Tcp 层可以不做任何解析。Http 的话就需要进行解析）
     std::string response(data); // 显式拷贝
     return std::move(response); // 显式移动
 }
 
-std::string SendFileTcpServer::process_data(const std::string& request) {
+std::string StaticFileTcpServer::process_data(const std::string& request) {
     // 3. 业务逻辑处理。应该根据解析得到的 request 内容进行相应的业务逻辑处理，返回业务逻辑处理后，要发送的响应体内容。下面这两个简单示例都没有根据 request 内容进行处理，实际应用中应该根据 request 内容来决定如何处理：
     //  - 简单业务逻辑就是直接 echo 回去：conn->send(msg);
     //  - 或者返回一个固定的 html 页面内容：
@@ -102,7 +102,7 @@ std::string SendFileTcpServer::process_data(const std::string& request) {
 }
 
 // 4. 构造响应报文。根据 body 内容构造完整的响应报文
-std::string SendFileTcpServer::package_response_data(const std::string& body) {
+std::string StaticFileTcpServer::package_response_data(const std::string& body) {
     std::string response;
     response.reserve(body.size() + 256); // 预分配内存，避免多次拷贝
     response += "HTTP/1.1 200 OK\r\n";
@@ -115,6 +115,6 @@ std::string SendFileTcpServer::package_response_data(const std::string& body) {
 }
 
 // 5. 发送响应
-void SendFileTcpServer::send_data(int fd, const std::string& response) {
+void StaticFileTcpServer::send_data(int fd, const std::string& response) {
     tcpServer->send_message(fd, response);
 }

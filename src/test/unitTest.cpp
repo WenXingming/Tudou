@@ -12,9 +12,9 @@
 #include <string>
 
 #include "TestNetlib.h"
-#include "SendFileTcpServer.h"
+#include "StaticFileTcpServer.h"
 #include "TestHttpParser.h"
-#include "TestHttpServer.h"
+#include "StaticFileHttpServer.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h" // support for basic file logging
 #include "spdlog/sinks/stdout_color_sinks.h" // support for colored console logging
@@ -78,7 +78,7 @@ void test_tcp_server() {
 
     std::cout << "Starting TcpServer test on " << ip << ":" << port << "..." << std::endl;
     std::thread t2([ip, port, filepath, threadNum]() {
-        SendFileTcpServer sendFileTcpServer(ip, port, filepath, threadNum);
+        StaticFileTcpServer sendFileTcpServer(ip, port, filepath, threadNum);
         sendFileTcpServer.start();
         });
     t2.join();
@@ -108,7 +108,7 @@ void test_http_server() {
     int threadNum = 16; // 与 TcpServer 测试保持一致，使用多 Reactor
 
     std::thread t4([ip, port, baseDir, threadNum]() {
-        TestHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
+        StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
         server.start();
         });
     t4.join();
@@ -120,9 +120,9 @@ int main() {
 
     // test_logger();
     // test_net_library();
-    test_tcp_server();
+    // test_tcp_server();
     // test_http_parser();
-    // test_http_server();
+    test_http_server();
 
     return 0;
 }
