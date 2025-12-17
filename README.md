@@ -10,13 +10,7 @@ Tudou is a multithreaded C++ network library based on the reactor pattern. It is
 4. **High Performance**: 通过优化的 I/O 处理和线程管理，实现高吞吐量和低延迟。
 5. ...
 
-  _______          _
- |__   __|        | |           
-    | | _   _   __| |  ___   _   _ 
-    | || | | | / _` | / _ \ | | | |
-    | || |_| || (_| || (_) || |_| |
-    |_| \__,_| \__,_| \___/  \__,_|
-
+[Tudou](assets/Tudou.png)
 
 ## Benchmark
 
@@ -102,6 +96,13 @@ wrk 下载编译：
       - 每秒处理请求数（Requests/sec）：432144.30
 
     这些结果表明该服务器在多 Reactor 模式下能够显著提升并发处理能力，响应时间进一步降低，吞吐量大幅提升，展示了良好的扩展性和高性能。
+
+## Requirements
+
+- 单元测试需要 Google Test 库支持（sudo apt-get install libgtest-dev）
+- spdlog 日志库（已集成在 Tudou 中，无需额外安装）
+- C++11 or higher
+- CMake 3.10 or higher
 
 ## Usage
 
