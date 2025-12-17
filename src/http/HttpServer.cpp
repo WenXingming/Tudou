@@ -19,8 +19,8 @@
 HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
     ip(std::move(_ip)),
     port(_port),
-    tcpServer(nullptr),
     threadNum(_threadNum),
+    tcpServer(nullptr),
     httpContexts(),
     contextsMutex(),
     httpCallback(nullptr) {
@@ -61,12 +61,17 @@ void HttpServer::on_message(int fd, const std::string& msg) {
     spdlog::debug("HttpServer: on_message fd={}", fd);
 
     // 第 1 步：接收数据（目前直接使用 msg）
-    std::string data = receive_data(msg);
+    std::string data = std::move(receive_data(msg));
 
     // 第 2~4 步：解析 + 处理业务 + 打包响应
     parse_receive_data(fd, data);
 }
 
+void HttpServer::on_close(int fd) {
+    spdlog::debug("HttpServer: Connection closed. fd={}", fd);
+    std::lock_guard<std::mutex> lock(contextsMutex);
+    httpContexts.erase(fd);
+}
 
 std::string HttpServer::receive_data(const std::string& data) {
     // 当前 TcpServer 已经一次性从 TcpConnection 读取到了数据，这里直接返回。
@@ -92,14 +97,14 @@ void HttpServer::parse_receive_data(int fd, const std::string& data) {
     if (!ok) {
         // 解析失败，返回 400 Bad Request
         spdlog::debug("HttpServer::parse_receive_data wrong. Bad request from fd={}", fd);
-        std::string respStr = generate_bad_response();
-        send_data(fd, respStr);
+        HttpResponse resp = generate_bad_response();
+        send_data(fd, resp.package_to_string());
         ctx->reset();
         return;
     }
 
+    // 短连接场景下一般一次就收完；长连接场景可多次累积，这里先简单返回等待更多数据
     if (!ctx->is_complete()) {
-        // 短连接场景下一般一次就收完；长连接场景可多次累积，这里先简单返回等待更多数据
         spdlog::debug("HttpServer::parse_receive_data. HTTP request not complete yet, fd={}", fd);
         return;
     }
@@ -110,19 +115,15 @@ void HttpServer::parse_receive_data(int fd, const std::string& data) {
 }
 
 void HttpServer::process_data(int fd, HttpContext& ctx) {
+    // 调用上层业务回调处理请求并构造响应
     const HttpRequest& req = ctx.get_request();
-
     HttpResponse resp;
     handle_http_callback(req, resp);
 
     // 如果业务方没有手动设置 Content-Length，这里自动补充
-    auto& headers = const_cast<HttpResponse::Headers&>(resp.get_headers());
-    auto it = headers.find("Content-Length");
-    if (it == headers.end()) {
-        const std::string& body = resp.get_body();
-        headers["Content-Length"] = std::to_string(body.size());
-    }
+    check_and_set_content_length(resp);
 
+    // 打包响应并发送
     std::string respStr = package_response_data(resp);
     send_data(fd, respStr);
 
@@ -142,49 +143,44 @@ void HttpServer::send_data(int fd, const std::string& response) {
     tcpServer->send_message(fd, response);
 }
 
-void HttpServer::on_close(int fd) {
-    spdlog::debug("HttpServer: Connection closed. fd={}", fd);
-    std::lock_guard<std::mutex> lock(contextsMutex);
-    httpContexts.erase(fd);
-}
-
-
 void HttpServer::handle_http_callback(const HttpRequest& req, HttpResponse& resp) {
     if (!httpCallback) {
         spdlog::critical("HttpServer: No HTTP callback set. Use default 404 response.");
-        // 未设置业务回调时，返回 404
-        std::string respStr = generate_404_response();
-        // 这里无法拿到 fd，只是构造一个默认响应供上层决定是否发送；
-        // 因为真正发送在 process_data 中，这里仅在无回调时填充 resp。
-        resp.set_status(404, "Not Found");
-        resp.set_body("Not Found");
-        resp.add_header("Content-Type", "text/plain");
-        resp.set_close_connection(true);
-        (void)respStr; // 避免未使用警告
+        resp = generate_404_response(); // 直接填充 404 响应
         return;
     }
 
-    httpCallback(req, resp);
+    httpCallback(req, resp); // 调用上层业务回调，处理请求，填充响应
 }
 
+void HttpServer::check_and_set_content_length(HttpResponse & resp){
+    auto& headers = const_cast<HttpResponse::Headers&>(resp.get_headers());
+    auto it = headers.find("Content-Length");
+    if (it == headers.end()) {
+        const std::string& body = resp.get_body();
+        headers["Content-Length"] = std::to_string(body.size());
+    }
+}
 
-std::string HttpServer::generate_bad_response() {
+HttpResponse HttpServer::generate_bad_response() {
     HttpResponse resp;
+    resp.set_http_version("HTTP/1.1");
     resp.set_status(400, "Bad Request");
-    resp.set_close_connection(true);
-    resp.set_body("Bad Request");
     resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
     resp.add_header("Content-Type", "text/plain");
-    return std::move(resp.package_to_string());
+    resp.set_body("Bad Request");
+    resp.set_close_connection(true);
+    return std::move(resp);
 }
 
-std::string HttpServer::generate_404_response() {
+HttpResponse HttpServer::generate_404_response() {
     HttpResponse resp;
+    resp.set_http_version("HTTP/1.1");
     resp.set_status(404, "Not Found");
-    resp.set_close_connection(true);
-    resp.set_body("Not Found");
     resp.add_header("Content-Length", std::to_string(resp.get_body().size()));
     resp.add_header("Content-Type", "text/plain");
-    return std::move(resp.package_to_string());
+    resp.set_body("Not Found");
+    resp.set_close_connection(true);
+    return std::move(resp);
 }
 

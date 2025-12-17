@@ -31,11 +31,14 @@ private:
     Headers headers;
     std::string body;
 
-    bool closeConnection;
+    bool closeConnection; // 标记连接是否需要关闭, 暂时未使用
 
 public:
     HttpResponse();
     ~HttpResponse() = default;
+
+    void set_http_version(const std::string& version) { httpVersion = version; }
+    const std::string& get_http_version() const { return httpVersion; }
 
     void set_status(int _code, const std::string& _message) {
         statusCode = _code;
