@@ -49,13 +49,34 @@ void set_logger() {
 // ======================================================================================
 // 各种测试函数
 
+#include "../base/InetAddress.h"
+void test_inet_address() {
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "test_inet_address running...\n";
+
+    InetAddress inetAddress = InetAddress("127.0.0.1", 8080);
+    std::cout << "ip: " << inetAddress.get_ip() << std::endl;
+    std::cout << "port: " << inetAddress.get_port() << std::endl;
+    std::cout << "ip:port: " << inetAddress.get_ip_port() << std::endl;
+
+    std::cout << "test_inet_address success.\n";
+    std::cout << "==================================================================" << std::endl;
+}
+
+
 // 测试 logger 功能
 void test_logger() {
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "test_logger running...\n";
+
     spdlog::debug("This is a debug message.");
     spdlog::info("This is an info message.");
     spdlog::warn("This is a warning message.");
     spdlog::error("This is an error message.");
     spdlog::critical("This is a critical message.");
+
+    std::cout << "test_logger success.\n";
+    std::cout << "==================================================================" << std::endl;
 }
 
 // 测试网络库：EventLoop、Epoller、Channel
@@ -118,7 +139,8 @@ void test_http_server() {
 int main() {
     set_logger();
 
-    // test_logger();
+    test_inet_address();
+    test_logger();
     // test_net_library();
     // test_tcp_server();
     // test_http_parser();
