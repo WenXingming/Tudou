@@ -19,11 +19,10 @@
 #include <mutex>
 #include <string>
 
-#include "../tudou/TcpServer.h"
-#include "../http/HttpRequest.h"
-#include "../http/HttpResponse.h"
-#include "../http/HttpContext.h"
-
+#include "tudou/TcpServer.h"
+#include "tudou/http/HttpRequest.h"
+#include "tudou/http/HttpResponse.h"
+#include "tudou/http/HttpContext.h"
 
 class HttpServer {
     // 上层业务回调：根据 HttpRequest 填充 HttpResponse

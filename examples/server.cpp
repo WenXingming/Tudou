@@ -1,8 +1,8 @@
 /**
  * @file main.cpp
- * @brief 单元测试
+ * @brief server 示例程序
  * @author wenxingming
- * @date 2025-09-06
+ * @date 2025-12-17
  * @project: https://github.com/WenXingming/Tudou.git
  */
 
@@ -11,9 +11,9 @@
 #include <unistd.h>
 #include <string>
 
-#include "TestNetlib.h"
+// #include "TestNetlib.h"
 #include "StaticFileTcpServer.h"
-#include "TestHttpParser.h"
+// #include "TestHttpParser.h"
 #include "StaticFileHttpServer.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h" // support for basic file logging
@@ -49,19 +49,19 @@ void set_logger() {
 // ======================================================================================
 // 各种测试函数
 
-#include "../base/InetAddress.h"
-void test_inet_address() {
-    std::cout << "==================================================================" << std::endl;
-    std::cout << "test_inet_address running...\n";
+// #include "../base/InetAddress.h"
+// void test_inet_address() {
+//     std::cout << "==================================================================" << std::endl;
+//     std::cout << "test_inet_address running...\n";
 
-    InetAddress inetAddress = InetAddress("127.0.0.1", 8080);
-    std::cout << "ip: " << inetAddress.get_ip() << std::endl;
-    std::cout << "port: " << inetAddress.get_port() << std::endl;
-    std::cout << "ip:port: " << inetAddress.get_ip_port() << std::endl;
+//     InetAddress inetAddress = InetAddress("127.0.0.1", 8080);
+//     std::cout << "ip: " << inetAddress.get_ip() << std::endl;
+//     std::cout << "port: " << inetAddress.get_port() << std::endl;
+//     std::cout << "ip:port: " << inetAddress.get_ip_port() << std::endl;
 
-    std::cout << "test_inet_address success.\n";
-    std::cout << "==================================================================" << std::endl;
-}
+//     std::cout << "test_inet_address success.\n";
+//     std::cout << "==================================================================" << std::endl;
+// }
 
 
 // 测试 logger 功能
@@ -80,15 +80,15 @@ void test_logger() {
 }
 
 // 测试网络库：EventLoop、Epoller、Channel
-void test_net_library() {
-    std::cout << "Starting Netlib test..." << std::endl;
-    std::thread t1([]() {
-        TestNetlib testNetlib;
-        testNetlib.start();
-        });
-    t1.join();
-    std::cout << "Netlib test finished." << std::endl;
-}
+// void test_net_library() {
+//     std::cout << "Starting Netlib test..." << std::endl;
+//     std::thread t1([]() {
+//         TestNetlib testNetlib;
+//         testNetlib.start();
+//         });
+//     t1.join();
+//     std::cout << "Netlib test finished." << std::endl;
+// }
 
 // 测试 TcpServer 服务器，包含：网络库 + TcpServer、Acceptor、TcpConnection、Buffer 等，即整个网络框架（Tudou）
 void test_tcp_server() {
@@ -107,17 +107,17 @@ void test_tcp_server() {
 }
 
 // 测试 HTTP 报文解析器
-void test_http_parser() {
-    std::cout << "Starting HttpParser test..." << std::endl;
-    // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null
-    std::thread t3([]() {
-        TestHttpParser testHttpParser;
-        int ret = testHttpParser.run_all();
-        assert(ret == 0);
-        });
-    t3.join();
-    std::cout << "HttpParser test finished." << std::endl;
-}
+// void test_http_parser() {
+//     std::cout << "Starting HttpParser test..." << std::endl;
+//     // 命令行测试： curl -v http://127.0.0.1:8080/ -o /dev/null
+//     std::thread t3([]() {
+//         TestHttpParser testHttpParser;
+//         int ret = testHttpParser.run_all();
+//         assert(ret == 0);
+//         });
+//     t3.join();
+//     std::cout << "HttpParser test finished." << std::endl;
+// }
 
 void test_http_server() {
     // 测试 HttpServer 服务器：TcpServer + HttpServer
@@ -139,7 +139,7 @@ void test_http_server() {
 int main() {
     set_logger();
 
-    test_inet_address();
+    // test_inet_address();
     test_logger();
     // test_net_library();
     // test_tcp_server();

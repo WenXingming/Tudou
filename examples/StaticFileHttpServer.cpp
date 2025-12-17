@@ -3,9 +3,9 @@
 #include <fstream>
 #include <sstream>
 
-#include "../http/HttpServer.h"
-#include "../http/HttpRequest.h"
-#include "../http/HttpResponse.h"
+#include "tudou/http/HttpServer.h"
+#include "tudou/http/HttpRequest.h"
+#include "tudou/http/HttpResponse.h"
 #include "spdlog/spdlog.h"
 
 StaticFileHttpServer::StaticFileHttpServer(const std::string& ip,

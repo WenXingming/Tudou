@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "../http/HttpContext.h"
+#include "tudou/http/HttpContext.h"
 
 
 int TestHttpParser::run_all() {
