@@ -1,15 +1,5 @@
 # Tudou：一个 Reactor 模式的高性能网络框架⚡
 
-## Introduction
-
-Tudou is a multithreaded C++ network library based on the reactor pattern. It is designed for building high-performance network servers and applications. The library' features include:
-
-1. **Reactor Pattern**: 使用 Reactor 模式实现高效的事件驱动网络编程。
-2. **Multithreading**: 支持多线程模型，提升并发处理能力。
-3. **HTTP Protocol Support**: 内置对 HTTP 协议的支持，方便构建 Web 服务器。
-4. **High Performance**: 通过优化的 I/O 处理和线程管理，实现高吞吐量和低延迟。
-5. ...
-
 ```plain
   _______          _            
  |__   __|        | |           
@@ -19,7 +9,19 @@ Tudou is a multithreaded C++ network library based on the reactor pattern. It is
     |_| \__,_| \__,_| \___/  \__,_|
 ```
 
-## Benchmark: wrk 性能测试
+## ✅ Introduction
+
+Tudou 是一个基于 Reactor 模式的多线程 C++ 网络库，旨在构建高性能的网络服务器和应用程序。该库的主要特性包括：
+
+1. **Reactor 模式**: 使用 Reactor 模式实现高效的事件驱动网络编程。
+2. **多线程**: 支持多线程模型，提升并发处理能力。
+3. **HTTP 协议支持**: 内置对 HTTP 协议的支持，方便构建 Web 服务器。
+4. **高性能**: 通过优化的 I/O 处理和线程管理，实现高吞吐量和低延迟。
+5. ...
+
+
+
+## ⚡ Benchmark: wrk 性能测试
 
 进行性能测试的硬件配置：
 
@@ -104,14 +106,14 @@ wrk 下载编译：
 
     这些结果表明该服务器在多 Reactor 模式下能够显著提升并发处理能力，响应时间进一步降低，吞吐量大幅提升，展示了良好的扩展性和高性能。
 
-## Requirements
+## 🔍 Requirements
 
 - 单元测试需要 Google Test 库支持（sudo apt-get install libgtest-dev）
 - spdlog 日志库（已集成在 Tudou 中，无需额外安装）
 - C++11 or higher
 - CMake 3.10 or higher
 
-## Usage
+## 🎯 Usage
 
 使用样例见 /examples。例如我使用 Tudou 编写了一个静态文件服务器 StaticFileHttpServer（详细代码见 /examples/StaticFileHttpServer）：
 
@@ -193,7 +195,7 @@ int main() {
 
 访问 192.168.3.3:8080 即可看到静态文件服务器效果。
 
-## Citation
+## 📚 Citation
 
 - 网络库（muduo）：https://github.com/chenshuo/muduo
 - Http 协议解析库（llhttp）：https://github.com/nodejs/llhttp
