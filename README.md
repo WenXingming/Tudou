@@ -118,6 +118,7 @@ apr_pollset_poll: The timeout specified has expired (70007)
 - 网络库（muduo）：https://github.com/chenshuo/muduo
 - Http 协议解析库（llhttp）：https://github.com/nodejs/llhttp
 - 日志库（spdlog）：https://github.com/gabime/spdlog
+- 单元测试框架（Google Test）：https://github.com/google/googletest
 - 压力测试工具（wrk）：https://github.com/wg/wrk
 
 ## Others

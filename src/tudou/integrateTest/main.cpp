@@ -14,9 +14,19 @@
 
 #include "TestNetlib.h"
 
+void test_net_library() {
+    std::cout << "==================================================================" << std::endl;
+    std::cout << "test_net_library running...\n";
+
+    TestNetlib test;
+    test.start();
+
+    std::cout << "test_net_library success.\n";
+    std::cout << "==================================================================" << std::endl;
+}
+
 int main() {
-	TestNetlib test;
-	test.start();
+    test_net_library();
 	return 0;
 }
 
