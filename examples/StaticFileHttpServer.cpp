@@ -1,3 +1,12 @@
+/**
+ * @file StaticFileHttpServer.h
+ * @brief 发送文件的 HTTP 服务器示例
+ * @details 得益于 Tudou 框架的模块化设计，实现一个发送文件的 HTTP 服务器变得非常简单。只需持有 Tudou 提供的 HttpServer 类，并设置相应的回调函数即可完成文件发送功能
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #include "StaticFileHttpServer.h"
 
 #include <fstream>

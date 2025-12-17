@@ -1,3 +1,12 @@
+/**
+ * @file StaticFileTcpServer.h
+ * @brief 发送文件的 TCP 服务器示例
+ * @details 
+ * @author wenxingming
+ * @date 2025-11-27
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #include "StaticFileTcpServer.h"
 
 #include "base/InetAddress.h"

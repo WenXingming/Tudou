@@ -81,14 +81,12 @@ void run_static_http_server() {
 
     std::string ip = "192.168.3.3";
     int port = 8080;
-    std::string baseDir = "/home/wxm/Tudou/assets/wenxingming.github.io";
-    int threadNum = 0; // 与 TcpServer 测试保持一致，使用多 Reactor
+    std::string baseDir = "/home/wxm/Tudou/assets/";
+    int threadNum = 16; // 0 表示使用单线程，大于 0 表示使用多线程
 
-    std::thread t4([ip, port, baseDir, threadNum]() {
-        StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
-        server.start();
-        });
-    t4.join();
+    StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
+    server.start();
+
     std::cout << "HttpServer test finished." << std::endl;
 }
 

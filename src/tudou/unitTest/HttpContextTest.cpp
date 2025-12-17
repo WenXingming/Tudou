@@ -66,7 +66,7 @@ TEST(HttpContextTest, ParseGetWithoutQuery) {
     EXPECT_TRUE(req.get_body().empty());
 }
 
-// 从原先 TestHttpParser 迁移而来的测试用例：解析带路径和 query 的简单 GET 请求
+// 从原先 TestHttpParser 迁移而来的测试用例：解析带路径和 query 的简单 GET 请求。curl -v http://127.0.0.1:8080/ -o /dev/null
 TEST(HttpContextTest, ParseSimpleGet_FromLegacyTestHttpParser) {
     HttpContext ctx;
 
