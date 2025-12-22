@@ -22,43 +22,52 @@
 #include "EventLoopThread.h"
 #include "EventLoopThreadPool.h"
 
-TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
-    loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", ioLoopNum)),
-    ip(std::move(ip)),
-    port(port),
+TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
+    loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", _ioLoopNum)),
+    ip(std::move(_ip)),
+    port(_port),
     acceptor(nullptr),
     connections(),
+    connectionsMutex(),
     connectionCallback(nullptr),
     messageCallback(nullptr),
     closeCallback(nullptr) {
-
+    
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     InetAddress listenAddr(this->ip, this->port);
-    assert(mainLoop != nullptr);
+    if(mainLoop == nullptr) {
+        spdlog::critical("TcpServer::TcpServer(). mainLoop is nullptr.");
+        assert(false);
+    }
     acceptor.reset(new Acceptor(mainLoop, listenAddr));
     acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 或者可以使用 lambda
+
+    spdlog::debug("TcpServer::TcpServer() called, ip: {}, port: {}, ioLoopNum: {}", ip, port, _ioLoopNum);
 }
 
 TcpServer::~TcpServer() {
-    spdlog::info("TcpServer::~TcpServer() called.");
+    spdlog::debug("TcpServer::~TcpServer() called.");
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
-    this->connectionCallback = cb;
+    this->connectionCallback = std::move(cb);
 }
 
 void TcpServer::set_message_callback(MessageCallback cb) {
-    this->messageCallback = cb;
+    this->messageCallback = std::move(cb);
 }
 
 void TcpServer::set_close_callback(CloseCallback cb) {
-    this->closeCallback = cb;
+    this->closeCallback = std::move(cb);
 }
 
 void TcpServer::start() {
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
-    assert(mainLoop != nullptr);
-    mainLoop->loop(); // 启动监听事件循环
+    if(mainLoop == nullptr) {
+        spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
+        assert(false);
+    }
+    mainLoop->loop(); // 启动监听事件循环，开启服务器
 }
 
 void TcpServer::send_message(int fd, const std::string& msg) {
@@ -66,29 +75,28 @@ void TcpServer::send_message(int fd, const std::string& msg) {
     {
         std::lock_guard<std::mutex> lock(connectionsMutex);
         auto findIt = connections.find(fd);
-        if (findIt != connections.end()) {
-            conn = findIt->second; // 拿一份 shared_ptr 副本，锁外使用
+        if(findIt == connections.end()) {
+            spdlog::error("TcpServer::send(). connection not found, fd: {}", fd);
+            return;
         }
+        conn = findIt->second; // 拿一份 shared_ptr 副本，锁外使用
     }
 
-    if (conn) {
-        conn->send(msg);
+    if(conn == nullptr) {
+        spdlog::error("TcpServer::send(). connection is nullptr, fd: {}", fd);
+        return;
     }
-    else {
-        spdlog::error("TcpServer::send(). connection not found, fd: {}", fd);
-    }
+    conn->send(msg);
 }
 
 void TcpServer::on_connect(const int connFd) {
-    EventLoop* mainLoop = loopThreadPool->get_main_loop();
-    assert(mainLoop != nullptr);
-    mainLoop->assert_in_loop_thread();
+    // 创建连接时确保在 mainLoop 线程调用 on_connect
+    assert_in_main_loop_thread();
 
     // 选择一个 EventLoop 来管理该连接，轮询选择（通常是 ioLoop，除非只有一个 mainLoop）
-    EventLoop* ioLoop = loopThreadPool->get_next_loop();
-    assert(ioLoop != nullptr);
+    EventLoop* ioLoop = select_loop();
 
-    // 等待直到切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则会有执行顺序问题，还没初始化好就触发事件回调了
+    // 切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则可能会有执行顺序问题，还没初始化好就触发事件回调了（此时可能 callback 还未设置）
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
     ioLoop->run_in_loop([this, connFd, ioLoop]() {
         auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
@@ -188,17 +196,21 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     }
 }
 
-// EventLoop* TcpServer::get_loop() {
-//     EventLoop* loop;
-//     EventLoop* ioLoop = ioLoopThreadPool->get_next_loop();
-//     if (ioLoop == nullptr) {
-//         loop = mainLoop.get();
-//         spdlog::warn("TcpServer::on_connect(). No IO loop available, use main loop instead.");
-//     }
-//     else {
-//         loop = ioLoop;
-//     }
+void TcpServer::assert_in_main_loop_thread() const {
+    // 创建连接时确保在 mainLoop 线程调用 on_connect
+    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    if (mainLoop == nullptr) { // 不太可能发生，只是防御性编程。为了提高效率可以注释掉
+        spdlog::critical("TcpServer::on_connect(). mainLoop is nullptr.");
+        assert(false);
+    }
+    mainLoop->assert_in_loop_thread();
+}
 
-//     assert(loop != nullptr);
-//     return loop;
-// }
+EventLoop* TcpServer::select_loop() const {
+    EventLoop* ioLoop = loopThreadPool->get_next_loop();
+    if (ioLoop == nullptr) {
+        spdlog::critical("TcpServer::on_connect(). ioLoop is nullptr.");
+        assert(false);
+    }
+    return ioLoop;
+}

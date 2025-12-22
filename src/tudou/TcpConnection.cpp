@@ -87,19 +87,12 @@ void TcpConnection::send(const std::string& msg) {
 }
 
 std::string TcpConnection::receive() {
-    if (loop->is_in_loop_thread()) {
-        // 在当前 IO 线程，直接接收
-        std::string msg(readBuffer->read_from_buffer());
-        return std::move(msg);
-    }
-    else {
-        // 不在当前 IO 线程，切换到对应线程接收
-        std::string msg;
-        loop->run_in_loop([this, &msg]() {
-            msg = readBuffer->read_from_buffer();
-            });
-        return std::move(msg);
-    }
+    // 在对应的 IO 线程中执行读取操作
+    std::string msg;
+    loop->run_in_loop([this, &msg]() {
+        msg = readBuffer->read_from_buffer();
+        });
+    return std::move(msg);
 }
 
 /* void TcpConnection::shutdown() {
@@ -121,15 +114,15 @@ void TcpConnection::on_read(Channel& channel) {
         on_close(channel);
     }
     else {
-        // if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
-        //     return; // 本轮数据读完，等下次 EPOLLIN 事件再读
-        // }
-        // else {
-        //     spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-        //     on_error(channel);
-        // }
-        spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-        on_error(channel);
+        if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
+            return; // 本轮数据读完，等下次 EPOLLIN 事件再读
+        }
+        else {
+            spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
+            on_error(channel);
+        }
+        // spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
+        // on_error(channel);
     }
 }
 
@@ -164,7 +157,6 @@ void TcpConnection::on_close(Channel& channel) {
 }
 
 void TcpConnection::on_error(Channel& channel) {
-    // spdlog::error("TcpConnection::on_error() called.");
     on_close(channel);
 }
 
