@@ -3,4 +3,4 @@ build/
 .cache/
 cmake-build*/
 .idea/
-assets/wenxingming.github.io/
+assets/static-file-http-server/html/wenxingming.github.io
