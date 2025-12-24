@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
     } else {
         // Default search roots
         std::vector<std::string> searchRoots = {
-            "/home/wxm/Tudou/assets/static-file-http-server/",
+            "/home/wxm/Tudou/configs/static-file-http-server/",
             "/etc/static-file-http-server/",
             "./"
         };
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         if (serverRoot.empty()) {
             std::cout << "No serverRoot and configuration found in default locations. You have two options:\n"
                       << "1. Create a serverRoot folder at one of the default locations:\n"
-                      << "   /home/wxm/Tudou/assets/static-file-http-server/\n"
+                      << "   /home/wxm/Tudou/configs/static-file-http-server/\n"
                       << "   /etc/static-file-http-server/\n"
                       << "   ./static-file-http-server/\n"
                       << "2. Specify the server root directory as a command-line argument when running the program.\n";

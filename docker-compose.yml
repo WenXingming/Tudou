@@ -30,10 +30,10 @@ services:
   #   --name nginx-forward \
   #   -d \
   #   --network host \
-  #   -v $(pwd)/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro \
-  #   -v $(pwd)/nginx/conf/conf.d:/etc/nginx/conf.d:ro \
-  #   -v $(pwd)/nginx/log:/var/log/nginx \
-  #   -v $(pwd)/nginx/html:/usr/share/nginx/html:ro \
+  #   -v $(pwd)/configs/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro \
+  #   -v $(pwd)/configs/nginx/conf/conf.d:/etc/nginx/conf.d:ro \
+  #   -v $(pwd)/configs/nginx/log:/var/log/nginx \
+  #   -v $(pwd)/configs/nginx/html:/usr/share/nginx/html:ro \
   #   nginx:trixie-perl
   # ===============================================================================================
 
@@ -47,9 +47,9 @@ services:
     #   - "443:443" # 映射主机的 443 端口到容器的 443 端口
     #   - "8080:8080" # 映射主机的 8080 端口到容器的 8080 端口（反向代理使用。实践后不行，端口被占用，服务器无法 bind 启动）
     volumes:
-      - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro # 对应 -v $(pwd)/...，:ro 表示只读挂载。将自定义配置文件挂载进去
-      - ./nginx/conf/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/log:/var/log/nginx
-      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./configs/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro # 对应 -v $(pwd)/...，:ro 表示只读挂载。将自定义配置文件挂载进去
+      - ./configs/nginx/conf/conf.d:/etc/nginx/conf.d:ro
+      - ./configs/nginx/log:/var/log/nginx
+      - ./configs/nginx/html:/usr/share/nginx/html:ro
     depends_on:
       - db  # 确保数据库先启动
