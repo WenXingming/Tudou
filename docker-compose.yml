@@ -4,11 +4,13 @@
 # cd /home/wxm/Tudou && sudo docker compose down （停止并删除容器）
 
 services:
+  # ===============================================================================================
   # --- 数据库服务 ---
+  # ===============================================================================================
   db:
     image: mysql:8.0.44-debian # 使用的 MySQL 镜像名称
     container_name: mysql-server # 容器名称
-    restart: always
+    restart: always # 容器退出时自动重启
     environment:
       MYSQL_ROOT_PASSWORD: wenxingming # root 用户的密码
       MYSQL_DATABASE: tudou_db # 默认创建的数据库名称
@@ -17,13 +19,29 @@ services:
       - "3306:3306" # 映射主机的 3306 端口到容器的 3306 端口
     volumes:
     # 不要使用 ~ 相对路径。当使用 sudo 运行 Docker 命令时，~ 符号（代表用户主目录）会被解析为 root 而不是您的用户目录 wxm。因此，数据库文件实际上被创建到了 /root/mysql-deploy/ 下，而不是您期望的位置。
-      - /home/wxm/mysql-deploy/mysql/data:/var/lib/mysql # 将主机的目录映射到容器内，确保数据持久化。
-      - /home/wxm/mysql-deploy/mysql/logs:/var/log/mysql
-      - /home/wxm/mysql-deploy/mysql/conf:/etc/mysql/conf.d
+      - /home/wxm/mysql-data/mysql/data:/var/lib/mysql # 将主机的目录映射到容器内，确保数据持久化。
+      - /home/wxm/mysql-data/mysql/logs:/var/log/mysql
+      - /home/wxm/mysql-data/mysql/conf:/etc/mysql/conf.d
     command: --default-authentication-plugin=mysql_native_password # 使用 mysql_native_password 认证插件，确保兼容性，解决部分旧版客户端连接问题
 
 
-  # --- Nginx 服务 ---
+  # ===============================================================================================
+  # --- Redis 缓存服务 ---
+  # ===============================================================================================
+  redis:
+    image: redis:latest
+    container_name: redis-server
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /home/wxm/redis-data:/data # 将主机的目录（/home/wxm/redis-data）映射到容器内（/data），确保数据持久化。
+    command: ["redis-server", "--appendonly", "yes"]
+
+
+  # ==============================================================================================
+  # Nginx 服务反向代理服务
+  # ==============================================================================================
   # ===============================================================================================
   # 使用 docker run 命令启动 Nginx 容器。先 cd 到 Tudou 根目录（/home/wxm/Tudou，因为使用到了 $(pwd) 命令）
   # sudo docker run \
@@ -36,7 +54,6 @@ services:
   #   -v $(pwd)/configs/nginx/html:/usr/share/nginx/html:ro \
   #   nginx:trixie-perl
   # ===============================================================================================
-
   nginx-forward:
     image: nginx:trixie-perl # 使用的镜像名称
     container_name: nginx-forward # 容器名称
