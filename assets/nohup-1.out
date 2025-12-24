@@ -1,0 +1,1126 @@
+# happy-birthday
+[2025-12-16 17:05:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 19:23:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 19:23:20] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 19:48:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 19:48:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 19:48:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 19:48:23] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 21:53:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 21:53:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-16 21:53:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-16 21:53:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-16 21:53:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-16 21:53:12] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-16 21:53:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:20] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 21:53:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-16 21:53:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 21:53:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 21:53:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-16 21:53:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-16 21:53:40] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 01:11:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 01:11:04] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 01:22:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 01:22:41] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 02:42:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 02:42:48] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 03:53:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 03:53:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 03:53:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 03:53:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 03:53:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 03:53:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 03:53:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 03:53:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 03:53:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 03:53:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 03:53:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-17 03:53:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 03:53:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 03:53:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 03:53:50] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 03:53:50] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 05:57:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 05:57:55] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 08:34:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 09:30:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 09:30:19] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:54:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 10:54:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 10:54:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 10:54:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 10:54:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 10:54:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-17 10:54:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 10:54:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 10:54:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 10:54:25] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:54:27] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:54:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 10:54:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:54:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:54:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 10:55:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 10:55:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 10:56:19] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 13:59:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 13:59:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 16:40:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 16:51:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 16:51:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 16:51:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 16:51:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 16:51:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 16:51:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-17 16:51:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 16:51:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 16:51:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-17 16:51:18] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 16:51:18] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 16:51:18] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 20:44:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 20:44:54] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:27:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 23:27:12] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 23:49:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 23:49:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 23:49:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-17 23:49:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 23:49:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-17 23:49:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-17 23:49:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-17 23:49:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-17 23:49:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 23:49:34] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:34] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:35] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 23:49:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-17 23:49:37] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 23:49:46] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:49:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 23:49:54] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-17 23:51:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-17 23:51:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 23:51:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-17 23:51:40] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 01:59:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 05:47:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 05:53:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 05:53:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 05:53:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 05:53:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 05:53:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 05:53:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 05:53:48] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 05:53:48] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 07:17:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 07:27:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 12:47:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 12:47:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 12:47:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 12:47:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 12:47:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 12:47:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-18 12:47:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-18 12:47:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-18 12:47:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-18 12:47:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-18 12:47:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-18 12:47:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-18 12:47:30] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-18 12:47:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 12:47:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 12:47:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 12:47:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 12:47:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 12:47:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 12:47:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 12:47:42] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:44] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 12:47:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 12:47:46] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 18:04:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 18:52:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 18:52:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-18 18:52:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 18:52:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-18 18:52:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-18 18:52:37] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 18:52:37] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 18:52:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 21:51:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:51:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:51:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:51:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:51:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:51:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:52:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:53:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:54:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:55:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:56:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 21:59:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 22:00:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 22:00:00] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-18 22:00:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-18 22:00:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 01:51:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 01:51:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 01:51:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-19 01:51:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-19 01:51:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-19 01:51:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 01:51:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-19 01:51:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 01:51:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-19 01:51:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 01:51:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-19 01:51:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-19 01:51:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 01:51:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 01:51:35] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 01:51:35] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 01:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 01:51:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 01:51:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 01:51:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 01:51:50] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 04:10:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 04:29:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 05:49:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 06:12:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 06:15:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 06:40:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 07:48:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 07:48:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 07:48:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 07:48:23] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 11:12:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 11:12:55] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 11:23:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 11:23:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 11:23:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 14:49:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 14:49:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 14:49:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-19 14:49:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-19 14:49:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 14:49:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-19 14:49:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 14:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-19 14:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-19 14:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 14:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-19 14:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-19 14:49:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:41] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 14:49:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-19 14:49:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 14:49:52] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 16:51:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 16:51:30] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 17:09:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 17:09:21] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 17:09:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 17:09:21] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 18:18:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:18:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:18:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:18:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:19:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:20:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:21:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:22:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:23:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:26:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:27:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:27:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 18:27:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 18:27:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 20:31:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 20:53:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 20:53:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-19 20:53:22] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-19 23:11:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-19 23:11:00] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 00:30:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 6
+[2025-12-20 00:46:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 00:49:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 02:34:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 03:37:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 03:37:28] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:50:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 03:50:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 03:50:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-20 03:50:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 03:50:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:50:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-20 03:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-20 03:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-20 03:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-20 03:50:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 16
+[2025-12-20 03:50:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-20 03:50:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:50:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:50:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-20 03:50:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:50:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-20 03:51:01] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:51:12] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 03:51:19] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:25] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:25] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:26] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:26] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:26] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:51:27] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 03:52:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 03:52:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 03:53:13] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 09:50:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 09:50:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 09:50:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 09:50:57] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 10:17:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 10:17:49] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 10:20:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 10:20:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 10:20:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 13:23:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 13:23:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:48:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 16:49:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 16:49:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:49:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:49:58] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 16:50:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:50:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-20 16:50:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-20 16:50:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-20 16:50:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-20 16:50:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-20 16:50:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-20 16:50:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-20 16:50:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:13] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-20 16:50:15] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 16:50:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:20] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 16:50:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 16:50:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:50:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 16:50:34] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 19:46:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:46:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:47:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:48:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:49:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:50:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:51:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:54:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:54:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:55:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 19:55:01] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 19:55:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 22:47:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-20 22:47:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 22:47:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-20 22:47:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-20 22:47:44] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 01:36:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 02:14:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 05:56:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 05:56:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:56:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 05:56:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 05:56:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-21 05:56:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-21 05:56:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-21 05:57:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-21 05:57:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-21 05:57:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 05:57:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 16
+[2025-12-21 05:57:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 17
+[2025-12-21 05:57:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 16
+[2025-12-21 05:57:15] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:57:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:57:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:17] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:17] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:19] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:20] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:57:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 05:57:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 05:57:21] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:25] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:40] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:57:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 05:57:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:57:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:57:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 05:57:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 05:58:01] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:58:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 05:58:15] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 05:59:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 05:59:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:59:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 05:59:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 06:14:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 06:14:43] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 09:48:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 11:21:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 11:52:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 11:52:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 11:52:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 11:52:17] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 11:52:18] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 17:40:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 18:51:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 18:51:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 18:51:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 18:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 18:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-21 18:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-21 18:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-21 18:51:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-21 18:51:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 18:51:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 18:51:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-21 18:51:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 16
+[2025-12-21 18:51:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 17
+[2025-12-21 18:51:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 18
+[2025-12-21 18:51:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 18:51:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 18:51:46] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-21 18:51:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-21 18:51:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 16
+[2025-12-21 18:51:50] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:51] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:54] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:51:54] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 18:52:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 18:52:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 18:52:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-21 18:52:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:10:13] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:10:14] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:10:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 20:10:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 20:10:22] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 20:10:26] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:10:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-21 20:10:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 20:10:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:20:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 20:20:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 21:18:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:18:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:18:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:18:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:18:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:18:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:19:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:20:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:21:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:22:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:23:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:23:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:23:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:23:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:27:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:27:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:27:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-21 21:27:44] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-21 21:27:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 06:08:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 07:17:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 07:49:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 07:49:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 07:49:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-22 07:49:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 07:49:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-22 07:49:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-22 07:49:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-22 07:49:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-22 07:49:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-22 07:49:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 15
+[2025-12-22 07:49:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 07:49:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 07:49:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-22 07:49:30] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 07:49:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 07:49:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 07:49:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 07:49:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:15:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 08:15:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:53:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 08:53:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 08:53:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-22 08:53:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 08:53:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 08:53:57] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:53:59] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:53:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 08:54:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 08:54:05] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:54:34] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:55:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 08:55:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 08:55:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 08:55:54] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 08:56:20] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 09:10:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 09:54:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 09:59:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 10:32:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 10:35:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 15:47:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 16:21:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 20:50:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 20:50:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 20:50:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-22 20:50:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 20:50:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-22 20:50:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 20:50:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-22 20:50:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-22 20:50:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-22 20:50:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 20:50:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-22 20:50:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 20:51:01] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 20:51:02] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 20:51:02] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 20:51:02] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 20:51:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 20:51:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 20:51:05] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:06:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:06:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:07:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:08:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:09:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:55] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:10:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:11:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:11:06] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:11:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:14:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:14:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:15:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:15:04] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:15:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:49:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:49:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-22 21:49:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-22 21:49:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:49:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-22 21:49:42] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:49:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:49:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-22 21:49:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:49:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:50:07] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:50:07] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:50:07] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 21:51:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 21:51:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-22 21:51:59] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 22:26:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 23:24:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 23:24:52] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-22 23:24:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-22 23:27:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 09:35:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 09:35:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 09:50:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 09:50:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 09:50:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 09:50:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 09:50:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-23 09:50:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 09:50:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 09:50:32] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 09:50:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 09:50:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 09:50:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 09:50:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 09:50:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 10:50:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 10:50:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 10:50:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 10:50:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 10:50:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 10:50:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 10:50:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 10:50:44] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 10:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 10:50:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 10:50:47] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 10:50:59] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 10:51:00] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 10:51:07] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 10:52:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 10:52:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 10:52:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 10:52:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 12:02:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 14:21:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 14:28:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 7
+[2025-12-23 14:28:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 14:30:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 15:23:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 15:23:48] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 17:47:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 17:47:49] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 18:07:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 19:56:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 8
+[2025-12-23 19:56:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 19:56:35] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 19:56:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 19:56:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 19:56:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 19:56:43] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 19:56:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 19:56:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 19:56:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 19:56:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 19:56:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 19:56:52] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 19:56:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 19:56:53] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 21:32:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:32:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:32:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:32:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:32:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:22] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:50] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:33:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:00] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:14] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:53] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:34:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:02] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:12] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:15] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:17] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:21] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:31] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:48] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:51] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:54] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:35:57] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:01] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:10] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:13] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:16] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:36:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:40:39] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:40:49] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:40:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 21:40:59] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 21:41:19] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 22:53:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 22:53:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 22:53:35] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 22:53:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-23 22:53:38] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 22:53:46] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 22:53:46] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 23:48:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 23:48:36] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:48:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-23 23:48:41] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:48:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-23 23:48:44] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 23:48:45] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 23:48:49] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 23:48:56] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-23 23:49:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:49:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:49:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:49:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-23 23:49:08] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-23 23:49:08] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 04:07:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 04:07:47] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 08:51:03] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 08:51:04] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 08:51:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-24 08:51:08] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 08:51:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 08:51:11] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 08:51:12] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 08:51:16] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 08:51:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 08:52:05] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 08:52:07] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 08:52:09] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 08:52:25] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 10:11:24] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 11:51:25] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 11:51:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 11:51:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-24 11:51:33] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 11:51:42] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 11:51:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 12:47:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 12:47:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 12:47:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-24 12:47:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 12:47:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-24 12:47:29] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 12:47:34] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 12:47:39] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:03:59] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:31] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:32] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:33] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:34] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:37] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:38] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:40] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:41] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:42] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:43] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:45] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 13:04:46] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 13:04:48] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 14:17:58] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:18] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:20] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:23] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
+[2025-12-24 15:02:26] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 15:02:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 11
+[2025-12-24 15:02:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 10
+[2025-12-24 15:02:27] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 15:02:28] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 12
+[2025-12-24 15:02:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 13
+[2025-12-24 15:02:30] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 14
+[2025-12-24 15:02:36] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 15:02:37] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 15:02:40] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 15:02:43] [error] [thread 140362] TcpConnection::on_error() called.
+[2025-12-24 15:33:44] [critical] [thread 140362] Acceptor::on_read() is called. New connection arrived, listenFd: 5, connFd: 9
