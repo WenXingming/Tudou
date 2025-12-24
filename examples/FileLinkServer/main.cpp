@@ -1,0 +1,149 @@
+/**
+ * @file main.cpp
+ * @brief FileLinkServer 示例程序（上传文件 -> 返回 URL；访问 URL -> 下载文件）
+ */
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <map>
+
+#include "FileLinkServer.h"
+#include "meta/InMemoryFileMetaStore.h"
+#include "cache/NoopFileMetaCache.h"
+
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+
+// ======================================================================================
+// Helper to trim strings
+static std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (std::string::npos == first) {
+        return str;
+    }
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, (last - first + 1));
+}
+
+// Config loader
+static std::map<std::string, std::string> load_config(const std::string& filename) {
+    std::map<std::string, std::string> config;
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open config file " << filename << std::endl;
+        return config;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t commentPos = line.find('#');
+        if (commentPos != std::string::npos) {
+            line = line.substr(0, commentPos);
+        }
+        line = trim(line);
+        if (line.empty()) continue;
+
+        size_t delimiterPos = line.find('=');
+        if (delimiterPos != std::string::npos) {
+            std::string key = trim(line.substr(0, delimiterPos));
+            std::string value = trim(line.substr(delimiterPos + 1));
+            config[key] = value;
+        }
+    }
+    return config;
+}
+
+static std::string resolve_path(const std::string& serverRoot, const std::string& configuredPath) {
+    if (configuredPath.empty()) {
+        return configuredPath;
+    }
+    if (!configuredPath.empty() && configuredPath[0] == '/') {
+        return configuredPath;
+    }
+    return serverRoot + configuredPath;
+}
+
+static void set_logger(const std::string& logPath) {
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+    sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true));
+
+    auto logger = std::make_shared<spdlog::logger>("filelink", begin(sinks), end(sinks));
+    spdlog::register_logger(logger);
+    spdlog::set_default_logger(logger);
+
+    spdlog::set_level(spdlog::level::info);
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v");
+}
+
+int main(int argc, char* argv[]) {
+    // 最小可用版本：
+    //  - 元数据：内存 map（你接入 MySQL 后替换为 MySQL store）
+    //  - 缓存：Noop（你部署 Redis 后替换为 Redis cache）
+    //  - 首页：从 serverRoot/html/index.html 读取并由 FileLinkServer 直接返回
+
+    std::string serverRoot;
+    if (argc > 1) {
+        serverRoot = argv[1];
+    } else {
+        std::vector<std::string> searchRoots = {
+            "/home/wxm/Tudou/configs/file-link-server/",
+            "/etc/file-link-server/",
+            "./"
+        };
+
+        for (const auto& root : searchRoots) {
+            std::string checkPath = root;
+            if (!checkPath.empty() && checkPath.back() != '/') checkPath += '/';
+            checkPath += "conf/server.conf";
+
+            std::ifstream f(checkPath);
+            if (f.good()) {
+                serverRoot = root;
+                break;
+            }
+        }
+
+        if (serverRoot.empty()) {
+            std::cout << "No serverRoot and configuration found in default locations. You have two options:\n"
+                      << "1. Create a serverRoot folder at one of the default locations:\n"
+                      << "   /home/wxm/Tudou/configs/file-link-server/\n"
+                      << "   /etc/file-link-server/\n"
+                      << "   ./file-link-server/\n"
+                      << "2. Specify the server root directory as a command-line argument when running the program.\n";
+            return 1;
+        }
+    }
+    if (!serverRoot.empty() && serverRoot.back() != '/') {
+        serverRoot += '/';
+    }
+
+    std::string configPath = serverRoot + "conf/server.conf";
+    auto config = load_config(configPath);
+
+    std::string logPath = serverRoot + "log/server.log";
+    set_logger(logPath);
+
+    FileLinkServerConfig cfg;
+    cfg.ip = config.count("ip") ? config.at("ip") : "0.0.0.0";
+    cfg.port = config.count("port") ? static_cast<uint16_t>(std::stoi(config.at("port"))) : 8080;
+    cfg.threadNum = config.count("threadNum") ? std::stoi(config.at("threadNum")) : 4;
+    cfg.storageRoot = config.count("storageRoot") ? resolve_path(serverRoot, config.at("storageRoot")) : (serverRoot + "storage/");
+    cfg.webRoot = config.count("webRoot") ? resolve_path(serverRoot, config.at("webRoot")) : (serverRoot + "html/");
+    cfg.indexFile = config.count("indexFile") ? config.at("indexFile") : "index.html";
+
+    auto metaStore = std::make_shared<InMemoryFileMetaStore>();
+    auto metaCache = std::make_shared<NoopFileMetaCache>();
+
+    FileLinkServer server(cfg, metaStore, metaCache);
+
+    std::cout << "FileLinkServer started: http://" << cfg.ip << ":" << cfg.port << std::endl;
+    std::cout << "Homepage: GET  /" << std::endl;
+    std::cout << "Upload:    POST /upload (Header: X-File-Name)" << std::endl;
+    std::cout << "Download:  GET  /file/{id}" << std::endl;
+
+    server.start();
+    return 0;
+}

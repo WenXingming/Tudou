@@ -120,7 +120,11 @@ Transfer/sec:    109.21MB
 
 ## Usage 🎯
 
-使用样例见 `/examples`。例如我使用 Tudou 编写了一个静态文件服务器 `StaticFileHttpServer`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
+使用样例见 `/examples`。
+
+### 静态文件服务器示例
+
+我使用 Tudou 编写了一个静态文件服务器 `StaticFileHttpServer`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
 
 1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`StaticFileHttpServer`）
 2. 在 `/etc` 目录下创建配置文件目录结构，目录结构如下：
@@ -155,6 +159,9 @@ Transfer/sec:    109.21MB
     # 如在用户主目录下的 static-file-http-server 目录下存放配置文件，则运行命令为：
     # ./StaticFileHttpServer /home/xxx/static-file-http-server
     ```
+### FileLink Server 示例
+
+我使用 Tudou 实现了另一个功能：用户上传一个文件，后端将其组织存储，同时生成一个 URL 返回给前端，用户后续可以使用这个得到的 URL 访问或者下载该文件。设计采用经典的客户端-服务器架构，前端通过 HTTP 协议与后端通信。后端使用 Tudou 实现高性能的 HTTP 服务器，处理文件上传和下载请求。设计采用 “元数据存数据库 + 文件实体存磁盘 + 热点数据存 Redis” 的经典架构。这种方式既能利用磁盘的大容量存储文件，又能利用数据库管理文件属性，同时利用 Redis 极大地提高文件索引速度。具体实现见 `/examples/FileLinkServer`。
 
 ## Citation 📚
 
