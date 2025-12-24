@@ -120,13 +120,13 @@ Transfer/sec:    109.21MB
 
 ## Usage 🎯
 
-使用样例见 /examples。例如我使用 Tudou 编写了一个静态文件服务器 StaticFileHttpServer（详细代码见 /examples/StaticFileHttpServer）。How to use:
+使用样例见 `/examples`。例如我使用 Tudou 编写了一个静态文件服务器 `StaticFileHttpServer`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
 
-1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（StaticFileHttpServer）
-2. 在 /etc 目录下创建配置文件目录结构，目录结构如下：
+1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`StaticFileHttpServer`）
+2. 在 `/etc` 目录下创建配置文件目录结构，目录结构如下：
 
     ```bash
-    static-file-http-server
+    static-file-http-server # /etc 目录下的配置文件目录
       ├─ conf
       │  └─ server.conf
       ├─ html
@@ -136,7 +136,17 @@ Transfer/sec:    109.21MB
          └─ server.log
     ```
 
-    在 server.conf 只需要设置好自己的 IP 地址、端口号、启用的线程数，然后编译运行即可启动一个高性能的静态文件 HTTP 服务器，支持多线程处理请求。通过浏览器或 curl 访问对应的 URL 即可获取静态文件内容。
+    在 server.conf 只需要设置好自己的 IP 地址、端口号、启用的线程数，然后编译运行即可启动一个高性能的静态文件 HTTP 服务器，支持多线程处理请求。通过浏览器或 curl 访问对应的 URL 即可获取静态文件内容。server.conf 示例内容如下：
+
+    ```yaml
+    # Server IP and Port
+    ip = 0.0.0.0
+    port = 8080
+
+    # Number of worker threads. 0 means only mainLoop thread is used.
+    # More threads can handle more concurrent connections.
+    threadNum = 0
+    ```
 
 3. 配置文件目录路径可以不在 /etc 目录下，此时可以通过手动运行 StaticFileHttpServer 并在命令行终端中指定配置文件目录的路径
 
@@ -161,221 +171,3 @@ Transfer/sec:    109.21MB
 - [llhttp 使用 - 知乎专栏](https://zhuanlan.zhihu.com/p/416575096)
 - [spdlog 使用 - CSDN博客](https://blog.csdn.net/tutou_gou/article/details/121284474)
 - [spdlog 使用](https://shuhaiwen.github.io/technical-documents/Documents/B-Programming%20Language/C%2B%2B/%E5%BC%80%E6%BA%90%E5%BA%93/spdlog/spdlog%E6%95%99%E7%A8%8B/)
-```
-Tudou
-├─ CMakeLists.txt
-├─ README.md
-├─ assets
-│  ├─ nohup-1.out
-│  └─ nohup-2.out
-├─ configs
-│  ├─ nginx
-│  │  ├─ conf
-│  │  │  ├─ conf.d
-│  │  │  │  └─ default.conf
-│  │  │  └─ nginx.conf
-│  │  ├─ html
-│  │  │  ├─ 50x.html
-│  │  │  └─ index.html
-│  │  └─ log
-│  │     ├─ access.log
-│  │     └─ error.log
-│  └─ static-file-http-server
-│     ├─ conf
-│     │  └─ server.conf
-│     ├─ html
-│     │  ├─ happy-birthday.html
-│     │  ├─ happy-christmas-script.js
-│     │  ├─ happy-christmas-style.css
-│     │  ├─ happy-christmas.html
-│     │  ├─ homepage.html
-│     │  └─ index.html
-│     └─ log
-│        └─ server.log
-├─ docker-compose.yml
-├─ docs
-│  ├─ Architecture.mmd
-│  ├─ Callback_Topic.mmd
-│  ├─ Callback_Total.mmd
-│  ├─ Document.md
-│  ├─ Reactor.png
-│  ├─ Reactor，高并发.png
-│  └─ TcpServer_UML.mmd
-├─ examples
-│  ├─ StaticFileHttpServer
-│  │  ├─ CMakeLists.txt
-│  │  ├─ StaticFileHttpServer.cpp
-│  │  ├─ StaticFileHttpServer.h
-│  │  └─ main.cpp
-│  └─ StaticFileTcpServer
-│     ├─ CMakeLists.txt
-│     ├─ StaticFileTcpServer.cpp
-│     ├─ StaticFileTcpServer.h
-│     └─ main.cpp
-├─ libs
-│  ├─ llhttp
-│  │  ├─ api.c
-│  │  ├─ api.h
-│  │  ├─ http.c
-│  │  ├─ llhttp.c
-│  │  └─ llhttp.h
-│  ├─ spdlog
-│  │  ├─ async.h
-│  │  ├─ async_logger-inl.h
-│  │  ├─ async_logger.h
-│  │  ├─ cfg
-│  │  │  ├─ argv.h
-│  │  │  ├─ env.h
-│  │  │  ├─ helpers-inl.h
-│  │  │  └─ helpers.h
-│  │  ├─ common-inl.h
-│  │  ├─ common.h
-│  │  ├─ details
-│  │  │  ├─ backtracer-inl.h
-│  │  │  ├─ backtracer.h
-│  │  │  ├─ circular_q.h
-│  │  │  ├─ console_globals.h
-│  │  │  ├─ file_helper-inl.h
-│  │  │  ├─ file_helper.h
-│  │  │  ├─ fmt_helper.h
-│  │  │  ├─ log_msg-inl.h
-│  │  │  ├─ log_msg.h
-│  │  │  ├─ log_msg_buffer-inl.h
-│  │  │  ├─ log_msg_buffer.h
-│  │  │  ├─ mpmc_blocking_q.h
-│  │  │  ├─ null_mutex.h
-│  │  │  ├─ os-inl.h
-│  │  │  ├─ os.h
-│  │  │  ├─ periodic_worker-inl.h
-│  │  │  ├─ periodic_worker.h
-│  │  │  ├─ registry-inl.h
-│  │  │  ├─ registry.h
-│  │  │  ├─ synchronous_factory.h
-│  │  │  ├─ tcp_client-windows.h
-│  │  │  ├─ tcp_client.h
-│  │  │  ├─ thread_pool-inl.h
-│  │  │  ├─ thread_pool.h
-│  │  │  ├─ udp_client-windows.h
-│  │  │  ├─ udp_client.h
-│  │  │  └─ windows_include.h
-│  │  ├─ fmt
-│  │  │  ├─ bin_to_hex.h
-│  │  │  ├─ bundled
-│  │  │  │  ├─ args.h
-│  │  │  │  ├─ base.h
-│  │  │  │  ├─ chrono.h
-│  │  │  │  ├─ color.h
-│  │  │  │  ├─ compile.h
-│  │  │  │  ├─ core.h
-│  │  │  │  ├─ fmt.license.rst
-│  │  │  │  ├─ format-inl.h
-│  │  │  │  ├─ format.h
-│  │  │  │  ├─ os.h
-│  │  │  │  ├─ ostream.h
-│  │  │  │  ├─ printf.h
-│  │  │  │  ├─ ranges.h
-│  │  │  │  ├─ std.h
-│  │  │  │  └─ xchar.h
-│  │  │  ├─ chrono.h
-│  │  │  ├─ compile.h
-│  │  │  ├─ fmt.h
-│  │  │  ├─ ostr.h
-│  │  │  ├─ ranges.h
-│  │  │  ├─ std.h
-│  │  │  └─ xchar.h
-│  │  ├─ formatter.h
-│  │  ├─ fwd.h
-│  │  ├─ logger-inl.h
-│  │  ├─ logger.h
-│  │  ├─ mdc.h
-│  │  ├─ pattern_formatter-inl.h
-│  │  ├─ pattern_formatter.h
-│  │  ├─ sinks
-│  │  │  ├─ android_sink.h
-│  │  │  ├─ ansicolor_sink-inl.h
-│  │  │  ├─ ansicolor_sink.h
-│  │  │  ├─ base_sink-inl.h
-│  │  │  ├─ base_sink.h
-│  │  │  ├─ basic_file_sink-inl.h
-│  │  │  ├─ basic_file_sink.h
-│  │  │  ├─ callback_sink.h
-│  │  │  ├─ daily_file_sink.h
-│  │  │  ├─ dist_sink.h
-│  │  │  ├─ dup_filter_sink.h
-│  │  │  ├─ hourly_file_sink.h
-│  │  │  ├─ kafka_sink.h
-│  │  │  ├─ mongo_sink.h
-│  │  │  ├─ msvc_sink.h
-│  │  │  ├─ null_sink.h
-│  │  │  ├─ ostream_sink.h
-│  │  │  ├─ qt_sinks.h
-│  │  │  ├─ ringbuffer_sink.h
-│  │  │  ├─ rotating_file_sink-inl.h
-│  │  │  ├─ rotating_file_sink.h
-│  │  │  ├─ sink-inl.h
-│  │  │  ├─ sink.h
-│  │  │  ├─ stdout_color_sinks-inl.h
-│  │  │  ├─ stdout_color_sinks.h
-│  │  │  ├─ stdout_sinks-inl.h
-│  │  │  ├─ stdout_sinks.h
-│  │  │  ├─ syslog_sink.h
-│  │  │  ├─ systemd_sink.h
-│  │  │  ├─ tcp_sink.h
-│  │  │  ├─ udp_sink.h
-│  │  │  ├─ win_eventlog_sink.h
-│  │  │  ├─ wincolor_sink-inl.h
-│  │  │  └─ wincolor_sink.h
-│  │  ├─ spdlog-inl.h
-│  │  ├─ spdlog.h
-│  │  ├─ stopwatch.h
-│  │  ├─ tweakme.h
-│  │  └─ version.h
-│  └─ threadpool
-│     ├─ Task.h
-│     ├─ ThreadPool.cpp
-│     └─ ThreadPool.h
-└─ src
-   ├─ base
-   │  ├─ InetAddress.cpp
-   │  ├─ InetAddress.h
-   │  └─ NonCopyable.h
-   └─ tudou
-      ├─ Acceptor.cpp
-      ├─ Acceptor.h
-      ├─ Buffer.cpp
-      ├─ Buffer.h
-      ├─ Channel.cpp
-      ├─ Channel.h
-      ├─ EpollPoller.cpp
-      ├─ EpollPoller.h
-      ├─ EventLoop.cpp
-      ├─ EventLoop.h
-      ├─ EventLoopThread.cpp
-      ├─ EventLoopThread.h
-      ├─ EventLoopThreadPool.cpp
-      ├─ EventLoopThreadPool.h
-      ├─ TcpConnection.cpp
-      ├─ TcpConnection.h
-      ├─ TcpServer.cpp
-      ├─ TcpServer.h
-      ├─ http
-      │  ├─ HttpContext.cpp
-      │  ├─ HttpContext.h
-      │  ├─ HttpRequest.cpp
-      │  ├─ HttpRequest.h
-      │  ├─ HttpResponse.cpp
-      │  ├─ HttpResponse.h
-      │  ├─ HttpServer.cpp
-      │  └─ HttpServer.h
-      ├─ integrateTest
-      │  ├─ CMakeLists.txt
-      │  ├─ TestNetlib.cpp
-      │  ├─ TestNetlib.h
-      │  └─ main.cpp
-      └─ unitTest
-         ├─ CMakeLists.txt
-         ├─ HttpContextTest.cpp
-         ├─ InetAddressTest.cpp
-         └─ main.cpp
-
-```
