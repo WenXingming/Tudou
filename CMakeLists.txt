@@ -61,4 +61,5 @@ target_link_libraries(tudou PRIVATE threadpool) # tudou 依赖 threadpool 库
 
 add_subdirectory(src/tudou/unitTest)
 add_subdirectory(src/tudou/integrateTest)
-add_subdirectory(examples)
+add_subdirectory(examples/StaticFileHttpServer)
+add_subdirectory(examples/StaticFileTcpServer)

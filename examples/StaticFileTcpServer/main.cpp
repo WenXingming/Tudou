@@ -12,7 +12,6 @@
 #include <string>
 
 #include "StaticFileTcpServer.h"
-#include "StaticFileHttpServer.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h" // support for basic file logging
 #include "spdlog/sinks/stdout_color_sinks.h" // support for colored console logging
@@ -75,27 +74,11 @@ void run_static_tcp_server() {
     std::cout << "TcpServer test finished." << std::endl;
 }
 
-void run_static_http_server() {
-    // 测试 HttpServer 服务器：TcpServer + HttpServer
-    std::cout << "Starting HttpServer test..." << std::endl;
-
-    std::string ip = "0.0.0.0"; // 监听所有网卡地址，方便通过局域网其他设备访问测试
-    int port = 8080; // 浏览器默认端口是 80（http）和 443（https），这里使用 8080 避免权限问题（ <1024 端口需要 root 权限 ）。实际部署时可使用 nginx 做反向代理转发到 8080（监听 80/443 端口，把请求转发到后端 8080）。
-    std::string baseDir = "/home/wxm/Tudou/assets/";
-    int threadNum = 16; // 0 表示使用单线程，大于 0 表示使用多线程
-
-    StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
-    server.start();
-
-    std::cout << "HttpServer test finished." << std::endl;
-}
-
 int main() {
     set_logger();
     // test_logger();
     
-    // run_static_tcp_server();
-    run_static_http_server();
+    run_static_tcp_server();
 
     return 0;
 }
