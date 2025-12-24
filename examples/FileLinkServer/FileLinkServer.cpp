@@ -43,7 +43,7 @@ void FileLinkServer::on_http_request(const HttpRequest& req, HttpResponse& resp)
     }
 
     // 最小前后端打通：直接由同一进程提供首页
-    if ((path == "/" || path == "/index.html") && method == "GET") {
+        if ((path == "/" || path == "/homepage.html" || path == "/index.html") && method == "GET") {
         handle_index(req, resp);
         return;
     }

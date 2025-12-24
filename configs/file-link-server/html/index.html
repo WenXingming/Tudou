@@ -143,20 +143,32 @@
             background: #f0f9ff;
             border-radius: 8px;
             display: none;
+            text-align: left;
         }
 
         .share-link {
             background: white;
             border: 1px solid #ddd;
             border-radius: 6px;
-            padding: 10px;
+            padding: 12px 12px;
             margin: 10px 0;
             word-break: break-all;
             font-family: monospace;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .share-link a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .share-link a:hover {
+            text-decoration: underline;
         }
 
         .copy-button {
-            background: #28a745;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -166,7 +178,14 @@
         }
 
         .copy-button:hover {
-            background: #218838;
+            opacity: 0.95;
+        }
+
+        .copy-status {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 8px;
+            display: none;
         }
 
         .loading {
@@ -236,6 +255,7 @@
             <div>分享链接：</div>
             <div class="share-link" id="shareLink"></div>
             <button class="copy-button" id="copyButton" type="button">复制链接</button>
+            <div class="copy-status" id="copyStatus"></div>
         </div>
     </div>
 
@@ -249,10 +269,47 @@
         const resultArea = document.getElementById('resultArea');
         const shareLink = document.getElementById('shareLink');
         const copyButton = document.getElementById('copyButton');
+        const copyStatus = document.getElementById('copyStatus');
         const loading = document.getElementById('loading');
         const errorMessage = document.getElementById('errorMessage');
 
         let selectedFile = null;
+
+        async function copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (_) {
+                // fall through
+            }
+
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                ta.style.top = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                return ok;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function showCopyStatus(message, isError) {
+            copyStatus.textContent = message;
+            copyStatus.style.display = 'block';
+            copyStatus.style.color = isError ? '#dc3545' : '#666';
+            setTimeout(() => {
+                copyStatus.style.display = 'none';
+            }, 2000);
+        }
 
         uploadArea.addEventListener('click', () => {
             fileInput.click();
@@ -331,7 +388,7 @@
                     throw new Error('返回数据缺少 url');
                 }
 
-                shareLink.textContent = result.url;
+                shareLink.innerHTML = `<a href="${result.url}" target="_blank" rel="noopener noreferrer">${result.url}</a>`;
                 resultArea.style.display = 'block';
 
             } catch (err) {
@@ -344,12 +401,17 @@
 
         copyButton.addEventListener('click', () => {
             const link = shareLink.textContent;
-            navigator.clipboard.writeText(link).then(() => {
-                const originalText = copyButton.textContent;
-                copyButton.textContent = '✅ 已复制';
-                setTimeout(() => {
-                    copyButton.textContent = originalText;
-                }, 2000);
+            copyToClipboard(link).then((ok) => {
+                if (ok) {
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = '✅ 已复制';
+                    showCopyStatus('已复制到剪贴板', false);
+                    setTimeout(() => {
+                        copyButton.textContent = originalText;
+                    }, 1200);
+                } else {
+                    showCopyStatus('复制失败，请手动复制', true);
+                }
             });
         });
 

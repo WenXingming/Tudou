@@ -39,6 +39,23 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
 
 
+  # ===============================================================================================
+  # --- FileLinkServer（编译并运行，接入 MySQL + Redis） ---
+  # ===============================================================================================
+  file-link-server:
+    build:
+      context: .
+      dockerfile: examples/FileLinkServer/Dockerfile
+    container_name: file-link-server
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./configs/file-link-server:/config
+    depends_on:
+      - db
+      - redis
+
+
   # ==============================================================================================
   # Nginx 服务反向代理服务
   # ==============================================================================================

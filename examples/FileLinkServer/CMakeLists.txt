@@ -39,6 +39,38 @@ target_include_directories(FileLinkServer PRIVATE "${CMAKE_SOURCE_DIR}/libs/")
 find_package(Threads REQUIRED)
 target_link_libraries(FileLinkServer PRIVATE Threads::Threads)
 
-# 预留：后续你接入 MySQL / Redis client 时在这里加 link
-# option(FILELINK_WITH_MYSQL "Enable MySQL metadata store" OFF)
-# option(FILELINK_WITH_REDIS "Enable Redis cache" OFF)
+# =============================================================================
+# MySQL (mysql-connector-c++)
+find_path(MYSQLCPPCONN_INCLUDE_DIR
+    NAMES mysql_driver.h
+)
+find_library(MYSQLCPPCONN_LIBRARY
+    NAMES mysqlcppconn mysqlcppconn8
+)
+
+if (MYSQLCPPCONN_INCLUDE_DIR AND MYSQLCPPCONN_LIBRARY)
+    target_include_directories(FileLinkServer PRIVATE ${MYSQLCPPCONN_INCLUDE_DIR})
+    target_link_libraries(FileLinkServer PRIVATE ${MYSQLCPPCONN_LIBRARY})
+    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_MYSQLCPPCONN=1)
+else()
+    message(WARNING "mysql-connector-c++ not found; FileLinkServer will build without MySQL support. Install libmysqlcppconn-dev to enable.")
+    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_MYSQLCPPCONN=0)
+endif()
+
+# =============================================================================
+# Redis (hiredis)
+find_path(HIREDIS_INCLUDE_DIR
+    NAMES hiredis/hiredis.h
+)
+find_library(HIREDIS_LIBRARY
+    NAMES hiredis
+)
+
+if (HIREDIS_INCLUDE_DIR AND HIREDIS_LIBRARY)
+    target_include_directories(FileLinkServer PRIVATE ${HIREDIS_INCLUDE_DIR})
+    target_link_libraries(FileLinkServer PRIVATE ${HIREDIS_LIBRARY})
+    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_HIREDIS=1)
+else()
+    message(WARNING "hiredis not found; FileLinkServer will build without Redis support. Install libhiredis-dev to enable.")
+    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_HIREDIS=0)
+endif()

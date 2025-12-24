@@ -1,10 +1,14 @@
 #pragma once
 
+#include <mutex>
+
 #include "IFileMetaStore.h"
 
-// 说明：
-//  - 这里先放一个“可替换实现”的骨架，避免强依赖 mysql client 导致你当前工程无法编译。
-//  - 你安装好 libmysqlclient-dev 并希望我把它实现成可用版本时，我可以继续补齐 .cpp + CMake link。
+// 基于 mysql-connector-c++ 的元数据存储实现
+
+namespace sql {
+class Connection;
+}
 
 class MysqlFileMetaStore : public IFileMetaStore {
 public:
@@ -19,13 +23,23 @@ public:
           password_(std::move(password)),
           database_(std::move(database)) {}
 
+        ~MysqlFileMetaStore();
+
     bool put(const FileMetadata& meta) override;
     bool get(const std::string& fileId, FileMetadata& outMeta) override;
 
 private:
+    bool ensure_connected();
+    bool ensure_schema();
+
     std::string host_;
     int port_;
     std::string user_;
     std::string password_;
     std::string database_;
+
+    std::mutex mutex_;
+    bool schemaReady_ = false;
+
+    sql::Connection* conn_ = nullptr;
 };

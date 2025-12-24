@@ -1,10 +1,10 @@
 #pragma once
 
+#include <mutex>
+
 #include "IFileMetaCache.h"
 
-// 说明：
-//  - 这里先放一个“可替换实现”的骨架，避免强依赖 hiredis 导致你当前工程无法编译。
-//  - 你部署好 Redis 并希望我把它实现成可用版本时，我可以继续补齐 .cpp + CMake link。
+// 基于 hiredis 的元数据缓存实现
 
 class RedisFileMetaCache : public IFileMetaCache {
 public:
@@ -15,6 +15,13 @@ public:
     bool get(const std::string& fileId, FileMetadata& outMeta) override;
 
 private:
+    bool ensure_connected();
+    std::string make_key(const std::string& fileId) const;
+
     std::string host_;
     int port_;
+
+    std::mutex mutex_;
+
+    struct redisContext* ctx_ = nullptr;
 };
