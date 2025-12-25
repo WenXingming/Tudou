@@ -4,26 +4,373 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Merry Christmas</title>
-    <link rel="stylesheet" href="happy-christmas-style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1a472a, #0d2b18);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Playfair Display', serif;
+            color: #fff;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 10;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            border-radius: 25px;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 5rem;
+            margin: 0 0 1rem 0;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-weight: 400;
+        }
+
+        p {
+            font-size: 1.5rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            color: #e0e0e0;
+            font-style: italic;
+        }
+
+        .tree-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #c0392b;
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 1px solid #e74c3c;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: #e74c3c;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(192, 57, 43, 0.4);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #fffaf0 0%, #fdf5e6 100%);
+            border: 2px solid #d4af37;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            color: #333;
+            transform: scale(0.7);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal h2 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 3rem;
+            color: #c0392b;
+            margin: 0 0 20px;
+        }
+
+        .modal p {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.2rem;
+            color: #555;
+            font-style: italic;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .gift-emoji {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 600px) {
+            .card {
+                padding: 1.5rem;
+                width: 85%;
+            }
+            h1 {
+                font-size: 3.5rem;
+            }
+            .tree-icon {
+                font-size: 3.5rem;
+            }
+            p {
+                font-size: 1.2rem;
+            }
+            .modal-content {
+                width: 85%;
+                padding: 25px;
+            }
+            .modal h2 {
+                font-size: 2.5rem;
+            }
+        }
+
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">Merry Christmas</h1>
-        <div class="tree">
-            <div class="star"></div>
-            <div class="layer layer1"></div>
-            <div class="layer layer2"></div>
-            <div class="layer layer3"></div>
-            <div class="trunk"></div>
-            <div class="bauble b1"></div>
-            <div class="bauble b2"></div>
-            <div class="bauble b3"></div>
-            <div class="bauble b4"></div>
-            <div class="bauble b5"></div>
-        </div>
-        <p class="message">May your days be merry and bright!</p>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="card">
+        <div class="tree-icon">🎄</div>
+        <h1>Merry Christmas</h1>
+        <p>May your days be merry and bright!</p>
+        <a href="#" class="btn" id="openGiftBtn">Open Gift</a>
     </div>
-    <canvas id="snow"></canvas>
-    <script src="happy-christmas-script.js"></script>
+
+    <div class="modal" id="giftModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModalBtn">&times;</span>
+            <div class="gift-emoji">🎁</div>
+            <h2>Ho Ho Ho!</h2>
+            <p>Wishing you love, joy, and peace today, tomorrow, and always.</p>
+            <p>Merry Christmas!</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        
+        // Mobile detection and optimization
+        const isMobile = window.innerWidth < 768;
+        const particleCount = isMobile ? 50 : 150; // Reduced count for better performance
+        
+        let mouse = { x: -1000, y: -1000 };
+
+        // Pre-render snowflake for performance
+        const snowflakeCanvas = document.createElement('canvas');
+        snowflakeCanvas.width = 30;
+        snowflakeCanvas.height = 30;
+        const sCtx = snowflakeCanvas.getContext('2d');
+        sCtx.fillStyle = '#FFF';
+        sCtx.font = '24px serif';
+        sCtx.textAlign = 'center';
+        sCtx.textBaseline = 'middle';
+        sCtx.fillText('❄', 15, 15);
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        
+        // Touch support for mobile interaction
+        window.addEventListener('touchmove', e => {
+            if(e.touches.length > 0) {
+                mouse.x = e.touches[0].clientX;
+                mouse.y = e.touches[0].clientY;
+            }
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = Math.random() * 1 + 0.5;
+                this.size = Math.random() * 15 + 10; 
+                this.opacity = Math.random() * 0.5 + 0.3;
+                this.angle = Math.random() * Math.PI * 2;
+                this.spin = (Math.random() - 0.5) * 0.02;
+                this.swaySpeed = Math.random() * 0.02 + 0.01;
+                this.swayOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                // Add sway
+                this.x += Math.sin(this.swayOffset) * 0.5 + this.vx;
+                this.swayOffset += this.swaySpeed;
+                
+                this.y += this.vy;
+                this.angle += this.spin;
+
+                // Mouse interaction
+                const dx = this.x - mouse.x;
+                const dy = this.y - mouse.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const forceDirectionX = dx / distance;
+                const forceDirectionY = dy / distance;
+                const maxDistance = 150;
+                const force = (maxDistance - distance) / maxDistance;
+
+                if (distance < maxDistance) {
+                    this.x += forceDirectionX * force * 5;
+                    this.y += forceDirectionY * force * 5;
+                }
+
+                // Reset if out of bounds
+                if (this.y > height + this.size) {
+                    this.y = -this.size;
+                    this.x = Math.random() * width;
+                }
+                if (this.x > width + this.size) this.x = -this.size;
+                if (this.x < -this.size) this.x = width + this.size;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.globalAlpha = this.opacity;
+                ctx.drawImage(snowflakeCanvas, -this.size/2, -this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        function init() {
+            resize();
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+            animate();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        init();
+
+        // Modal Interaction - Fixed Logic
+        const modal = document.getElementById('giftModal');
+        const openBtn = document.getElementById('openGiftBtn');
+        const closeBtn = document.getElementById('closeModalBtn');
+
+        function openModal() {
+            modal.style.display = 'flex';
+            // Force reflow to enable transition
+            modal.offsetHeight; 
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 500); // Match transition duration
+        }
+
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal();
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+    </script>
 </body>
 </html>

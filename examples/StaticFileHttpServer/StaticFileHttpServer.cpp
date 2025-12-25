@@ -11,11 +11,25 @@
 
 #include <fstream>
 #include <sstream>
+#include <cerrno>
+#include <sys/stat.h>
 
 #include "tudou/http/HttpServer.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 #include "spdlog/spdlog.h"
+
+namespace {
+bool get_file_meta(const std::string& path, std::time_t& mtime, long long& size) {
+    struct stat st;
+    if (::stat(path.c_str(), &st) != 0) {
+        return false;
+    }
+    mtime = st.st_mtime;
+    size = static_cast<long long>(st.st_size);
+    return true;
+}
+} // namespace
 
 StaticFileHttpServer::StaticFileHttpServer(const std::string& ip,
                                            uint16_t port,
@@ -151,16 +165,22 @@ std::string StaticFileHttpServer::guess_content_type(const std::string& filepath
 }
 
 bool StaticFileHttpServer::get_file_content_cached(const std::string& realPath, std::string& content) const {
+    std::time_t mtime = 0;
+    long long size = 0;
+    if (!get_file_meta(realPath, mtime, size)) {
+        return false;
+    }
+    // 先检查缓存
     {
         std::lock_guard<std::mutex> lock(cacheMutex_);
         auto it = fileCache_.find(realPath);
-        if (it != fileCache_.end()) {
-            content = it->second;
+        if (it != fileCache_.end() && it->second.mtime == mtime && it->second.size == size) {
+            content = it->second.content;
             return true;
         }
     }
 
-    // 缓存中没有，尝试从磁盘读取
+    // 缓存不存在或已过期，尝试从磁盘读取
     std::ifstream ifs(realPath, std::ios::binary);
     if (!ifs) {
         return false;
@@ -172,14 +192,11 @@ bool StaticFileHttpServer::get_file_content_cached(const std::string& realPath, 
 
     {
         std::lock_guard<std::mutex> lock(cacheMutex_);
-        // 可能在我们读取期间其他线程已经填充了缓存，这里复用已有内容
-        // auto [it, inserted] = fileCache_.emplace(realPath, std::move(loaded));
-        // C++11 不支持结构化绑定
-        auto insertResult = fileCache_.emplace(realPath, std::move(loaded));
-        auto it = insertResult.first;
-        // bool inserted = insertResult.second;
-        content = it->second;
+        CacheEntry& entry = fileCache_[realPath];
+        entry.content = std::move(loaded);
+        entry.mtime = mtime;
+        entry.size = size;
+        content = entry.content;
     }
-
     return true;
 }

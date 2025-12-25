@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <memory>
+#include <ctime>
 
 #include "tudou/http/HttpServer.h"
 
@@ -47,7 +48,14 @@ private:
 
     std::unique_ptr<HttpServer> httpServer_;
 
+    struct CacheEntry {
+        std::string content;
+        std::time_t mtime;
+        long long size;
+    };
+
     // 简单的文件内容缓存：避免每个请求都从磁盘读取同一个静态文件
+    // 同时缓存文件的 mtime/size，用于源文件变更时自动刷新
     mutable std::mutex cacheMutex_;
-    mutable std::unordered_map<std::string, std::string> fileCache_;
+    mutable std::unordered_map<std::string, CacheEntry> fileCache_;
 };
