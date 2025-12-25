@@ -4,94 +4,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文件分享工具 - 快速上传与分享</title>
+    <title>FileShare - 极速文件分享</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* 白天模式 */
+            --light-bg-gradient-start: #e0e7ff;
+            --light-bg-gradient-end: #f3e8ff;
+            --bg-gradient-start: #e0e7ff;
+            --bg-gradient-end: #f3e8ff;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --card-border: rgba(255, 255, 255, 0.6);
+            --card-inner-highlight: rgba(255, 255, 255, 0);
+            --card-inner-shadow: rgba(0, 0, 0, 0);
+            --text-main: #1f2937;
+            --text-secondary: #6b7280;
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e5e7eb;
+            --upload-area-bg: rgba(255, 255, 255, 0.5);
+            --upload-area-hover: rgba(255, 255, 255, 0.8);
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+
+            --toggle-bg: rgba(255, 255, 255, 0.75);
+            --toggle-border: rgba(229, 231, 235, 0.9);
+
+            --result-bg: #ecfdf5;
+            --result-border: #d1fae5;
+            --link-container-bg: #ffffff;
+            --link-container-border: #a7f3d0;
+
+            --surface-bg: #ffffff;
+            --surface-hover: #f3f4f6;
+            --surface-border-hover: #d1d5db;
+
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+        }
+
+        [data-theme="dark"] {
+            /* 黑夜模式 */
+            --dark-bg-gradient-start: #667eea;
+            --dark-bg-gradient-end: #764ba2;
+            --bg-gradient-start: var(--dark-bg-gradient-start);
+            --bg-gradient-end: var(--dark-bg-gradient-end);
+
+            /* 夜间卡片：更通透的玻璃质感，降低突兀对比 */
+            --card-bg: linear-gradient(180deg, rgba(17, 24, 39, 0.66), rgba(17, 24, 39, 0.54));
+            --card-border: rgba(255, 255, 255, 0.16);
+            --card-inner-highlight: rgba(255, 255, 255, 0.07);
+            --card-inner-shadow: rgba(0, 0, 0, 0.24);
+
+            --text-main: rgba(249, 250, 251, 0.92);
+            --text-secondary: rgba(229, 231, 235, 0.74);
+
+            --primary-color: #8b5cf6;
+            --primary-hover: #7c3aed;
+
+            --border-color: rgba(255, 255, 255, 0.14);
+            --upload-area-bg: rgba(31, 41, 55, 0.28);
+            --upload-area-hover: rgba(31, 41, 55, 0.42);
+            --shadow-color: rgba(0, 0, 0, 0.35);
+
+            /* 切换按钮在夜间也要变深色，而不是一直白 */
+            --toggle-bg: rgba(17, 24, 39, 0.6);
+            --toggle-border: rgba(255, 255, 255, 0.18);
+
+            /* 结果区域与链接容器避免在夜间过亮 */
+            --result-bg: rgba(16, 185, 129, 0.12);
+            --result-border: rgba(16, 185, 129, 0.22);
+            --link-container-bg: rgba(17, 24, 39, 0.55);
+            --link-container-border: rgba(16, 185, 129, 0.28);
+
+            --surface-bg: rgba(17, 24, 39, 0.6);
+            --surface-hover: rgba(31, 41, 55, 0.55);
+            --surface-border-hover: rgba(255, 255, 255, 0.22);
+
+            --danger-bg: rgba(239, 68, 68, 0.12);
+            --danger-border: rgba(239, 68, 68, 0.25);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* 全局过渡效果，实现丝滑切换 */
+        body, .container, .upload-area, .file-info, .upload-action-btn, .cancel-btn, .theme-toggle {
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                        border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                        color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                        background-image 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 主题切换遮罩：根据切换方向从角落“揭开” */
+        .theme-transition-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            pointer-events: none;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            will-change: clip-path;
+            clip-path: circle(150vmax at 0 0);
+            transition: clip-path 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            color: var(--text-main);
         }
 
         .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            padding: 40px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border-radius: 24px;
+            box-shadow:
+                0 25px 50px -12px var(--shadow-color),
+                inset 0 1px 0 var(--card-inner-highlight),
+                inset 0 -1px 0 var(--card-inner-shadow);
+            padding: 48px;
             width: 100%;
-            max-width: 500px;
+            max-width: 540px;
             text-align: center;
+            border: 1px solid var(--card-border);
+            position: relative;
+        }
+
+        /* 切换按钮样式：固定在右上角，使用 SVG 图标 */
+        .theme-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid var(--toggle-border);
+            background: var(--toggle-bg);
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .logo {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--primary-color), #9333ea);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            letter-spacing: -0.025em;
         }
 
         .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+            font-weight: 500;
         }
 
         .upload-area {
-            border: 2px dashed #ddd;
-            border-radius: 12px;
-            padding: 40px 20px;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 48px 24px;
+            margin-bottom: 24px;
             cursor: pointer;
-            background: #fafafa;
+            background: var(--upload-area-bg);
+            position: relative;
+            overflow: hidden;
         }
 
         .upload-area:hover {
-            border-color: #667eea;
-            background: #f8f9ff;
+            border-color: var(--primary-color);
+            background: var(--upload-area-hover);
+            transform: translateY(-2px);
         }
 
         .upload-area.dragover {
-            border-color: #667eea;
-            background: #f0f4ff;
+            border-color: var(--primary-color);
+            background: var(--upload-area-hover);
             transform: scale(1.02);
         }
 
         .upload-icon {
-            font-size: 3em;
-            color: #667eea;
-            margin-bottom: 15px;
+            font-size: 3.5rem;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .upload-area:hover .upload-icon {
+            transform: scale(1.1);
         }
 
         .upload-text {
-            color: #666;
-            margin-bottom: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-size: 1rem;
         }
 
         .browse-button {
-            background: #667eea;
+            background: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 24px;
-            border-radius: 25px;
+            padding: 12px 28px;
+            border-radius: 9999px;
             cursor: pointer;
-            font-size: 1em;
-            transition: background 0.3s ease;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .browse-button:hover {
-            background: #5a6fd8;
+            background: var(--primary-hover);
+            transform: translateY(-1px);
         }
 
         #fileInput {
@@ -99,163 +258,239 @@
         }
 
         .file-info {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .file-name {
-            font-weight: bold;
-            color: #333;
-        }
-
-        .file-size {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .upload-button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 1.1em;
-            width: 100%;
-            transition: transform 0.2s ease;
-            display: none;
-        }
-
-        .upload-button:hover {
-            transform: translateY(-2px);
-        }
-
-        .upload-button:active {
-            transform: translateY(0);
-        }
-
-        .result-area {
-            margin-top: 20px;
+            margin: 24px 0;
             padding: 20px;
-            background: #f0f9ff;
-            border-radius: 8px;
+            background: var(--upload-area-bg);
+            border-radius: 12px;
             display: none;
+            border: 1px solid var(--border-color);
             text-align: left;
         }
 
-        .share-link {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 12px 12px;
-            margin: 10px 0;
-            word-break: break-all;
+        .file-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 70%;
+        }
+
+        .file-size {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
             font-family: monospace;
-            font-size: 0.95em;
-            line-height: 1.4;
         }
 
-        .share-link a {
-            color: #667eea;
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background-color: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), #9333ea);
+            width: 0%;
+            transition: width 0.1s linear;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            text-align: right;
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .upload-action-btn {
+            background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            flex: 1;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 20px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        .cancel-btn {
+            background: var(--surface-bg);
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+            padding: 16px 32px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            flex: 1;
+            display: none;
+        }
+
+        .cancel-btn:hover {
+            background: var(--danger-bg);
+        }
+
+        .result-area {
+            margin-top: 32px;
+            padding: 24px;
+            background: var(--result-bg);
+            border: 1px solid var(--result-border);
+            border-radius: 16px;
+            display: none;
+            text-align: left;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-header {
+            display: flex;
+            align-items: center;
+            color: var(--success-color);
+            font-weight: 700;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .success-icon {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+
+        .share-link-container {
+            background: var(--link-container-bg);
+            border: 1px solid var(--link-container-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .share-link {
+            color: var(--primary-color);
             text-decoration: none;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 12px;
         }
 
-        .share-link a:hover {
+        .share-link:hover {
             text-decoration: underline;
         }
 
-        .copy-button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
+        .copy-btn-small {
+            background: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
             cursor: pointer;
-            margin-top: 10px;
+            transition: all 0.2s;
+            white-space: nowrap;
         }
 
-        .copy-button:hover {
-            opacity: 0.95;
-        }
-
-        .copy-status {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 8px;
-            display: none;
-        }
-
-        .loading {
-            display: none;
-            margin: 20px 0;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+        .copy-btn-small:hover {
+            background: var(--surface-hover);
+            color: var(--text-main);
+            border-color: var(--surface-border-hover);
         }
 
         .error-message {
-            color: #dc3545;
-            background: #f8d7da;
-            padding: 10px;
-            border-radius: 6px;
-            margin: 10px 0;
+            color: var(--error-color);
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            padding: 16px;
+            border-radius: 12px;
+            margin: 24px 0;
             display: none;
+            text-align: left;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
     </style>
 </head>
 
 <body>
+    <!-- 切换按钮：固定在右上角 -->
+    <button class="theme-toggle" id="themeToggle" title="切换主题">
+        <!-- 默认显示太阳图标 -->
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </button>
+
     <div class="container">
         <div class="logo">📁 FileShare</div>
-        <div class="subtitle">快速上传文件并生成分享链接</div>
+        <div class="subtitle">简单、快速、安全的文件分享服务</div>
 
         <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">📤</div>
-            <div class="upload-text">拖放文件到此处，或点击选择文件</div>
+            <div class="upload-icon">☁️</div>
+            <div class="upload-text">拖放文件到此处，或点击下方按钮</div>
             <button class="browse-button" type="button">选择文件</button>
             <input type="file" id="fileInput">
         </div>
 
         <div class="file-info" id="fileInfo">
-            <div class="file-name" id="fileName"></div>
-            <div class="file-size" id="fileSize"></div>
+            <div class="file-details">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">0%</div>
         </div>
 
         <div class="error-message" id="errorMessage"></div>
 
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <div>正在上传...</div>
+        <div class="btn-group">
+            <button class="upload-action-btn" id="uploadButton" type="button">开始上传</button>
+            <button class="cancel-btn" id="cancelButton" type="button">取消</button>
         </div>
 
-        <button class="upload-button" id="uploadButton" type="button">开始上传</button>
-
         <div class="result-area" id="resultArea">
-            <div style="color: #28a745; font-weight: bold; margin-bottom: 10px;">✅ 上传成功！</div>
-            <div>分享链接：</div>
-            <div class="share-link" id="shareLink"></div>
-            <button class="copy-button" id="copyButton" type="button">复制链接</button>
-            <div class="copy-status" id="copyStatus"></div>
+            <div class="success-header">
+                <span class="success-icon">✅</span> 上传成功
+            </div>
+            <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">分享链接：</div>
+            <div class="share-link-container">
+                <a href="#" target="_blank" class="share-link" id="shareLink"></a>
+                <button class="copy-btn-small" id="copyButton" type="button">复制</button>
+            </div>
         </div>
     </div>
 
@@ -266,17 +501,84 @@
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
         const uploadButton = document.getElementById('uploadButton');
+        const cancelButton = document.getElementById('cancelButton');
         const resultArea = document.getElementById('resultArea');
         const shareLink = document.getElementById('shareLink');
         const copyButton = document.getElementById('copyButton');
-        const copyStatus = document.getElementById('copyStatus');
-        const loading = document.getElementById('loading');
         const errorMessage = document.getElementById('errorMessage');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const themeToggle = document.getElementById('themeToggle');
 
         let selectedFile = null;
+        let currentXhr = null;
 
-        // 前端限制：与后端保持一致，最大 5GB。
         const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024;
+
+        // SVG 图标定义，避免字符编码问题
+        const sunIcon = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        const moonIcon = `<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+        let isDarkMode = false;
+        let isThemeTransitioning = false;
+
+        function getThemeBackgroundGradient(theme) {
+            // 仅用于遮罩层背景：用固定值保证切换过程中不受 CSS 变量变化影响
+            if (theme === 'dark') {
+                return 'linear-gradient(135deg, #667eea, #764ba2)';
+            }
+            return 'linear-gradient(135deg, #e0e7ff, #f3e8ff)';
+        }
+
+        function setTheme(nextIsDark) {
+            isDarkMode = nextIsDark;
+            if (isDarkMode) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.innerHTML = moonIcon;
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                themeToggle.innerHTML = sunIcon;
+            }
+        }
+
+        function toggleThemeWithDiagonalReveal() {
+            if (isThemeTransitioning) return;
+            isThemeTransitioning = true;
+
+            const prevTheme = isDarkMode ? 'dark' : 'light';
+            const nextIsDark = !isDarkMode;
+
+            // 白天 -> 黑夜：从右下到左上（起点在右下）
+            // 黑夜 -> 白天：从左上到右下（起点在左上）
+            const revealOrigin = (!isDarkMode && nextIsDark) ? '0% 0%' : '100% 100%';
+
+            // 先切到新主题，再用旧主题遮罩从指定角落收缩，露出新主题
+            setTheme(nextIsDark);
+
+            const layer = document.createElement('div');
+            layer.className = 'theme-transition-layer';
+            layer.style.background = getThemeBackgroundGradient(prevTheme);
+            layer.style.clipPath = `circle(150vmax at ${revealOrigin})`;
+            document.body.appendChild(layer);
+
+            // 下一帧触发 transition
+            requestAnimationFrame(() => {
+                layer.style.clipPath = `circle(0vmax at ${revealOrigin})`;
+            });
+
+            const cleanup = () => {
+                layer.removeEventListener('transitionend', cleanup);
+                if (layer.parentNode) layer.parentNode.removeChild(layer);
+                isThemeTransitioning = false;
+            };
+            layer.addEventListener('transitionend', cleanup);
+
+            // 兜底：极端情况下 transitionend 不触发
+            setTimeout(cleanup, 1100);
+        }
+
+        themeToggle.addEventListener('click', toggleThemeWithDiagonalReveal);
 
         async function copyToClipboard(text) {
             try {
@@ -284,16 +586,13 @@
                     await navigator.clipboard.writeText(text);
                     return true;
                 }
-            } catch (_) {
-                // fall through
-            }
+            } catch (_) { }
 
             try {
                 const ta = document.createElement('textarea');
                 ta.value = text;
                 ta.style.position = 'fixed';
                 ta.style.left = '-9999px';
-                ta.style.top = '0';
                 document.body.appendChild(ta);
                 ta.focus();
                 ta.select();
@@ -305,23 +604,25 @@
             }
         }
 
-        function showCopyStatus(message, isError) {
-            copyStatus.textContent = message;
-            copyStatus.style.display = 'block';
-            copyStatus.style.color = isError ? '#dc3545' : '#666';
-            setTimeout(() => {
-                copyStatus.style.display = 'none';
-            }, 2000);
+        function resetUI() {
+            resultArea.style.display = 'none';
+            errorMessage.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressText.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            uploadButton.style.display = 'block';
+            uploadButton.disabled = false;
+            uploadButton.textContent = '开始上传';
+            
+            cancelButton.style.display = 'none';
         }
 
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
-        });
+        uploadArea.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
-            }
+            if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
         });
 
         uploadArea.addEventListener('dragover', (e) => {
@@ -329,97 +630,124 @@
             uploadArea.classList.add('dragover');
         });
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
 
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
-
-            if (e.dataTransfer.files.length > 0) {
-                handleFileSelect(e.dataTransfer.files[0]);
-            }
+            if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files[0]);
         });
 
         function handleFileSelect(file) {
+            resetUI();
             if (file.size > MAX_UPLOAD_BYTES) {
-                showError('文件大小不能超过5GB');
+                showError('文件大小不能超过 5GB');
                 return;
             }
 
             selectedFile = file;
-
             fileName.textContent = file.name;
             fileSize.textContent = formatFileSize(file.size);
             fileInfo.style.display = 'block';
             uploadButton.style.display = 'block';
-
-            resultArea.style.display = 'none';
-            errorMessage.style.display = 'none';
         }
 
-        uploadButton.addEventListener('click', async () => {
+        uploadButton.addEventListener('click', () => {
             if (!selectedFile) return;
 
-            loading.style.display = 'block';
+            resetUI();
+            fileInfo.style.display = 'block';
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+            
+            uploadButton.disabled = true;
+            uploadButton.textContent = '上传中...';
             uploadButton.style.display = 'none';
-            errorMessage.style.display = 'none';
+            cancelButton.style.display = 'block';
 
-            try {
-                // 关键点：后端当前最小实现不解析 multipart/form-data
-                // 这里直接发送文件的原始二进制给 POST /upload
-                // 不要用 arrayBuffer()：4GB+ 文件会导致浏览器尝试一次性读入内存，
-                // 可能直接抛出“could not be read”的异常。
-                // 直接把 File/Blob 作为 body 传给 fetch，让浏览器流式读取并发送。
-                const body = selectedFile;
+            currentXhr = new XMLHttpRequest();
+            currentXhr.open('POST', '/upload', true);
 
-                const resp = await fetch('/upload', {
-                    method: 'POST',
-                    headers: {
-                        // 用 URL 编码，后端会做一次 url_decode
-                        'X-File-Name': encodeURIComponent(selectedFile.name),
-                        'Content-Type': selectedFile.type || 'application/octet-stream'
-                    },
-                    body
-                });
+            currentXhr.setRequestHeader('X-File-Name', encodeURIComponent(selectedFile.name));
+            currentXhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
 
-                if (!resp.ok) {
-                    const text = await resp.text();
-                    throw new Error(`上传失败: ${resp.status} ${text}`);
+            currentXhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = percent + '%';
                 }
+            };
 
-                const result = await resp.json();
-                if (!result || !result.url) {
-                    throw new Error('返回数据缺少 url');
+            currentXhr.onload = () => {
+                if (currentXhr.status >= 200 && currentXhr.status < 300) {
+                    try {
+                        const result = JSON.parse(currentXhr.responseText);
+                        if (result && result.url) {
+                            showSuccess(result.url);
+                        } else {
+                            throw new Error('返回数据格式错误');
+                        }
+                    } catch (e) {
+                        showError('解析响应失败: ' + e.message);
+                    }
+                } else {
+                    showError(`上传失败 (${currentXhr.status}): ${currentXhr.responseText}`);
                 }
+                finishUpload();
+            };
 
-                shareLink.innerHTML = `<a href="${result.url}" target="_blank" rel="noopener noreferrer">${result.url}</a>`;
-                resultArea.style.display = 'block';
+            currentXhr.onerror = () => {
+                showError('网络错误，请检查连接');
+                finishUpload();
+            };
+            
+            currentXhr.onabort = () => {
+                showError('上传已取消');
+                finishUpload();
+            };
 
-            } catch (err) {
-                showError('上传失败: ' + (err && err.message ? err.message : String(err)));
-            } finally {
-                loading.style.display = 'none';
-                uploadButton.style.display = 'block';
+            currentXhr.send(selectedFile);
+        });
+
+        cancelButton.addEventListener('click', () => {
+            if (currentXhr) {
+                currentXhr.abort();
+                currentXhr = null;
             }
         });
 
+        function finishUpload() {
+            currentXhr = null;
+            uploadButton.textContent = '开始上传';
+            uploadButton.disabled = false;
+            uploadButton.style.display = 'block';
+            cancelButton.style.display = 'none';
+        }
+
         copyButton.addEventListener('click', () => {
-            const link = shareLink.textContent;
+            const link = shareLink.href;
             copyToClipboard(link).then((ok) => {
-                if (ok) {
-                    const originalText = copyButton.textContent;
-                    copyButton.textContent = '✅ 已复制';
-                    showCopyStatus('已复制到剪贴板', false);
-                    setTimeout(() => {
-                        copyButton.textContent = originalText;
-                    }, 1200);
-                } else {
-                    showCopyStatus('复制失败，请手动复制', true);
-                }
+                const originalText = copyButton.textContent;
+                copyButton.textContent = ok ? '已复制' : '复制失败';
+                setTimeout(() => copyButton.textContent = originalText, 1500);
             });
         });
+
+        function showSuccess(url) {
+            shareLink.href = url;
+            shareLink.textContent = url;
+            resultArea.style.display = 'block';
+            uploadButton.style.display = 'none';
+            cancelButton.style.display = 'none';
+        }
+
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorMessage.style.display = 'block';
+            progressContainer.style.display = 'none';
+            progressText.style.display = 'none';
+        }
 
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -428,15 +756,6 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('FileLinkServer 前端页面已加载');
-        });
     </script>
 </body>
 
