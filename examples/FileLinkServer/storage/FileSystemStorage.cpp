@@ -14,7 +14,8 @@ bool FileSystemStorage::ensureRootExists() {
         return false;
     }
 
-    // mkdir -p 的最简实现：仅保证单级目录存在（你的示例里 storageRoot 通常是 ./xxx）
+    // mkdir -p 的最简实现：仅保证单级目录存在。
+    // 生产环境如果传入多级目录（a/b/c），这里需要递归创建。
     struct stat st;
     if (stat(rootDir_.c_str(), &st) == 0) {
         return S_ISDIR(st.st_mode);

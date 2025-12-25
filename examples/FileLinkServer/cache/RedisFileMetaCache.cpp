@@ -18,15 +18,17 @@ static bool is_ok_status(const redisReply* r) {
 }
 
 bool RedisFileMetaCache::ensure_connected() {
+    // 已经连接且状态良好
     if (ctx_ && ctx_->err == 0) {
         return true;
     }
 
+    // 已经连接但状态异常：释放掉（不 return，因为后续会重新建立连接）
     if (ctx_) {
         redisFree(ctx_);
         ctx_ = nullptr;
     }
-
+    // 建立新连接（懒连接，即第一次用时才连接 Redis）
     ctx_ = redisConnect(host_.c_str(), port_);
     if (!ctx_) {
         return false;
@@ -125,6 +127,9 @@ bool RedisFileMetaCache::get(const std::string& fileId, FileMetadata& outMeta) {
 }
 
 #else
+
+// 未启用 hiredis 时，提供 stub：可编译但不可用。
+// main 会在这种构建配置下回退到 NoopFileMetaCache。
 
 bool RedisFileMetaCache::put(const FileMetadata& /*meta*/, int /*ttlSeconds*/) {
     return false;

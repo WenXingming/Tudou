@@ -149,6 +149,9 @@ bool MysqlFileMetaStore::get(const std::string& fileId, FileMetadata& outMeta) {
 
 #else
 
+// 未启用 mysql-connector-c++ 时，本文件提供一个“可编译但不可用”的 stub。
+// 这样你可以先把 FileLinkServer 跑起来，再决定是否引入外部依赖。
+
 MysqlFileMetaStore::~MysqlFileMetaStore() {
 }
 

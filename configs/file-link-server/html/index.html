@@ -275,6 +275,9 @@
 
         let selectedFile = null;
 
+        // 前端限制：与后端保持一致，最大 5GB。
+        const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024;
+
         async function copyToClipboard(text) {
             try {
                 if (navigator.clipboard && window.isSecureContext) {
@@ -340,8 +343,8 @@
         });
 
         function handleFileSelect(file) {
-            if (file.size > 100 * 1024 * 1024) {
-                showError('文件大小不能超过100MB');
+            if (file.size > MAX_UPLOAD_BYTES) {
+                showError('文件大小不能超过5GB');
                 return;
             }
 
@@ -366,7 +369,10 @@
             try {
                 // 关键点：后端当前最小实现不解析 multipart/form-data
                 // 这里直接发送文件的原始二进制给 POST /upload
-                const body = await selectedFile.arrayBuffer();
+                // 不要用 arrayBuffer()：4GB+ 文件会导致浏览器尝试一次性读入内存，
+                // 可能直接抛出“could not be read”的异常。
+                // 直接把 File/Blob 作为 body 传给 fetch，让浏览器流式读取并发送。
+                const body = selectedFile;
 
                 const resp = await fetch('/upload', {
                     method: 'POST',

@@ -17,6 +17,8 @@ FileLinkServer::FileLinkServer(FileLinkServerConfig cfg,
 
     httpServer_.reset(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum));
 
+    // 注意：storage_ 这里传给 service 是“按值拷贝/移动”的简单对象，
+    // 这个 demo 里 FileSystemStorage 只持有 rootDir 字符串，所以拷贝成本很低。
     service_.reset(new FileLinkService(storage_, std::move(metaStore), std::move(metaCache)));
 
     httpServer_->set_http_callback(
@@ -42,8 +44,8 @@ void FileLinkServer::on_http_request(const HttpRequest& req, HttpResponse& resp)
         return;
     }
 
-    // 最小前后端打通：直接由同一进程提供首页
-        if ((path == "/" || path == "/homepage.html" || path == "/index.html") && method == "GET") {
+    // 最小前后端打通：直接由同一进程提供首页（省掉 Nginx/前端工程的依赖）。
+    if ((path == "/" || path == "/homepage.html" || path == "/index.html") && method == "GET") {
         handle_index(req, resp);
         return;
     }
@@ -108,19 +110,54 @@ void FileLinkServer::handle_index(const HttpRequest& /*req*/, HttpResponse& resp
 }
 
 void FileLinkServer::handle_upload(const HttpRequest& req, HttpResponse& resp) {
-    // 约定：
+    // 约定（为了最小可用，这里刻意不做 multipart/form-data）：
     //  - Body: 文件原始二进制内容
     //  - Header: X-File-Name: 原始文件名（可选）
     //  - Header: Content-Type: 可选
     // 注：multipart/form-data 可后续扩展，这里先做最小可用版本
 
+    // 后端限制：最大 5GB（前端也会限制，但后端必须兜底）。
+    static constexpr size_t kMaxUploadBytes = 5ULL * 1024 * 1024 * 1024;
+
+    // 小文件：仍然允许走“内存 body”路径；大文件：HTTP 层会把 body 流式写到临时文件，并通过 header 传入路径。
+    std::string tempUploadPath;
+    int64_t tempUploadSize = -1;
+    try {
+        tempUploadPath = req.get_header("X-Temp-Upload-Path");
+    } catch (...) {
+        tempUploadPath.clear();
+    }
+    try {
+        const std::string s = req.get_header("X-Temp-Upload-Size");
+        tempUploadSize = static_cast<int64_t>(std::stoll(s));
+    } catch (...) {
+        tempUploadSize = -1;
+    }
+
     const std::string& body = req.get_body();
-    if (body.empty()) {
-        resp.set_status(400, "Bad Request");
-        resp.set_body("empty body");
-        resp.add_header("Content-Type", "text/plain; charset=utf-8");
-        resp.set_close_connection(true);
-        return;
+    if (tempUploadPath.empty()) {
+        if (body.empty()) {
+            resp.set_status(400, "Bad Request");
+            resp.set_body("empty body");
+            resp.add_header("Content-Type", "text/plain; charset=utf-8");
+            resp.set_close_connection(true);
+            return;
+        }
+        if (body.size() > kMaxUploadBytes) {
+            resp.set_status(413, "Payload Too Large");
+            resp.set_body("payload too large (max 5GB)");
+            resp.add_header("Content-Type", "text/plain; charset=utf-8");
+            resp.set_close_connection(true);
+            return;
+        }
+    } else {
+        if (tempUploadSize > static_cast<int64_t>(kMaxUploadBytes)) {
+            resp.set_status(413, "Payload Too Large");
+            resp.set_body("payload too large (max 5GB)");
+            resp.add_header("Content-Type", "text/plain; charset=utf-8");
+            resp.set_close_connection(true);
+            return;
+        }
     }
 
     std::string fileName;
@@ -137,7 +174,16 @@ void FileLinkServer::handle_upload(const HttpRequest& req, HttpResponse& resp) {
         contentType = "";
     }
 
-    UploadResult r = service_->upload(fileName, contentType, body);
+    // 业务编排交给 service：
+    // - 生成 fileId
+    // - 落盘
+    // - 写入元数据 + cache
+    UploadResult r;
+    if (!tempUploadPath.empty()) {
+        r = service_->upload_from_path(fileName, contentType, tempUploadPath, tempUploadSize);
+    } else {
+        r = service_->upload(fileName, contentType, body);
+    }
     if (r.fileId.empty()) {
         resp.set_status(500, "Internal Server Error");
         resp.set_body("upload failed");
@@ -146,7 +192,7 @@ void FileLinkServer::handle_upload(const HttpRequest& req, HttpResponse& resp) {
         return;
     }
 
-    // 生成完整 URL：优先用 Host 头
+    // 生成完整 URL：优先用 Host 头（方便你反向代理/域名部署时自动生成可访问链接）。
     std::string host;
     try {
         host = req.get_header("Host");
@@ -182,7 +228,8 @@ bool FileLinkServer::parse_file_id_from_path(const std::string& path, std::strin
         return false;
     }
 
-    // 简单防止目录穿越/非法字符
+    // 简单防止目录穿越/非法字符：
+    // 这里的 fileId 会最终变成落盘文件名（rootDir/fileId），因此要禁止 '/' 和 '..'。
     if (id.find('/') != std::string::npos || id.find("..") != std::string::npos) {
         return false;
     }
@@ -201,6 +248,9 @@ void FileLinkServer::handle_download(const HttpRequest& req, HttpResponse& resp)
         return;
     }
 
+    // 下载流程：
+    // 1) meta（cache 命中/回源 store）
+    // 2) 按 meta.storagePath 读取文件内容
     DownloadResult out;
     if (!service_->download(fileId, out)) {
         resp.set_status(404, "Not Found");

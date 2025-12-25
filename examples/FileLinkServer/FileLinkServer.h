@@ -20,6 +20,10 @@ struct FileLinkServerConfig {
 
 class FileLinkServer {
 public:
+    // FileLinkServer 是“HTTP 适配层”：
+    // - 负责路由、协议细节（Header/Status/JSON）
+    // - 不做业务规则本身，业务交给 FileLinkService
+    // - 通过依赖注入把 metaStore/metaCache 换成不同实现
     FileLinkServer(FileLinkServerConfig cfg,
                    std::shared_ptr<IFileMetaStore> metaStore,
                    std::shared_ptr<IFileMetaCache> metaCache);
@@ -27,6 +31,7 @@ public:
     void start();
 
 private:
+    // 统一入口：所有 HTTP 请求都从这里分发到各 handler。
     void on_http_request(const HttpRequest& req, HttpResponse& resp);
 
     void handle_health(const HttpRequest& req, HttpResponse& resp);

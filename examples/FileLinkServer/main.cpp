@@ -93,18 +93,23 @@ static void set_logger(const std::string& logPath) {
 }
 
 int main(int argc, char* argv[]) {
-    // 最小可用版本：
-    //  - 元数据：内存 map（你接入 MySQL 后替换为 MySQL store）
-    //  - 缓存：Noop（你部署 Redis 后替换为 Redis cache）
-    //  - 首页：从 serverRoot/html/{indexFile} 读取并由 FileLinkServer 直接返回
+    // 这个示例故意做成“可插拔分层”，便于你逐步替换基础设施：
+    //  - 业务编排：FileLinkService（upload/download 的流程）
+    //  - 落盘：FileSystemStorage（把二进制内容写到磁盘）
+    //  - 元数据：IFileMetaStore（默认 InMemory；可选 MySQL）
+    //  - 缓存：IFileMetaCache（默认 Noop；可选 Redis）
+    //
+    // 重点：MySQL/Redis 并不是“运行时开关”就能用，还需要编译期开关。
+    // 如果配置里开了 mysql.enabled/redis.enabled，但编译时没链接对应库，
+    // 会回退到 InMemory/Noop（保证 demo 不被环境依赖阻断）。
 
     std::string serverRoot;
     if (argc > 1) {
         serverRoot = argv[1];
     } else {
         std::vector<std::string> searchRoots = {
-            "/home/wxm/Tudou/configs/file-link-server/",
             "/etc/file-link-server/",
+            "/home/wxm/Tudou/configs/file-link-server/",
             "./"
         };
 
@@ -134,12 +139,14 @@ int main(int argc, char* argv[]) {
         serverRoot += '/';
     }
 
+    // serverRoot 的含义：一个“自包含目录”，里面有 conf/html/log/storage 等子目录。
     std::string configPath = serverRoot + "conf/server.conf";
     auto config = load_config(configPath);
 
     std::string logPath = serverRoot + "log/server.log";
     set_logger(logPath);
 
+    // 把 key=value 配置映射到 server cfg（这里保持最小字段，便于你按需扩展）。
     FileLinkServerConfig cfg;
     cfg.ip = config.count("ip") ? config.at("ip") : "0.0.0.0";
     cfg.port = config.count("port") ? static_cast<uint16_t>(std::stoi(config.at("port"))) : 8080;
@@ -148,6 +155,7 @@ int main(int argc, char* argv[]) {
     cfg.webRoot = config.count("webRoot") ? resolve_path(serverRoot, config.at("webRoot")) : (serverRoot + "html/");
     cfg.indexFile = config.count("indexFile") ? config.at("indexFile") : "homepage.html";
 
+    // 依赖注入：在 main 中决定“用哪个实现”，上层业务只依赖抽象接口。
     std::shared_ptr<IFileMetaStore> metaStore;
     std::shared_ptr<IFileMetaCache> metaCache;
 
