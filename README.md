@@ -12,15 +12,13 @@
 
 ## Introduction ✅
 
-Tudou 是一个基于 Reactor 模式的多线程 C++ 网络库，旨在构建高性能的网络服务器和应用程序。该库的主要特性包括：
+Tudou 是一个基于 Reactor 模式的多线程高性能 C++ 网络框架，旨在构建高性能的网络服务器和应用程序。该框架的主要特性包括：
 
 1. **Reactor 模式**: 使用 Reactor 模式实现高效的事件驱动网络编程。
 2. **多线程**: 支持多线程模型，提升并发处理能力。
-3. **HTTP 协议支持**: 内置对 HTTP 协议的支持，方便构建 Web 服务器。
+3. **HTTP 协议支持**: 内置对 HTTP 协议的支持，方便构建 Web 服务器等。
 4. **高性能**: 通过优化的 I/O 处理和线程管理，实现高吞吐量和低延迟。
 5. ...
-
-
 
 ## Benchmark: wrk 性能测试 ⚡
 
@@ -32,22 +30,19 @@ Tudou 是一个基于 Reactor 模式的多线程 C++ 网络库，旨在构建高
 - Network: localhost loopback interface
 - Operating System: Ubuntu 22.04.5 LTS
 
----
-
-wrk 下载编译：
+性能测试环境准备（wrk 下载编译）：
 
 ```bash
-# git clone https://github.com/wg/wrk.git
-# cd wrk
-# make -j12
+cd ~/ && git clone https://github.com/wg/wrk.git
+cd wrk && make -j12
 # 编译后 wrk 文件夹下会生成可执行文件 wrk，然后运行以下命令进行测试：
 # ./wrk -t${线程数} -c${连接数} -d${测试时间}s --latency http://127.0.0.1:8080
-./wrk -t1 -c200 -d10s --latency http://127.0.0.1:8080
+# ./wrk -t1 -c200 -d10s --latency http://127.0.0.1:8080
 ```
 
 ---
 
-**单 Reactor测试结果**：
+**单 Reactor测试结果 🎢**：
 
 ```bash
 (base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c200 -d60s --latency http://192.168.3.3:8080
@@ -80,7 +75,7 @@ Transfer/sec:     17.46MB
 
 ----
 
-**多 Reactor测试结果**（开启 1 个 mainLoop 线程 + 16 个 ioLoop 线程）：
+**多 Reactor测试结果 🎢**（开启 1 个 mainLoop 线程 + 16 个 ioLoop 线程）：
 
 ```bash
 (base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t4 -c400 -d60s --latency http://192.168.3.3:8080
@@ -113,7 +108,11 @@ Transfer/sec:    109.21MB
 
 ## Requirements 🔍
 
-- 单元测试需要 Google Test 库支持（`sudo apt-get install libgtest-dev`）
+- 单元测试需要 Google Test 库支持
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y libgtest-dev
+    ```
 - llhttp HTTP 协议解析库（已集成在 Tudou 中，无需额外安装）
 - spdlog 日志库（已集成在 Tudou 中，无需额外安装）
 - C++11 or higher
@@ -169,11 +168,12 @@ Transfer/sec:    109.21MB
 
 环境要求：
 
-1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务。
+1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务（见 docker-compose.yml）。
 2. 需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`），以便能够使用 C++ 连接 MySQL 和 Redis 服务端进行操作。
 
     ```bash
-    sudo apt-get update && sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev
+    sudo apt-get update
+    sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev
     ```
 
 ## Citation 📚

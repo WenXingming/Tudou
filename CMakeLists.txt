@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(Tudou)
 
 # 启用 CTest 支持，允许在子目录中注册和运行测试（CTest 是 CMake 官方自带的测试驱动工具，用于收集和运行测试用例，本身不提供测试框架，只负责执行你注册的测试程序，并收集结果）
