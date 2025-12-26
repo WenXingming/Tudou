@@ -59,15 +59,41 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
 
     spdlog::debug("StaticFileHttpServer: method={}, path={}", method, path);
 
-    if (method != "GET") {
+    const bool isGet = (method == "GET");
+    const bool isHead = (method == "HEAD");
+    if (!isGet && !isHead) {
         resp.set_status(405, "Method Not Allowed");
         resp.set_body("Method Not Allowed");
         resp.add_header("Content-Type", "text/plain; charset=utf-8");
+        resp.add_header("Allow", "GET, HEAD");
         resp.set_close_connection(true);
         return;
     }
 
     std::string realPath = resolve_path(path);
+
+    // HEAD: only check existence + metadata, do not send body.
+    if (isHead) {
+        std::time_t mtime = 0;
+        long long size = 0;
+        if (!get_file_meta(realPath, mtime, size)) {
+            spdlog::warn("StaticFileHttpServer: file not found: {}", realPath);
+            resp.set_status(404, "Not Found");
+            resp.set_body("Not Found");
+            resp.add_header("Content-Type", "text/plain; charset=utf-8");
+            resp.set_close_connection(true);
+            return;
+        }
+
+        resp.set_status(200, "OK");
+        resp.set_body("");
+        resp.add_header("Content-Type", guess_content_type(realPath));
+        // For HEAD, Content-Length should reflect the body size that would be sent for GET.
+        resp.add_header("Content-Length", std::to_string(size));
+        resp.set_close_connection(false);
+        resp.add_header("Connection", "Keep-Alive");
+        return;
+    }
 
     std::string fileContent;
     if (!get_file_content_cached(realPath, fileContent)) {
