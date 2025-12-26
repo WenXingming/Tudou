@@ -114,6 +114,7 @@ Transfer/sec:    109.21MB
 ## Requirements 🔍
 
 - 单元测试需要 Google Test 库支持（`sudo apt-get install libgtest-dev`）
+- llhttp HTTP 协议解析库（已集成在 Tudou 中，无需额外安装）
 - spdlog 日志库（已集成在 Tudou 中，无需额外安装）
 - C++11 or higher
 - CMake 3.10 or higher
