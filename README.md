@@ -123,7 +123,7 @@ Transfer/sec:    109.21MB
 
 使用样例见 `/examples`。
 
-### 静态文件服务器示例
+### 静态文件服务器示例 ✨
 
 我使用 Tudou 编写了一个静态文件服务器 `StaticFileHttpServer`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
 
@@ -150,26 +150,31 @@ Transfer/sec:    109.21MB
 
     # Number of worker threads. 0 means only mainLoop thread is used.
     # More threads can handle more concurrent connections.
-    threadNum = 0
+    threadNum = 1 # 1 mainLoop + 1 ioLoop (total 2 threads)
     ```
 
-3. 配置文件目录路径可以不在 /etc 目录下，此时可以通过手动运行 StaticFileHttpServer 并在命令行终端中指定配置文件目录的路径
+3. 配置文件目录路径可以不放在 /etc 目录下，此时可以通过手动运行 StaticFileHttpServer 并在命令行终端中指定配置文件目录的路径
 
     ```bash
-    ./StaticFileHttpServer /path/to/config/directory 
     # 如在用户主目录下的 static-file-http-server 目录下存放配置文件，则运行命令为：
     # ./StaticFileHttpServer /home/xxx/static-file-http-server
+    ./StaticFileHttpServer /path/to/config/directory 
     ```
-### FileLink Server 示例
+
+### FileLink Server 示例 ✨
 
 我使用 Tudou 实现了另一个功能：用户上传一个文件，后端将其组织存储，同时生成一个 URL 返回给前端，用户后续可以使用这个得到的 URL 访问或者下载该文件。
 
 设计采用经典的客户端-服务器架构，前端通过 HTTP 协议与后端通信。后端使用 Tudou 实现高性能的 HTTP 服务器，处理文件上传和下载请求。设计采用 “元数据存数据库 + 文件实体存磁盘 + 热点数据存 Redis” 的经典架构。这种方式既能利用磁盘的大容量存储文件，又能利用数据库管理文件属性，同时利用 Redis 极大地提高文件索引速度。具体实现见 `/examples/FileLinkServer`。
 
-环境要求：需要 MySQL 和 Redis 环境支持。可以使用 Docker 快速部署 MySQL 和 Redis 服务。此外，需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`）。
-```bash
-apt-get update && apt-get install -y libmysqlcppconn-dev libhiredis-dev
-```
+环境要求：
+
+1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务。
+2. 需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`），以便能够使用 C++ 连接 MySQL 和 Redis 服务端进行操作。
+
+    ```bash
+    sudo apt-get update && sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev
+    ```
 
 ## Citation 📚
 
