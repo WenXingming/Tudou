@@ -162,12 +162,14 @@ Transfer/sec:    109.21MB
     ```
 ### FileLink Server 示例
 
-我使用 Tudou 实现了另一个功能：用户上传一个文件，后端将其组织存储，同时生成一个 URL 返回给前端，用户后续可以使用这个得到的 URL 访问或者下载该文件。设计采用经典的客户端-服务器架构，前端通过 HTTP 协议与后端通信。后端使用 Tudou 实现高性能的 HTTP 服务器，处理文件上传和下载请求。设计采用 “元数据存数据库 + 文件实体存磁盘 + 热点数据存 Redis” 的经典架构。这种方式既能利用磁盘的大容量存储文件，又能利用数据库管理文件属性，同时利用 Redis 极大地提高文件索引速度。具体实现见 `/examples/FileLinkServer`。
+我使用 Tudou 实现了另一个功能：用户上传一个文件，后端将其组织存储，同时生成一个 URL 返回给前端，用户后续可以使用这个得到的 URL 访问或者下载该文件。
 
-> 环境要求：需要 MySQL 和 Redis 环境支持。可以使用 Docker 快速部署 MySQL 和 Redis 服务。此外，需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`）。
-> ```bash
-> apt-get update && apt-get install -y libmysqlcppconn-dev libhiredis-dev
-> ```
+设计采用经典的客户端-服务器架构，前端通过 HTTP 协议与后端通信。后端使用 Tudou 实现高性能的 HTTP 服务器，处理文件上传和下载请求。设计采用 “元数据存数据库 + 文件实体存磁盘 + 热点数据存 Redis” 的经典架构。这种方式既能利用磁盘的大容量存储文件，又能利用数据库管理文件属性，同时利用 Redis 极大地提高文件索引速度。具体实现见 `/examples/FileLinkServer`。
+
+环境要求：需要 MySQL 和 Redis 环境支持。可以使用 Docker 快速部署 MySQL 和 Redis 服务。此外，需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`）。
+```bash
+apt-get update && apt-get install -y libmysqlcppconn-dev libhiredis-dev
+```
 
 ## Citation 📚
 

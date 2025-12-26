@@ -50,7 +50,7 @@ if (GTEST_INCLUDE_DIR AND GTEST_LIBRARY)
     target_link_libraries(TudouUnitTest PRIVATE ${GTEST_LIBRARY})
 else()
     message(WARNING "未找到 GTest，跳过 Tudou 单元测试 unitTest 的构建")
-    # return()
+    return()
 endif()
 
 # 注册单元测试到 ctest
