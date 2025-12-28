@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 project(unit_test)
 
 # 统一设置 C++ 标准，确保代码在不同编译器上行为一致
-set(CMAKE_CXX_STANDARD 11)
+# Ubuntu 24.04 的 Gtest 是 1.14.0 版本，需要 C++14 或更高标准。Ubuntu 24.04 的软件源只有这个版本，没有旧版本可选
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置编译类型为 Debug，以启用调试信息和关闭优化
