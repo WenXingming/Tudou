@@ -117,11 +117,12 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
 std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const {
     // 简单路径解析：
     //  - 空或 "/" -> "/index.html"
+    //  - 目录请求（以 "/" 结尾，或实际为目录） -> 追加 "/index.html"
     //  - 其他：直接使用 urlPath
 
     std::string path = urlPath;
-    if (path.empty() || path == "/") {
-        path = "/index.html";
+    if (path.empty()) {
+        path = "/";
     }
 
     // 简单防止目录穿越：包含 ".." 的路径一律映射为 404 对应的虚构文件
@@ -134,7 +135,30 @@ std::string StaticFileHttpServer::resolve_path(const std::string& urlPath) const
         path.insert(path.begin(), '/');
     }
 
-    return baseDir_ + path;
+    // 将 URL 映射为磁盘路径
+    std::string realPath = baseDir_ + path;
+
+    // 规则 1：URL 以 "/" 结尾，视为目录，追加 index.html
+    if (!realPath.empty() && realPath.back() == '/') {
+        realPath += "index.html";
+        return realPath;
+    }
+
+    // 规则 2：URL 不以 "/" 结尾，但磁盘上确实是目录，也追加 index.html
+    struct stat st;
+    if (::stat(realPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (!realPath.empty() && realPath.back() != '/') {
+            realPath += '/';
+        }
+        realPath += "index.html";
+    }
+
+    // 规则 3：根路径单独处理（兼容老行为）
+    if (path == "/") {
+        return baseDir_ + "/index.html";
+    }
+
+    return realPath;
 }
 
 std::string StaticFileHttpServer::guess_content_type(const std::string& filepath) const {
