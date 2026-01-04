@@ -10,10 +10,10 @@
 #include "StaticFileTcpServer.h"
 
 #include "base/InetAddress.h"
-#include "tudou/TcpServer.h"
-#include "tudou/EventLoop.h"
-#include "tudou/EpollPoller.h"
-#include "tudou/TcpConnection.h"
+#include "tudou/tcp/TcpServer.h"
+#include "tudou/tcp/EventLoop.h"
+#include "tudou/tcp/EpollPoller.h"
+#include "tudou/tcp/TcpConnection.h"
 #include "spdlog/spdlog.h"
 
 #include <iostream>

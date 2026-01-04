@@ -19,7 +19,7 @@
 #include <thread>
 #include <mutex>
 
-#include "../base/InetAddress.h"
+#include "base/InetAddress.h"
 #include "EventLoopThreadPool.h"
 
 class EventLoop;

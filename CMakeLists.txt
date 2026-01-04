@@ -52,7 +52,7 @@ add_library(threadpool STATIC ${threadpool_source_files})
 # 编译 tudou 生成库
 file(GLOB tudou_source_files
     ${CMAKE_SOURCE_DIR}/src/base/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/tudou/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/tudou/tcp/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/http/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/router/*.cpp
 )
@@ -80,8 +80,8 @@ target_link_libraries(tudou PRIVATE
 
 
 # 递归构建子目录
-add_subdirectory(src/tudou/unitTest)
-add_subdirectory(src/tudou/integrateTest)
+add_subdirectory(src/test/unitTest)
+add_subdirectory(src/test/integrateTest)
 add_subdirectory(examples/StaticFileHttpServer)
 add_subdirectory(examples/StaticFileTcpServer)
 add_subdirectory(examples/FileLinkServer)

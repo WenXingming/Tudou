@@ -14,7 +14,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "../base/InetAddress.h"
+#include "base/InetAddress.h"
 #include "spdlog/spdlog.h"
 #include "Acceptor.h"
 #include "EventLoop.h"

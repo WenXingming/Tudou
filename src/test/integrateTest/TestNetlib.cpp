@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <cstring>
 
-#include "tudou/Channel.h"
-#include "tudou/EpollPoller.h"
-#include "tudou/EventLoop.h"
+#include "tudou/tcp/Channel.h"
+#include "tudou/tcp/EpollPoller.h"
+#include "tudou/tcp/EventLoop.h"
 
 TestNetlib::TestNetlib() {
     loop.reset(new EventLoop());
