@@ -1,6 +1,9 @@
 /**
  * @file Router.h
  * @brief Minimal HTTP router: method + path -> handler 分发
+ * @details Router 提供了一个简单的 HTTP 路由功能，可以根据请求的 HTTP 方法和 URL 路径将请求分发到不同的处理函数（handler）。
+ * - 路由的 key 是 (Method, Path) 对，应对同一路径不同方法的处理需求，或同一方法不同路径的处理需求。
+ * - 支持精确匹配和前缀匹配两种路由方式，并且可以自定义 404 和 405 响应。
  *
  * 用法概览：
  *   Router r;
@@ -59,11 +62,18 @@ public:
     DispatchResult dispatch(const HttpRequest& req, HttpResponse& resp) const;
 
 private:
+    static bool starts_with(const std::string& text, const std::string& prefix);
+
+    void fill_default_not_found(HttpResponse& resp) const;
+    void fill_default_method_not_allowed(const std::string& path, HttpResponse& resp) const;
+    std::string build_allow_header(const std::string& path) const;
+
+private:
     // RouteKey：精确路由的 key。
-    // 为什么要同时用 method+path？
+    // 为什么要同时用 method + path？
     //  - 同一路径可以对应不同 HTTP 方法，例如：
     //    GET /file   -> 下载
-    //    POST /file  -> 上传
+    //    POST /file  -> 上传（/path 主要是做路由键，映射到相应的 handler 处理逻辑）
     struct RouteKey {
         std::string method;
         std::string path;
@@ -76,18 +86,13 @@ private:
         std::size_t operator()(const RouteKey& key) const {
             // 用一个分隔符把 method 和 path 拼起来做哈希。
             // '\n' 只是一个不太会出现在 method/path 中的分隔符。
-            return std::hash<std::string>()(key.method + "\n" + key.path);
+            std::string str = key.method + "\n" + key.path;
+            return std::hash<std::string>()(std::move(str));
         }
     };
 
-    static bool starts_with(const std::string& text, const std::string& prefix);
-
-    void fill_default_not_found(HttpResponse& resp) const;
-    void fill_default_method_not_allowed(const std::string& path, HttpResponse& resp) const;
-    std::string build_allow_header(const std::string& path) const;
-
     // routes_：精确匹配路由表。
-    // key = (method, path)，value = handler
+    // key = (method, path)，value = handler 相应的处理逻辑
     // 例如：routes_[{"GET", "/health"}] = health_handler
     std::unordered_map<RouteKey, Handler, RouteKeyHash> routes_;
 
