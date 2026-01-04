@@ -42,9 +42,15 @@ StaticFileHttpServer::StaticFileHttpServer(const std::string& ip,
     httpServer_(nullptr) {
 
     httpServer_.reset(new HttpServer(ip_, port_, threadNum_));
+
+    // 静态文件服务：用 prefix 兜底所有 path，具体 404/405 逻辑仍在 on_http_request 内处理。
+    router_.add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
+        on_http_request(req, resp);
+    });
+
     httpServer_->set_http_callback(
         [this](const HttpRequest& req, HttpResponse& resp) {
-            on_http_request(req, resp);
+            (void)router_.dispatch(req, resp);
         });
 }
 

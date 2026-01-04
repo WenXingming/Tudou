@@ -82,7 +82,7 @@ void set_logger(const std::string& logPath) {
     spdlog::set_default_logger(my_logger);
 
     // 设置日志级别和格式: debug、info、warn、err、critical 等
-    spdlog::set_level(spdlog::level::err); // 设置全局日志级别
+    spdlog::set_level(spdlog::level::debug); // 设置全局日志级别
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v"); // 设置日志格式
 }
 

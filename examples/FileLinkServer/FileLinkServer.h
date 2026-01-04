@@ -4,6 +4,7 @@
 #include <string>
 
 #include "tudou/http/HttpServer.h"
+#include "tudou/router/Router.h"
 #include "FileLinkService.h"
 
 struct FileLinkServerConfig {
@@ -47,4 +48,6 @@ private:
     FileSystemStorage storage_;
     std::unique_ptr<HttpServer> httpServer_;
     std::unique_ptr<FileLinkService> service_;
+
+    Router router_;
 };

@@ -21,6 +21,41 @@ FileLinkServer::FileLinkServer(FileLinkServerConfig cfg,
     // 这个 demo 里 FileSystemStorage 只持有 rootDir 字符串，所以拷贝成本很低。
     service_.reset(new FileLinkService(storage_, std::move(metaStore), std::move(metaCache)));
 
+    // 路由注册（启动前完成注册；当前 Router 未做并发防护）
+    router_.add_get_route("/health", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_health(req, resp);
+    });
+
+    // 最小前后端打通：直接由同一进程提供首页（省掉 Nginx/前端工程的依赖）。
+    router_.add_get_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_index(req, resp);
+    });
+    router_.add_get_route("/homepage.html", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_index(req, resp);
+    });
+    router_.add_get_route("/index.html", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_index(req, resp);
+    });
+
+    router_.add_post_route("/upload", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_upload(req, resp);
+    });
+
+    // 动态路由：/file/{id}
+    // 这里用 prefix 兜底，具体 fileId 解析仍由 handle_download 完成。
+    router_.add_prefix_route("/file/", [this](const HttpRequest& req, HttpResponse& resp) {
+        // prefix 路由不区分 method，这里保持 HTTP 语义：非 GET 直接 405。
+        if (req.get_method() != "GET") {
+            resp.set_status(405, "Method Not Allowed");
+            resp.set_body("Method Not Allowed");
+            resp.add_header("Content-Type", "text/plain; charset=utf-8");
+            resp.add_header("Allow", "GET");
+            resp.set_close_connection(true);
+            return;
+        }
+        handle_download(req, resp);
+    });
+
     httpServer_->set_http_callback(
         [this](const HttpRequest& req, HttpResponse& resp) {
             on_http_request(req, resp);
@@ -34,36 +69,8 @@ void FileLinkServer::start() {
 }
 
 void FileLinkServer::on_http_request(const HttpRequest& req, HttpResponse& resp) {
-    const std::string& method = req.get_method();
-    const std::string& path = req.get_path();
-
-    spdlog::debug("FileLinkServer: method={}, path={}", method, path);
-
-    if (path == "/health" && method == "GET") {
-        handle_health(req, resp);
-        return;
-    }
-
-    // 最小前后端打通：直接由同一进程提供首页（省掉 Nginx/前端工程的依赖）。
-    if ((path == "/" || path == "/homepage.html" || path == "/index.html") && method == "GET") {
-        handle_index(req, resp);
-        return;
-    }
-
-    if (path == "/upload" && method == "POST") {
-        handle_upload(req, resp);
-        return;
-    }
-
-    if (path.find("/file/") == 0 && method == "GET") {
-        handle_download(req, resp);
-        return;
-    }
-
-    resp.set_status(404, "Not Found");
-    resp.set_body("Not Found");
-    resp.add_header("Content-Type", "text/plain; charset=utf-8");
-    resp.set_close_connection(true);
+    spdlog::debug("FileLinkServer: method={}, path={}", req.get_method(), req.get_path());
+    (void)router_.dispatch(req, resp);
 }
 
 void FileLinkServer::handle_health(const HttpRequest& /*req*/, HttpResponse& resp) {

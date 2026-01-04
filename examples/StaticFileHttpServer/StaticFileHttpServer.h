@@ -19,6 +19,7 @@
 #include <ctime>
 
 #include "tudou/http/HttpServer.h"
+#include "tudou/router/Router.h"
 
 class HttpServer;
 class HttpRequest;
@@ -47,6 +48,8 @@ private:
     int threadNum_;
 
     std::unique_ptr<HttpServer> httpServer_;
+
+    Router router_;
 
     struct CacheEntry {
         std::string content;
