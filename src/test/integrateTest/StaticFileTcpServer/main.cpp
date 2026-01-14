@@ -60,9 +60,9 @@ void test_logger() {
 
 
 void run_static_tcp_server() {
-    std::string ip = "192.168.3.3";
+    std::string ip = "192.168.123.3";
     int port = 8080;
-    std::string filepath = "/home/wxm/Tudou/assets/hello-world.html";
+    std::string filepath = "/home/wxm/Tudou/configs/static-file-http-server/html/hello-world.html";
     int threadNum = 16; // 线程数量（设置为 N 则多 Reactor；设置为 0 则单 Reactor）
 
     std::cout << "Starting TcpServer test on " << ip << ":" << port << "..." << std::endl;
