@@ -67,9 +67,10 @@ public:
     void start();
 
 private:
-    // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
+    // Acceptor 的回调处理函数，参数是 Acceptor 引用。处理新连接逻辑
+    // 通过 acceptor.get_accepted_fd() 和 acceptor.get_accepted_peer_addr() 获取连接信息
     // TcpConnection 的回调函数。处理消息解析、连接关闭等逻辑
-    void on_connect(const int);
+    void on_connect(Acceptor& acceptor);
     void on_message(const std::shared_ptr<TcpConnection>& conn);
     void on_close(const std::shared_ptr<TcpConnection>& conn);
 

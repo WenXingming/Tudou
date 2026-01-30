@@ -24,7 +24,9 @@ Acceptor::Acceptor(EventLoop* _loop, const InetAddress& _listenAddr) :
     listenAddr(_listenAddr),
     listenFd(-1),
     channel(nullptr),
-    newConnectCallback(nullptr) {
+    newConnectCallback(nullptr),
+    acceptedConnFd(-1),
+    acceptedPeerAddr("0.0.0.0", 0) {
 
     // 创建 listenFd
     listenFd = this->create_fd();
@@ -48,7 +50,7 @@ int Acceptor::get_listen_fd() const {
     return channel->get_fd();
 }
 
-void Acceptor::set_connect_callback(std::function<void(int)> _cb) {
+void Acceptor::set_connect_callback(NewConnectCallback _cb) {
     this->newConnectCallback = std::move(_cb);
 }
 
@@ -106,13 +108,19 @@ void Acceptor::on_read(Channel& channel) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
         return; // ★ 失败一定要直接返回，不能继续执行后续逻辑（回调）
     }
-    spdlog::debug("Acceptor::ConnectFd {} is accepted.", connFd);
+    
+    // 保存新连接信息到成员变量，供上层回调通过接口获取
+    acceptedConnFd = connFd;
+    acceptedPeerAddr = InetAddress(clientAddr);
+    
+    spdlog::debug("Acceptor::ConnectFd {} is accepted from {}.", acceptedConnFd, acceptedPeerAddr.get_ip_port());
 
     // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理
-    handle_connect_callback(connFd);
+    // 回调函数内部可以通过 get_accepted_fd() 和 get_accepted_peer_addr() 获取连接信息
+    handle_connect_callback();
 }
 
-void Acceptor::handle_connect_callback(int connFd) {
+void Acceptor::handle_connect_callback() {
     assert(this->newConnectCallback != nullptr);
-    this->newConnectCallback(connFd);
+    this->newConnectCallback(*this); // 传递 Acceptor 引用
 }

@@ -18,17 +18,17 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-TcpConnection::TcpConnection(EventLoop* _loop, int _connFd/* , const InetAddress& _localAddr, const InetAddress& _peerAddr */) :
+TcpConnection::TcpConnection(EventLoop* _loop, int _connFd, const InetAddress& _localAddr, const InetAddress& _peerAddr) :
     loop(_loop),
     channel(nullptr),
+    localAddr(_localAddr),
+    peerAddr(_peerAddr),
     highWaterMark(64 * 1024 * 1024), // 64 MB
     readBuffer(new Buffer()),
     writeBuffer(new Buffer()), // Don't forget! Or cause segfault!
     messageCallback(nullptr),
     closeCallback(nullptr)
-    /* ,
-    localAddr(_localAddr),
-    peerAddr(_peerAddr) */ {
+    {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
     channel.reset(new Channel(_loop, _connFd)); // 传入 shared_from_this 作为 tie，防止 handle_events_with_guard 过程中被销毁

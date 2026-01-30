@@ -51,8 +51,8 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 private:
     EventLoop* loop;
     std::unique_ptr<Channel> channel;
-    // const InetAddress localAddr;
-    // const InetAddress peerAddr;
+    InetAddress localAddr;  // 本地地址
+    InetAddress peerAddr;   // 对端地址
     size_t highWaterMark; // 高水位标记，暂未使用
     std::unique_ptr<Buffer> readBuffer;
     std::unique_ptr<Buffer> writeBuffer;
@@ -61,13 +61,16 @@ private:
     /// TODO: writeCompleteCallback、highWaterMarkCallback
 
 public:
-    TcpConnection(EventLoop* _loop, int _connFd/* , const InetAddress& _localAddr, const InetAddress& _peerAddr */);
+    TcpConnection(EventLoop* _loop, int _connFd, const InetAddress& _localAddr, const InetAddress& _peerAddr);
     ~TcpConnection();
 
     void connection_establish();
 
     EventLoop* get_loop() const { return loop; }
     int get_fd() const;
+    const InetAddress& get_local_addr() const { return localAddr; }
+    const InetAddress& get_peer_addr() const { return peerAddr; }
+    
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);
 

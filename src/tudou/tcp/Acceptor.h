@@ -35,9 +35,12 @@ class Channel;
 class InetAddress;
 class Acceptor {
     // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 通常：using NewConnectCallback = std::function<void(const Acceptor&)>;
-    // But：但这里直接传递 connFd ，因为上层只需要这个 fd 来创建 TcpConnection；且 Acceptor 只能提供 listenFd，没有 connFd
-    using NewConnectCallback = std::function<void(int)>;
+    // 回调参数为 Acceptor 引用，上层通过 Acceptor 的接口获取新连接信息（connFd 和 peerAddr）
+    // 这样设计的优点：
+    // 1. 高内聚：Acceptor 封装了接受连接的完整信息
+    // 2. 对称性：与 TcpConnection 回调风格统一，参数都是对象引用
+    // 3. 线程安全：单线程 Acceptor，回调在同一线程执行，无并发问题
+    using NewConnectCallback = std::function<void(Acceptor&)>;
 
 private:
     EventLoop* loop;
@@ -45,6 +48,10 @@ private:
     int listenFd; // accept() 方法被频繁调用，避免重复获取成员变量，所以 Acceptor 保存 listenFd 成员变量（注：只使用，不负责生命周期管理）
     std::unique_ptr<Channel> channel;
     NewConnectCallback newConnectCallback; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+    
+    // 新连接信息，accept 后保存，供上层通过接口获取
+    int acceptedConnFd;           // 最近 accept 的连接 fd
+    InetAddress acceptedPeerAddr; // 最近 accept 的对端地址
 
 public:
     Acceptor(EventLoop* _loop, const InetAddress& _listenAddr);
@@ -53,7 +60,11 @@ public:
     ~Acceptor();
 
     int get_listen_fd() const;
-    void set_connect_callback(std::function<void(int)> cb);
+    void set_connect_callback(NewConnectCallback cb);
+    
+    // 获取最近 accept 的连接信息（在 newConnectCallback 回调中使用）
+    int get_accepted_fd() const { return acceptedConnFd; }
+    const InetAddress& get_accepted_peer_addr() const { return acceptedPeerAddr; }
 
 private:
     int create_fd();
@@ -66,5 +77,5 @@ private:
     void on_write(Channel& channel);
     void on_read(Channel& channel); // 有新连接到来，循环 accept
 
-    void handle_connect_callback(int connFd); // 触发上层回调
+    void handle_connect_callback(); // 触发上层回调
 };

@@ -40,7 +40,7 @@ TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
         assert(false);
     }
     acceptor.reset(new Acceptor(mainLoop, listenAddr));
-    acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 或者可以使用 lambda
+    acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 传递 Acceptor 引用
 
     spdlog::debug("TcpServer::TcpServer() called, ip: {}, port: {}, ioLoopNum: {}", ip, port, _ioLoopNum);
 }
@@ -70,17 +70,31 @@ void TcpServer::start() {
     mainLoop->loop(); // 启动监听事件循环，开启服务器
 }
 
-void TcpServer::on_connect(const int connFd) {
+void TcpServer::on_connect(Acceptor& acceptor) {
     // 创建连接时确保在 mainLoop 线程调用 on_connect
     assert_in_main_loop_thread();
+    
+    // 通过 Acceptor 接口获取新连接信息
+    int connFd = acceptor.get_accepted_fd();
+    const InetAddress& peerAddr = acceptor.get_accepted_peer_addr();
+
+    spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), connFd);
 
     // 选择一个 EventLoop 来管理该连接，轮询选择（通常是 ioLoop，除非只有一个 mainLoop）
     EventLoop* ioLoop = select_loop();
 
     // 切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则可能会有执行顺序问题，还没初始化好就触发事件回调了（此时可能 callback 还未设置）
     // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
-    ioLoop->run_in_loop([this, connFd, ioLoop]() {
-        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd);
+    ioLoop->run_in_loop([this, connFd, ioLoop, peerAddr]() {
+        // 获取本地地址信息
+        sockaddr_in localSockAddr;
+        socklen_t addrLen = sizeof(localSockAddr);
+        if (::getsockname(connFd, (sockaddr*)&localSockAddr, &addrLen) < 0) {
+            spdlog::error("TcpServer::on_connect(). getsockname error, errno: {}", errno);
+        }
+        InetAddress localAddr(localSockAddr);
+        
+        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd, localAddr, peerAddr);
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)
         );
