@@ -70,27 +70,15 @@ void TcpConnection::set_close_callback(CloseCallback _cb) {
 
 void TcpConnection::send(const std::string& msg) {
     // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用。为了保险起见，还是做线程切换处理
-    if (loop->is_in_loop_thread()) {
-        // 在当前 IO 线程，直接发送
-        writeBuffer->write_to_buffer(msg);
-        channel->enable_writing();
-        return;
-    }
-    else {
-        // 不在当前 IO 线程，切换到对应线程发送
-        loop->run_in_loop([this, msg]() {
-            writeBuffer->write_to_buffer(msg);
-            channel->enable_writing();
-            });
-        return;
-    }
+    loop->assert_in_loop_thread();
+    writeBuffer->write_to_buffer(msg);
+    channel->enable_writing();
 }
 
 std::string TcpConnection::receive() {
     // 在对应的 IO 线程中执行读取操作
-    std::string msg;
     loop->assert_in_loop_thread();
-    msg = readBuffer->read_from_buffer(); // Don't use run_in_loop here, stack variable msg will be invalid after function return
+    std::string msg = readBuffer->read_from_buffer(); // Don't use run_in_loop here, stack variable msg will be invalid after function return
     return std::move(msg);
 }
 
