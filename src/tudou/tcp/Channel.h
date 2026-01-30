@@ -19,7 +19,8 @@
 
 class EventLoop; // 前向声明，减少头文件依赖
 class Channel {
-    using ReadEventCallback = std::function<void(Channel&)>; // or: typedef std::function<void(Channel&)> ReadEventCallback;
+    // or: typedef std::function<void(Channel&)> ReadEventCallback;
+    using ReadEventCallback = std::function<void(Channel&)>;
     using WriteEventCallback = std::function<void(Channel&)>;
     using CloseEventCallback = std::function<void(Channel&)>;
     using ErrorEventCallback = std::function<void(Channel&)>;
@@ -38,7 +39,7 @@ private:
     std::weak_ptr<void> tie;            // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。void 因为下层不需要知道上层类型
     bool isTied;                        // Acceptor 不需要 tie，TcpConnection 需要 tie (shared_ptr, shared_from_this)
 
-    ReadEventCallback readCallback;     // 回调函数，执行上层逻辑，回调函数的参数由下层传入
+    ReadEventCallback readCallback;     // 回调函数接口。执行上层逻辑，回调函数的参数由下层传入
     WriteEventCallback writeCallback;
     CloseEventCallback closeCallback;
     ErrorEventCallback errorCallback;
@@ -71,7 +72,7 @@ public:
     // This prevents the owner object being destroyed in handle_event (lengthen its lifetime)
     void tie_to_object(const std::shared_ptr<void>& obj);
 
-    // 上层注入回调函数
+    // 上层注入回调函数的接口
     void set_read_callback(ReadEventCallback _cb);
     void set_write_callback(WriteEventCallback _cb);
     void set_close_callback(CloseEventCallback _cb);

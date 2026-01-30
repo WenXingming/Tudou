@@ -70,25 +70,6 @@ void TcpServer::start() {
     mainLoop->loop(); // 启动监听事件循环，开启服务器
 }
 
-void TcpServer::send_message(int fd, const std::string& msg) {
-    std::shared_ptr<TcpConnection> conn;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex);
-        auto findIt = connections.find(fd);
-        if(findIt == connections.end()) {
-            spdlog::error("TcpServer::send(). connection not found, fd: {}", fd);
-            return;
-        }
-        conn = findIt->second; // 拿一份 shared_ptr 副本，锁外使用
-    }
-
-    if(conn == nullptr) {
-        spdlog::error("TcpServer::send(). connection is nullptr, fd: {}", fd);
-        return;
-    }
-    conn->send(msg);
-}
-
 void TcpServer::on_connect(const int connFd) {
     // 创建连接时确保在 mainLoop 线程调用 on_connect
     assert_in_main_loop_thread();
@@ -113,45 +94,43 @@ void TcpServer::on_connect(const int connFd) {
         conn->connection_establish(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
 
         // 触发上层回调。上层可以设置连接建立时的逻辑
-        handle_connection_callback(connFd);
+        handle_connection_callback(conn);
         });
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 本不处理具体消息逻辑，只做中间者嵌套调用，转发给上层业务逻辑。但是为了类之间的屏蔽，设计 TcpServer 向上提供 fd 和 msg，而不是 TcpConnection 对象本身
-    int fd = conn->get_fd();
+    // TcpServer 转发消息给上层业务逻辑，直接传递 conn 对象让业务层可以访问更多信息和方法
     std::string msg = conn->receive();
-    handle_message_callback(fd, msg);
+    handle_message_callback(conn, msg);
 }
 
 void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     remove_connection(conn);
 
     // 触发上层回调。上层可以设置连接关闭时的逻辑
-    int fd = conn->get_fd();
-    handle_close_callback(fd);
+    handle_close_callback(conn);
 }
 
-void TcpServer::handle_connection_callback(int fd) {
+void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
     if (this->connectionCallback == nullptr) {
-        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", fd);
+        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
     }
     else {
-        this->connectionCallback(fd);
+        this->connectionCallback(conn);
     }
 }
 
-void TcpServer::handle_message_callback(int fd, const std::string& msg) {
+void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
     assert(this->messageCallback != nullptr);
-    this->messageCallback(fd, msg);
+    this->messageCallback(conn, msg);
 }
 
-void TcpServer::handle_close_callback(int fd) {
+void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
     if (this->closeCallback == nullptr) {
-        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", fd);
+        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
     }
     else {
-        this->closeCallback(fd);
+        this->closeCallback(conn);
     }
 }
 

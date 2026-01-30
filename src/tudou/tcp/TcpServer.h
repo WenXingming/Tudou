@@ -30,12 +30,11 @@ class InetAddress;
 
 class TcpServer {
     // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 通常：using ConnectionCallback = std::function<void(const TcpServer&)>;
-    // But：但是这里如果回调函数的参数是 TcpServer& 显然不行，因为上层业务层不需要 TcpServer 对象本身的信息，而是连接信息。1(TcpServer) vs n(Connection)，所以需要传递连接相关参数
-    // 解释：之前使用的参数是 using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>，同时了避免回调过程中对象被析构。但是缺点是类之间的通信耦性不好，TcpServer 直接暴露了 TcpConnection 给上层业务逻辑（在我的设计里类之间最好只在相邻层通信）
-    using ConnectionCallback = std::function<void(int fd)>;
-    using MessageCallback = std::function<void(int fd, const std::string& msg)>;
-    using CloseCallback = std::function<void(int fd)>;
+    // 使用 shared_ptr<TcpConnection> 作为回调参数，让业务层能够直接访问连接对象，获取更多信息（如对端地址、发送数据等）
+    // 使用 shared_ptr 保证回调过程中对象不会被析构，同时让业务层可以按需保存连接对象
+    using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&, const std::string& msg)>;
+    using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
 private:
     std::unique_ptr<EventLoopThreadPool> loopThreadPool; // 包括 1 个 mainLoop（和多个 ioLoops）
@@ -66,8 +65,6 @@ public:
     // 启动服务器，开始监听
     void start();
 
-    void send_message(int fd, const std::string& msg);
-
 private:
     // Acceptor 的回调处理函数，参数不是 Acceptor&，而是 connFd。处理新连接逻辑
     // TcpConnection 的回调函数。处理消息解析、连接关闭等逻辑
@@ -75,9 +72,9 @@ private:
     void on_message(const std::shared_ptr<TcpConnection>& conn);
     void on_close(const std::shared_ptr<TcpConnection>& conn);
 
-    void handle_connection_callback(int fd);
-    void handle_message_callback(int fd, const std::string& msg);
-    void handle_close_callback(int fd);
+    void handle_connection_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_message_callback(const std::shared_ptr<TcpConnection>& conn, const std::string& msg);
+    void handle_close_callback(const std::shared_ptr<TcpConnection>& conn);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
 

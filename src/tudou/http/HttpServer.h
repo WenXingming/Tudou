@@ -51,9 +51,9 @@ public:
     void start(); 
 
 private:
-    void on_connect(int fd);
-    void on_message(int fd, const std::string& msg); // TcpServer 的消息回调入口：fd + 原始数据
-    void on_close(int fd);
+    void on_connect(const std::shared_ptr<TcpConnection>& conn);
+    void on_message(const std::shared_ptr<TcpConnection>& conn, const std::string& msg);
+    void on_close(const std::shared_ptr<TcpConnection>& conn);
 
     /*
         on_message 的辅助函数。按理说我们的整个流程分为五步：
@@ -61,16 +61,14 @@ private:
             2. 解析数据（解析接收到的数据，解析结果放到对应的 HttpContext 中；若完整报文就进入后续步骤）
             3. 业务逻辑处理（调用业务回调 httpCallback 处理请求并封装响应）
             4. 构造响应报文（将 HttpResponse 打包为字符串）
-            5. 发送响应（通过 TcpServer 发送响应字符串）
-        之前的设计中, on_message 函数的参数是 TcpConnection 对象指针，我们可以直接通过该对象接收数据并发送响应。
-        但是现在 on_message 函数的参数变成了 fd 和 msg，这样设计的好处是降低了类之间的耦合，让上层业务逻辑不需要直接依赖 TcpConnection 类，从而提高了代码的灵活性和可维护性。
-        因此第 1 步和第 5 步需要通过 TcpServer 提供的接口来完成，而不是直接通过 TcpConnection 对象。
+            5. 发送响应（通过 TcpConnection 发送响应字符串）
+        on_message 函数的参数是 TcpConnection 对象指针和接收到的消息，我们可以直接通过该对象发送响应。
     */
     std::string receive_data(const std::string& data);
-    void parse_receive_data(int fd, const std::string& data);
-    void process_data(int fd, HttpContext& ctx);
+    void parse_receive_data(const std::shared_ptr<TcpConnection>& conn, const std::string& data);
+    void process_data(const std::shared_ptr<TcpConnection>& conn, HttpContext& ctx);
     std::string package_response_data(const HttpResponse& resp);
-    void send_data(int fd, const std::string& response);
+    void send_data(const std::shared_ptr<TcpConnection>& conn, const std::string& response);
 
     void handle_http_callback(const HttpRequest& req, HttpResponse& resp); // 实际调用上层 httpCallback 的封装函数
 

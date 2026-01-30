@@ -45,7 +45,7 @@ cd wrk && make -j12
 
 ```bash
 wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c200 -d60s --latency http://192.168.123.3:8080
-Running 10s test @ http://192.168.123.3:8080
+Running 1m test @ http://192.168.123.3:8080
   1 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency     1.84ms  113.78us   5.35ms   96.50%
@@ -60,7 +60,7 @@ Requests/sec: 107698.18
 Transfer/sec:     11.81MB
 ```
 
-测试结果显示，在 **1 线程 + 200 并发连接下**，10 秒内总共处理了 1078304 个请求，读取了 118.26 MB 数据，具体性能指标如下：
+测试结果显示，在 **1 线程 + 200 并发连接下**，1 分钟内总共处理了 1078304 个请求，读取了 118.26 MB 数据，具体性能指标如下：
 
 - 响应时间（Latency）：
   - **平均响应时间：1.84 ms**

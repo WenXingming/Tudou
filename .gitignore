@@ -5,3 +5,4 @@ cmake-build*/
 .idea/
 assets/static-file-http-server/html/wenxingming.github.io
 configs/file-link-server/storage/*
+*.log

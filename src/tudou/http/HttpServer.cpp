@@ -14,6 +14,7 @@
 
 #include "spdlog/spdlog.h"
 #include "tudou/tcp/TcpServer.h"
+#include "tudou/tcp/TcpConnection.h"
 
 
 HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
@@ -27,16 +28,16 @@ HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
 
     tcpServer.reset(new TcpServer(this->ip, this->port, this->threadNum));
     tcpServer->set_connection_callback(
-        [this](int fd) {
-            on_connect(fd);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_connect(conn);
         });
     tcpServer->set_message_callback(
-        [this](int fd, const std::string& msg) {
-            on_message(fd, msg);
+        [this](const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+            on_message(conn, msg);
         });
     tcpServer->set_close_callback(
-        [this](int fd) {
-            on_close(fd);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_close(conn);
         });
 }
 
@@ -49,7 +50,8 @@ void HttpServer::start() {
     tcpServer->start();
 }
 
-void HttpServer::on_connect(int fd) {
+void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
+    int fd = conn->get_fd();
     spdlog::debug("HttpServer: on_connection fd={}", fd);
     {
     std::lock_guard<std::mutex> lock(contextsMutex);
@@ -57,17 +59,19 @@ void HttpServer::on_connect(int fd) {
     }
 }
 
-void HttpServer::on_message(int fd, const std::string& msg) {
+void HttpServer::on_message(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+    int fd = conn->get_fd();
     spdlog::debug("HttpServer: on_message fd={}", fd);
 
     // 第 1 步：接收数据（目前直接使用 msg）
     std::string data = std::move(receive_data(msg));
 
     // 第 2~4 步：解析 + 处理业务 + 打包响应
-    parse_receive_data(fd, data);
+    parse_receive_data(conn, data);
 }
 
-void HttpServer::on_close(int fd) {
+void HttpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
+    int fd = conn->get_fd();
     spdlog::debug("HttpServer: Connection closed. fd={}", fd);
     std::lock_guard<std::mutex> lock(contextsMutex);
     httpContexts.erase(fd);
@@ -79,7 +83,8 @@ std::string HttpServer::receive_data(const std::string& data) {
     return data;
 }
 
-void HttpServer::parse_receive_data(int fd, const std::string& data) {
+void HttpServer::parse_receive_data(const std::shared_ptr<TcpConnection>& conn, const std::string& data) {
+    int fd = conn->get_fd();
     // 1. 在锁内只做 HttpContext 查找和 shared_ptr 拷贝，缩小临界区
     std::shared_ptr<HttpContext> ctx;
     {
@@ -98,7 +103,7 @@ void HttpServer::parse_receive_data(int fd, const std::string& data) {
         // 解析失败，返回 400 Bad Request
         spdlog::debug("HttpServer::parse_receive_data wrong. Bad request from fd={}", fd);
         HttpResponse resp = generate_bad_response();
-        send_data(fd, resp.package_to_string());
+        send_data(conn, resp.package_to_string());
         ctx->reset();
         return;
     }
@@ -111,10 +116,10 @@ void HttpServer::parse_receive_data(int fd, const std::string& data) {
     spdlog::debug("HttpServer::parse_receive_data ok. Complete HTTP request received from fd={}", fd);
 
     // 报文完整，进入业务处理逻辑
-    process_data(fd, *ctx);
+    process_data(conn, *ctx);
 }
 
-void HttpServer::process_data(int fd, HttpContext& ctx) {
+void HttpServer::process_data(const std::shared_ptr<TcpConnection>& conn, HttpContext& ctx) {
     // 调用上层业务回调处理请求并构造响应
     const HttpRequest& req = ctx.get_request();
     HttpResponse resp;
@@ -125,7 +130,7 @@ void HttpServer::process_data(int fd, HttpContext& ctx) {
 
     // 打包响应并发送
     std::string respStr = package_response_data(resp);
-    send_data(fd, respStr);
+    send_data(conn, respStr);
 
     // 当前 HttpContext 只处理一个完整请求，处理完后复用同一个 context 以便后续请求
     ctx.reset();
@@ -135,12 +140,12 @@ std::string HttpServer::package_response_data(const HttpResponse& resp) {
     return resp.package_to_string();
 }
 
-void HttpServer::send_data(int fd, const std::string& response) {
-    if (!tcpServer) {
-        spdlog::error("HttpServer::send_data. tcpServer is nullptr, fd={}", fd);
+void HttpServer::send_data(const std::shared_ptr<TcpConnection>& conn, const std::string& response) {
+    if (!conn) {
+        spdlog::error("HttpServer::send_data. conn is nullptr");
         return;
     }
-    tcpServer->send_message(fd, response);
+    conn->send(response);
 }
 
 void HttpServer::handle_http_callback(const HttpRequest& req, HttpResponse& resp) {

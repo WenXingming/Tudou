@@ -89,9 +89,8 @@ void TcpConnection::send(const std::string& msg) {
 std::string TcpConnection::receive() {
     // 在对应的 IO 线程中执行读取操作
     std::string msg;
-    loop->run_in_loop([this, &msg]() {
-        msg = readBuffer->read_from_buffer();
-        });
+    loop->assert_in_loop_thread();
+    msg = readBuffer->read_from_buffer(); // Don't use run_in_loop here, stack variable msg will be invalid after function return
     return std::move(msg);
 }
 

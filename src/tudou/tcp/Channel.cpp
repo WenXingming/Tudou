@@ -47,11 +47,10 @@ Channel::~Channel() {
     注销 channel，channel 负责 channels 和 Epoller 同步（相邻类）。该同步不再交给上层 Acceptor / TcpConnection 负责
     好处是：保证了 poller 访问 channel 有效（生命周期），当 channel 析构时才 unregister，因此只要还在 register，Epoller 就一定有效访问 channel。
     */
-    loop->run_in_loop([this]() {
-        disable_all();
-        remove_in_register();
-        ::close(fd);
-        });
+    loop->assert_in_loop_thread();
+    disable_all();
+    remove_in_register();
+    ::close(fd);
 }
 
 EventLoop* Channel::get_owner_loop() const {

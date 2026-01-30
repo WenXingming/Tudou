@@ -30,18 +30,18 @@ StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const 
     int ioLoopNum = threadNum; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
     tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
-        [this](int fd) {
-            on_connect(fd);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_connect(conn);
         }
     );
     tcpServer->set_message_callback(
-        [this](int fd, const std::string& msg) {
-            on_message(fd, msg);
+        [this](const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+            on_message(conn, msg);
         }
     );
     tcpServer->set_close_callback(
-        [this](int fd) {
-            on_close(fd);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_close(conn);
         }
     );
 
@@ -54,11 +54,11 @@ void StaticFileTcpServer::start() {
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（从 HttpServer 中构造 HttpContext 等）
-void StaticFileTcpServer::on_connect(int fd) {
-    spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", fd);
+void StaticFileTcpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
+    spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", conn->get_fd());
 }
 
-void StaticFileTcpServer::on_message(int fd, const std::string& msg) {
+void StaticFileTcpServer::on_message(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
     // 1. 接收数据
     std::string data = receive_data(msg);
     // 2. 解析数据
@@ -68,12 +68,12 @@ void StaticFileTcpServer::on_message(int fd, const std::string& msg) {
     // 4. 构造响应报文
     std::string response = package_response_data(body);
     // 5. 发送响应
-    send_data(fd, response);
+    send_data(conn, response);
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（清理 HttpContext 等）
-void StaticFileTcpServer::on_close(int fd) {
-    spdlog::info("Connection closed. fd: {}", fd);
+void StaticFileTcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
+    spdlog::info("Connection closed. fd: {}", conn->get_fd());
 }
 
 std::string StaticFileTcpServer::receive_data(const std::string& _data) {
@@ -124,6 +124,6 @@ std::string StaticFileTcpServer::package_response_data(const std::string& body) 
 }
 
 // 5. 发送响应
-void StaticFileTcpServer::send_data(int fd, const std::string& response) {
-    tcpServer->send_message(fd, response);
+void StaticFileTcpServer::send_data(const std::shared_ptr<TcpConnection>& conn, const std::string& response) {
+    conn->send(response);
 }

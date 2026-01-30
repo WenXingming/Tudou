@@ -1,160 +1,212 @@
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 214
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 215
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 123
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 181
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 170
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 171
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 201
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 202
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 191
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 192
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 193
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 194
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 195
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 196
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 207
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 208
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 209
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 168
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 169
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 203
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 204
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 205
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 172
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 173
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 174
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 175
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 176
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 177
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 178
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 179
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 180
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 206
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 187
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 119
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 120
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 121
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 122
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 115
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 116
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 189
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 190
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 118
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 124
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 125
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 161
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 163
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 164
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 188
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 162
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 127
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 199
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 198
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 197
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 186
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 185
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 184
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 183
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 182
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 167
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 166
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 160
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 159
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 158
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 157
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 149
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 148
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 147
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 146
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 145
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 144
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 143
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 142
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 141
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 140
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 139
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 138
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 137
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 136
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 135
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 134
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 133
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 132
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 131
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 130
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 129
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 128
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 117
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 114
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 71
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 82
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 76
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 77
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 83
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 84
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 85
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 86
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 102
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 51
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 52
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 53
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 54
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 45
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 46
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 47
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 48
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 49
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 67
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 113
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 112
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 111
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 110
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 109
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 108
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 107
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 106
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 105
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 104
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 103
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 101
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 100
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 99
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 98
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 97
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 96
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 95
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 94
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 93
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 92
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 91
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 90
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 89
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 88
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 87
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 81
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 80
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 79
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 78
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 75
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 74
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 73
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 72
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 70
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 69
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 68
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 66
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 65
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 64
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 63
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 62
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 61
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 60
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 59
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 58
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 57
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 56
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 55
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 50
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 44
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_events_with_guard(). EPOLLERR on fd: 43
-[2026-01-14 18:13:33] [error] [thread 158981] Channel::handle_ev
+[2026-01-30 13:35:35] [debug] [thread 132664] EventLoop created in thread: 9695708721516908606
+[2026-01-30 13:35:35] [debug] [thread 132665] EventLoop created in thread: 2632078728786690662
+[2026-01-30 13:35:35] [debug] [thread 132665] EventLoop start looping...
+[2026-01-30 13:35:35] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:35:35] [debug] [thread 132664] TcpServer::TcpServer() called, ip: 0.0.0.0, port: 8080, ioLoopNum: 1
+[2026-01-30 13:35:35] [info] [thread 132664] StaticFileHttpServer listening on 0.0.0.0:8080 with baseDir=/home/wxm/Tudou/configs/static-file-http-server/html/
+[2026-01-30 13:35:35] [debug] [thread 132664] HttpServer: Starting HTTP server at 0.0.0.0:8080
+[2026-01-30 13:35:35] [debug] [thread 132664] EventLoop start looping...
+[2026-01-30 13:35:35] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:35:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:35:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:35:45] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:35:45] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:35:55] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:35:55] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:35:55] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:35:55] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:05] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:05] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:36:05] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:05] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:15] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:15] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:36:15] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:15] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:25] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:25] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:25] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:36:25] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:35] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:35] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:35] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:35] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 1
+[2026-01-30 13:36:45] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132664] Acceptor::ConnectFd 9 is accepted.
+[2026-01-30 13:36:45] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_connection fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Happy-New-Year/index.html
+[2026-01-30 13:36:45] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132664] Acceptor::ConnectFd 10 is accepted.
+[2026-01-30 13:36:45] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_connection fd=10
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Happy-New-Year/style.css
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:36:45] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Happy-New-Year/script.js
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:36:45] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:36:45] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Happy-New-Year/assets/new-things.mp3
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:45] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:45] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:46] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:46] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:36:46] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:36:46] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/favicon.ico
+[2026-01-30 13:36:46] [warning] [thread 132665] StaticFileHttpServer: file not found: /home/wxm/Tudou/configs/static-file-http-server/html//favicon.ico
+[2026-01-30 13:36:46] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:46] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:36:46] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:36:55] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:55] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:36:56] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:36:56] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/index.html
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:37:00] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/assets/index-e74768fb.css
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/assets/index-13846ada.js
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 3
+[2026-01-30 13:37:00] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132664] Acceptor::ConnectFd 11 is accepted.
+[2026-01-30 13:37:00] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_connection fd=11
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_message fd=11
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2026-01-30 13:37:00] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/registerSW.js
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:37:00] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/background8.jpg
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:00] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:00] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/favicon.ico
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=10
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=10
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/logo.png
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 3
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/bilibili.svg
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=11
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/music-solid.svg
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 4
+[2026-01-30 13:37:01] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132664] Acceptor::ConnectFd 12 is accepted.
+[2026-01-30 13:37:01] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132664] Acceptor::ConnectFd 13 is accepted.
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_connection fd=12
+[2026-01-30 13:37:01] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 5
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=12
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=12
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/email.svg
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_connection fd=13
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 6
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=13
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=13
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/qq.svg
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 6
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 6
+[2026-01-30 13:37:01] [debug] [thread 132664] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132664] Acceptor::ConnectFd 14 is accepted.
+[2026-01-30 13:37:01] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_connection fd=14
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=14
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=14
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/font/Pacifico-Regular.ttf
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=9
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=9
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/font/UnidreamLED.ttf
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 2
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer: on_message fd=11
+[2026-01-30 13:37:01] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2026-01-30 13:37:01] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/Homepage/images/icon/github.png
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:01] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:01] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:11] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:11] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:11] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:11] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:21] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:21] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:21] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:21] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:29] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:29] [debug] [thread 132665] HttpServer: on_message fd=11
+[2026-01-30 13:37:29] [debug] [thread 132665] HttpServer::parse_receive_data ok. Complete HTTP request received from fd=11
+[2026-01-30 13:37:29] [debug] [thread 132665] StaticFileHttpServer: method=GET, path=/starry-sky.html
+[2026-01-30 13:37:29] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:29] [debug] [thread 132665] EpollPoller::poll() return numReady: 1
+[2026-01-30 13:37:29] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:31] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:31] [debug] [thread 132664] Epoll is running... poller monitors channels's size is: 2
+[2026-01-30 13:37:39] [debug] [thread 132665] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:39] [debug] [thread 132665] Epoll is running... poller monitors channels's size is: 7
+[2026-01-30 13:37:41] [debug] [thread 132664] EpollPoller::poll() return numReady: 0
+[2026-01-30 13:37:41] [debug] [th
