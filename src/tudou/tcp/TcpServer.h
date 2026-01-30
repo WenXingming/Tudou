@@ -32,8 +32,9 @@ class TcpServer {
     // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
     // 使用 shared_ptr<TcpConnection> 作为回调参数，让业务层能够直接访问连接对象，获取更多信息（如对端地址、发送数据等）
     // 使用 shared_ptr 保证回调过程中对象不会被析构，同时让业务层可以按需保存连接对象
+    // MessageCallback 不再传递 msg 参数，业务层通过 conn->receive() 主动获取数据，职责更清晰，也避免不必要的字符串拷贝
     using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&, const std::string& msg)>;
+    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
 private:
@@ -73,7 +74,7 @@ private:
     void on_close(const std::shared_ptr<TcpConnection>& conn);
 
     void handle_connection_callback(const std::shared_ptr<TcpConnection>& conn);
-    void handle_message_callback(const std::shared_ptr<TcpConnection>& conn, const std::string& msg);
+    void handle_message_callback(const std::shared_ptr<TcpConnection>& conn);
     void handle_close_callback(const std::shared_ptr<TcpConnection>& conn);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);

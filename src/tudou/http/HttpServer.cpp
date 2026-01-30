@@ -32,8 +32,8 @@ HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
             on_connect(conn);
         });
     tcpServer->set_message_callback(
-        [this](const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
-            on_message(conn, msg);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_message(conn);
         });
     tcpServer->set_close_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
@@ -59,12 +59,12 @@ void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
     }
 }
 
-void HttpServer::on_message(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+void HttpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     spdlog::debug("HttpServer: on_message fd={}", fd);
 
-    // 第 1 步：接收数据（目前直接使用 msg）
-    std::string data = std::move(receive_data(msg));
+    // 第 1 步：接收数据
+    std::string data = receive_data(conn);
 
     // 第 2~4 步：解析 + 处理业务 + 打包响应
     parse_receive_data(conn, data);
@@ -77,10 +77,9 @@ void HttpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     httpContexts.erase(fd);
 }
 
-std::string HttpServer::receive_data(const std::string& data) {
-    // 当前 TcpServer 已经一次性从 TcpConnection 读取到了数据，这里直接返回。
-    // 保留该函数主要是为了保持整体的五步流程语义清晰。
-    return data;
+std::string HttpServer::receive_data(const std::shared_ptr<TcpConnection>& conn) {
+    // 通过 TcpConnection 的 receive() 方法获取数据
+    return conn->receive();
 }
 
 void HttpServer::parse_receive_data(const std::shared_ptr<TcpConnection>& conn, const std::string& data) {

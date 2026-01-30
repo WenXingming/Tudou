@@ -73,7 +73,8 @@ public:
 
     // 公开接口，供上层业务层调用
     void send(const std::string& msg);
-    std::string receive();
+    std::string receive();  // 从 readBuffer 读取所有数据
+    /// TODO: 未来可以添加更多灵活的读取接口，如 receive(size_t len), readable_bytes(), peek() 等
 
     // void shutdown(); // 暂时服务端不提供主动关闭连接接口
 

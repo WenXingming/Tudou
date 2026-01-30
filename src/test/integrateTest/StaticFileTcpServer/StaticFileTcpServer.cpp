@@ -35,8 +35,8 @@ StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const 
         }
     );
     tcpServer->set_message_callback(
-        [this](const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
-            on_message(conn, msg);
+        [this](const std::shared_ptr<TcpConnection>& conn) {
+            on_message(conn);
         }
     );
     tcpServer->set_close_callback(
@@ -58,9 +58,9 @@ void StaticFileTcpServer::on_connect(const std::shared_ptr<TcpConnection>& conn)
     spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", conn->get_fd());
 }
 
-void StaticFileTcpServer::on_message(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+void StaticFileTcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
     // 1. 接收数据
-    std::string data = receive_data(msg);
+    std::string data = receive_data(conn);
     // 2. 解析数据
     std::string request = parse_receive_data(data);
     // 3. 业务逻辑处理
@@ -76,9 +76,9 @@ void StaticFileTcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     spdlog::info("Connection closed. fd: {}", conn->get_fd());
 }
 
-std::string StaticFileTcpServer::receive_data(const std::string& _data) {
-    // 1. 接收数据。这里直接返回传入的数据，因为 on_message 已经接收到了数据（经过我们修改的 TcpServer 类，使其在回调中直接传递接收到的数据，不再传递 TcpConnection 对象）
-    return _data; // 拷贝 + 隐式移动优化
+std::string StaticFileTcpServer::receive_data(const std::shared_ptr<TcpConnection>& conn) {
+    // 1. 接收数据。通过 TcpConnection 的 receive() 方法从 readBuffer 中读取数据
+    return conn->receive();
 }
 
 std::string StaticFileTcpServer::parse_receive_data(const std::string& data) {

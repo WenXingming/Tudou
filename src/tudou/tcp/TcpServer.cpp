@@ -99,9 +99,9 @@ void TcpServer::on_connect(const int connFd) {
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 转发消息给上层业务逻辑，直接传递 conn 对象让业务层可以访问更多信息和方法
-    std::string msg = conn->receive();
-    handle_message_callback(conn, msg);
+    // TcpServer 转发消息给上层业务逻辑，直接传递 conn 对象
+    // 业务层通过 conn->receive() 主动获取数据
+    handle_message_callback(conn);
 }
 
 void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
@@ -120,9 +120,9 @@ void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>&
     }
 }
 
-void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn, const std::string& msg) {
+void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn) {
     assert(this->messageCallback != nullptr);
-    this->messageCallback(conn, msg);
+    this->messageCallback(conn);
 }
 
 void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
