@@ -27,7 +27,12 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd, const InetAddress& _
     readBuffer(new Buffer()),
     writeBuffer(new Buffer()), // Don't forget! Or cause segfault!
     messageCallback(nullptr),
-    closeCallback(nullptr)
+    closeCallback(nullptr),
+    errorCallback(nullptr),
+    writeCompleteCallback(nullptr),
+    highWaterMarkCallback(nullptr),
+    lastErrorCode(0),
+    lastErrorMsg("")
     {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
@@ -68,10 +73,37 @@ void TcpConnection::set_close_callback(CloseCallback _cb) {
     closeCallback = std::move(_cb);
 }
 
+void TcpConnection::set_error_callback(ErrorCallback _cb) {
+    errorCallback = std::move(_cb);
+}
+
+void TcpConnection::set_write_complete_callback(WriteCompleteCallback _cb) {
+    writeCompleteCallback = std::move(_cb);
+}
+
+void TcpConnection::set_high_water_mark_callback(HighWaterMarkCallback _cb, size_t _highWaterMark) {
+    highWaterMarkCallback = std::move(_cb);
+    highWaterMark = _highWaterMark;
+}
+
+size_t TcpConnection::get_write_buffer_size() const {
+    loop->assert_in_loop_thread();
+    return writeBuffer->readable_bytes();
+}
+
 void TcpConnection::send(const std::string& msg) {
     // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用。为了保险起见，还是做线程切换处理
     loop->assert_in_loop_thread();
+    
+    size_t oldLen = writeBuffer->readable_bytes();
     writeBuffer->write_to_buffer(msg);
+    size_t newLen = writeBuffer->readable_bytes();
+    
+    // 检查是否超过高水位
+    if (highWaterMarkCallback && oldLen < highWaterMark && newLen >= highWaterMark) {
+        handle_high_water_mark_callback();
+    }
+    
     channel->enable_writing();
 }
 
@@ -105,11 +137,11 @@ void TcpConnection::on_read(Channel& channel) {
             return; // 本轮数据读完，等下次 EPOLLIN 事件再读
         }
         else {
+            lastErrorCode = savedErrno;
+            lastErrorMsg = "read error: " + std::to_string(savedErrno);
             spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
             on_error(channel);
         }
-        // spdlog::error("TcpConnection::on_read(). read error: {}", savedErrno);
-        // on_error(channel);
     }
 }
 
@@ -118,7 +150,7 @@ void TcpConnection::on_write(Channel& channel) {
     loop->assert_in_loop_thread();
     if (!channel.is_writing()) {
         spdlog::warn("TcpConnection::on_write() but channel is not writing.");
-        return; // 避免重复触发?
+        return; // 避免重复触发
     }
 
     int savedErrno = 0;
@@ -127,11 +159,17 @@ void TcpConnection::on_write(Channel& channel) {
     if (n > 0) {
         if (writeBuffer->readable_bytes() == 0) { // writeBuffer 里的数据写完了
             channel.disable_writing();
+            // 触发写完成回调
+            if (writeCompleteCallback) {
+                handle_write_complete_callback();
+            }
         }
     }
     else {
+        lastErrorCode = savedErrno;
+        lastErrorMsg = "write error: " + std::to_string(savedErrno);
         spdlog::error("TcpConnection::on_write(). write error: {}", savedErrno);
-        on_close(channel); // 发生错误就关闭连接
+        on_error(channel); // 发生错误就关闭连接
     }
 }
 
@@ -144,6 +182,15 @@ void TcpConnection::on_close(Channel& channel) {
 }
 
 void TcpConnection::on_error(Channel& channel) {
+    loop->assert_in_loop_thread();
+    spdlog::error("TcpConnection::on_error() called. fd: {}, error: {}", channel.get_fd(), lastErrorMsg);
+    
+    // 触发错误回调（如果设置了）
+    if (errorCallback) {
+        handle_error_callback();
+    }
+    
+    // 错误后关闭连接
     on_close(channel);
 }
 
@@ -157,4 +204,22 @@ void TcpConnection::handle_close_callback() {
 
     std::shared_ptr<TcpConnection> guardThis{ shared_from_this() }; // 防止回调过程中对象被析构，延长生命周期
     closeCallback(shared_from_this());
+}
+
+void TcpConnection::handle_error_callback() {
+    if (errorCallback) {
+        errorCallback(shared_from_this());
+    }
+}
+
+void TcpConnection::handle_write_complete_callback() {
+    if (writeCompleteCallback) {
+        writeCompleteCallback(shared_from_this());
+    }
+}
+
+void TcpConnection::handle_high_water_mark_callback() {
+    if (highWaterMarkCallback) {
+        highWaterMarkCallback(shared_from_this());
+    }
 }
