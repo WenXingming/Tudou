@@ -49,7 +49,7 @@ private:
     std::unique_ptr<Channel> channel;
     NewConnectCallback newConnectCallback; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
 
-    // 新连接信息，accept 后保存，供上层通过接口获取
+    // 新连接信息，accept 后保存，供上层通过接口获取（思考：和回调参数传 connFd/peerAddr 哪种方式更好？）
     int acceptedConnFd;           // 最近 accept 的连接 fd
     InetAddress acceptedPeerAddr; // 最近 accept 的对端地址
 
@@ -63,8 +63,8 @@ public:
     void set_connect_callback(NewConnectCallback cb);
 
     // 获取最近 accept 的连接信息（在 newConnectCallback 回调中使用）
-    int get_accepted_fd() const { return acceptedConnFd; }
-    const InetAddress& get_accepted_peer_addr() const { return acceptedPeerAddr; }
+    int get_accepted_fd();
+    const InetAddress& get_accepted_peer_addr();
 
 private:
     int create_fd();

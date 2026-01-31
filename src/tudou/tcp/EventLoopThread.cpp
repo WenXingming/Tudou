@@ -6,9 +6,7 @@
  */
 
 #include "EventLoopThread.h"
-
 #include "EventLoop.h"
-
 
 EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     : loop(nullptr)
@@ -16,18 +14,20 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     , mtx()
     , condition()
     , isExiting(false)
-    , initCallback(cb) /* 默认传参是空 std::function */ {
+    , initCallback(cb) {
 
 }
 
 EventLoopThread::~EventLoopThread() {
+    EventLoop* loopToQuit = nullptr;
     {
         std::lock_guard<std::mutex> lock(mtx); // 或者使用 std::unique_lock<std::mutex>
         isExiting = true;
+        loopToQuit = loop.get();
     }
     // 退出 loop 和线程（保持同步）
-    if (loop) {
-        loop->quit();
+    if (loopToQuit) {
+        loopToQuit->quit();
     }
     if (thread && thread->joinable()) {
         thread->join();
@@ -38,37 +38,35 @@ EventLoop* EventLoopThread::start_loop() {
     // 启动线程，线程执行 thread_func 函数
     thread.reset(new std::thread(&EventLoopThread::thread_func, this));
 
-    /// TODO: erase 该逻辑
     EventLoop* retLoop = nullptr;
     {
         std::unique_lock<std::mutex> lock(mtx);
         while (loop == nullptr) { // 防止虚假唤醒
             condition.wait(lock); // 只能使用 unique_lock，因为 condition_variable 的 wait 需要释放锁
         }
-        retLoop = loop;
+        retLoop = loop.get();
     }
     return retLoop;
 }
 
 void EventLoopThread::thread_func() {
-    // 创建该线程的 EventLoop 对象（思考：外部持有线程内部的 EventLoop 的指针是否安全？是否该使用智能指针 shared_ptr + tie）
-    // 应该是安全的，下面当 loop 退出，线程函数执行完线程退出时，会将 loop 置空，外部持有的指针就失效了
-    EventLoop eventLoop;
+    // 在所属线程内创建 EventLoop，并通过 unique_ptr 明确其所有权。
+    std::unique_ptr<EventLoop> eventLoop(new EventLoop());
     if (initCallback) {
-        initCallback(&eventLoop);
+        initCallback(eventLoop.get());
     }
-    /// TODO: erase 该逻辑
+
     {
         std::lock_guard<std::mutex> lock(mtx);
-        loop = &eventLoop;
+        loop = std::move(eventLoop);
         condition.notify_one();
     }
 
-    eventLoop.loop();
+    loop->loop();
 
     // loop 退出
     {
         std::lock_guard<std::mutex> lock(mtx);
-        loop = nullptr;
+        loop.reset();
     }
 }

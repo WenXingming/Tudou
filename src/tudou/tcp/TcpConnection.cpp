@@ -91,7 +91,8 @@ size_t TcpConnection::get_write_buffer_size() const {
 }
 
 void TcpConnection::send(const std::string& msg) {
-    // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用。为了保险起见，还是做线程切换处理
+    // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用
+    // TODO: 考虑增加使用 run_in_loop 提供跨线程调用
     loop->assert_in_loop_thread();
 
     size_t oldLen = writeBuffer->readable_bytes();

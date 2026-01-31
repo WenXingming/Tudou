@@ -46,6 +46,9 @@ Channel::~Channel() {
     fd 生命期应该由 Channel 管理（虽然是上层创建，但是销毁应该由 Channel 负责）。这样就做到了 Channel 完全封装 fd，且 Epoller 的 Channels 和 fd 同步
     注销 channel，channel 负责 channels 和 Epoller 同步（相邻类）。该同步不再交给上层 Acceptor / TcpConnection 负责
     好处是：保证了 poller 访问 channel 有效（生命周期），当 channel 析构时才 unregister，因此只要还在 register，Epoller 就一定有效访问 channel。
+
+    Channel 同时承担“事件分发 + 资源所有权”两种职责。
+    更低耦合的常见做法是引入 Socket/Fd RAII 负责 close，Channel 只负责“fd+事件+回调”，TcpConnection/Acceptor 组合持有 Socket+Channel
     */
     loop->assert_in_loop_thread();
     disable_all();

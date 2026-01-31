@@ -67,6 +67,8 @@ void TcpServer::start() {
         spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
         assert(false);
     }
+
+    loopThreadPool->start();
     mainLoop->loop(); // 启动监听事件循环，开启服务器
 }
 

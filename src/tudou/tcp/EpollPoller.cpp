@@ -64,7 +64,7 @@ void EpollPoller::update_channel(Channel* channel) {
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.events = events;
+    ev.events = events; // events | EPOLLET 边沿触发
     ev.data.fd = fd;
     // ev.data.ptr = static_cast<void*>(channel); // 不知道为什么一用 data.ptr 就会出错
 
