@@ -27,7 +27,6 @@ private:
 
     std::mutex mtx;
     std::condition_variable condition;
-    bool isExiting;
 
     ThreadInitCallback initCallback; // 线程初始化回调函数
 

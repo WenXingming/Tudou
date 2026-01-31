@@ -13,22 +13,19 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     , thread(nullptr) // 默认初始化为空指针
     , mtx()
     , condition()
-    , isExiting(false)
     , initCallback(cb) {
 
 }
 
 EventLoopThread::~EventLoopThread() {
-    EventLoop* loopToQuit = nullptr;
+    // 如果想进一步把临界区缩小到只保护“取指针”，通常要配合更强的生命周期约束？
     {
         std::lock_guard<std::mutex> lock(mtx); // 或者使用 std::unique_lock<std::mutex>
-        isExiting = true;
-        loopToQuit = loop.get();
+        if (loop) {
+            loop->quit();
+        }
     }
     // 退出 loop 和线程（保持同步）
-    if (loopToQuit) {
-        loopToQuit->quit();
-    }
     if (thread && thread->joinable()) {
         thread->join();
     }
