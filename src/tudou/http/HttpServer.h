@@ -48,7 +48,7 @@ public:
 
     void set_http_callback(const HttpCallback& cb) { httpCallback = cb; } // 设置上层 HTTP 业务回调
 
-    void start(); 
+    void start();
 
 private:
     void on_connect(const std::shared_ptr<TcpConnection>& conn);

@@ -32,10 +32,10 @@ TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
     connectionCallback(nullptr),
     messageCallback(nullptr),
     closeCallback(nullptr) {
-    
+
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     InetAddress listenAddr(this->ip, this->port);
-    if(mainLoop == nullptr) {
+    if (mainLoop == nullptr) {
         spdlog::critical("TcpServer::TcpServer(). mainLoop is nullptr.");
         assert(false);
     }
@@ -63,7 +63,7 @@ void TcpServer::set_close_callback(CloseCallback cb) {
 
 void TcpServer::start() {
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
-    if(mainLoop == nullptr) {
+    if (mainLoop == nullptr) {
         spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
         assert(false);
     }
@@ -73,7 +73,7 @@ void TcpServer::start() {
 void TcpServer::on_connect(Acceptor& acceptor) {
     // 创建连接时确保在 mainLoop 线程调用 on_connect
     assert_in_main_loop_thread();
-    
+
     // 通过 Acceptor 接口获取新连接信息
     int connFd = acceptor.get_accepted_fd();
     const InetAddress& peerAddr = acceptor.get_accepted_peer_addr();
@@ -93,7 +93,7 @@ void TcpServer::on_connect(Acceptor& acceptor) {
             spdlog::error("TcpServer::on_connect(). getsockname error, errno: {}", errno);
         }
         InetAddress localAddr(localSockAddr);
-        
+
         auto conn = std::make_shared<TcpConnection>(ioLoop, connFd, localAddr, peerAddr);
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)

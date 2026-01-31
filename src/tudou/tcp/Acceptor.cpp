@@ -108,11 +108,11 @@ void Acceptor::on_read(Channel& channel) {
         spdlog::error("Acceptor::on_read(). accept error, errno: {}", errno);
         return; // ★ 失败一定要直接返回，不能继续执行后续逻辑（回调）
     }
-    
+
     // 保存新连接信息到成员变量，供上层回调通过接口获取
     acceptedConnFd = connFd;
     acceptedPeerAddr = InetAddress(clientAddr);
-    
+
     spdlog::debug("Acceptor::ConnectFd {} is accepted from {}.", acceptedConnFd, acceptedPeerAddr.get_ip_port());
 
     // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理

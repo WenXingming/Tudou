@@ -14,9 +14,9 @@
 #include <thread>
 #include <functional>
 
-// =================================================================================================
+ // =================================================================================================
 
-// one loop per thread。防止一个线程创建多个 EventLoop 实例，实现方式是使用 thread_local 关键字作为线程局部存储的标记即可.创建一个 EventLoop 实例时，检查该线程的 loopInthisThread 
+ // one loop per thread。防止一个线程创建多个 EventLoop 实例，实现方式是使用 thread_local 关键字作为线程局部存储的标记即可.创建一个 EventLoop 实例时，检查该线程的 loopInthisThread 
 thread_local EventLoop* loopInthisThread = nullptr;
 
 // =================================================================================================

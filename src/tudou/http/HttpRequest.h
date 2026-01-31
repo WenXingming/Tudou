@@ -33,7 +33,7 @@ private:
     std::string version;
     Headers headers;
     std::string body;
-    
+
 public:
     HttpRequest();
     ~HttpRequest() = default;

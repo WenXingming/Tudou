@@ -39,7 +39,7 @@ private:
     std::weak_ptr<void> tie;            // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。void 因为下层不需要知道上层类型
     bool isTied;                        // Acceptor 不需要 tie，TcpConnection 需要 tie (shared_ptr, shared_from_this)
 
-    ReadEventCallback readCallback;     // 回调函数接口。执行上层逻辑，回调函数的参数由下层传入
+    ReadEventCallback readCallback;     // 回调函数接口。执行上层逻辑，回调函数的参数（数据流）由下层传入
     WriteEventCallback writeCallback;
     CloseEventCallback closeCallback;
     ErrorEventCallback errorCallback;

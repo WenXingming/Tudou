@@ -2262,3 +2262,6 @@
 2026/01/25 22:24:07 [notice] 1#1: start worker process 42
 2026/01/25 22:24:07 [notice] 1#1: start worker process 43
 2026/01/25 22:24:07 [notice] 1#1: start worker process 44
+2026/01/30 09:57:56 [error] 22#22: *2 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.123.13, server: _, request: "GET /css/chunk-vendors.cdc66422.css HTTP/1.1", upstream: "http://0.0.0.0:8080/css/chunk-vendors.cdc66422.css", host: "192.168.123.18", referrer: "http://192.168.123.18/"
+2026/01/30 09:57:56 [error] 21#21: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.123.13, server: _, request: "GET /js/chunk-vendors.26645dc6.js HTTP/1.1", upstream: "http://0.0.0.0:8080/js/chunk-vendors.26645dc6.js", host: "192.168.123.18", referrer: "http://192.168.123.18/"
+2026/01/30 09:57:56 [error] 21#21: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.123.13, server: _, request: "GET /favicon.ico HTTP/1.1", upstream: "http://0.0.0.0:8080/favicon.ico", host: "192.168.123.18", referrer: "http://192.168.123.18/"

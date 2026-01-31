@@ -17,7 +17,7 @@ HttpResponse::HttpResponse() :
     headers(),
     body(),
     closeConnection(false) {
-    
+
 }
 
 std::string HttpResponse::package_to_string() const {

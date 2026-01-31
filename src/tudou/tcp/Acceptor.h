@@ -48,7 +48,7 @@ private:
     int listenFd; // accept() 方法被频繁调用，避免重复获取成员变量，所以 Acceptor 保存 listenFd 成员变量（注：只使用，不负责生命周期管理）
     std::unique_ptr<Channel> channel;
     NewConnectCallback newConnectCallback; // 回调函数，执行上层逻辑，回调函数的参数由下层传入
-    
+
     // 新连接信息，accept 后保存，供上层通过接口获取
     int acceptedConnFd;           // 最近 accept 的连接 fd
     InetAddress acceptedPeerAddr; // 最近 accept 的对端地址
@@ -61,7 +61,7 @@ public:
 
     int get_listen_fd() const;
     void set_connect_callback(NewConnectCallback cb);
-    
+
     // 获取最近 accept 的连接信息（在 newConnectCallback 回调中使用）
     int get_accepted_fd() const { return acceptedConnFd; }
     const InetAddress& get_accepted_peer_addr() const { return acceptedPeerAddr; }

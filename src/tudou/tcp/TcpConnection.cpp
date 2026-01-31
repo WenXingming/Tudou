@@ -32,8 +32,7 @@ TcpConnection::TcpConnection(EventLoop* _loop, int _connFd, const InetAddress& _
     writeCompleteCallback(nullptr),
     highWaterMarkCallback(nullptr),
     lastErrorCode(0),
-    lastErrorMsg("")
-    {
+    lastErrorMsg("") {
 
     // 初始化 channel. 创建 channel 后需要设置 intesting event 和 订阅（发生事件后的回调函数）
     channel.reset(new Channel(_loop, _connFd)); // 传入 shared_from_this 作为 tie，防止 handle_events_with_guard 过程中被销毁
@@ -94,16 +93,16 @@ size_t TcpConnection::get_write_buffer_size() const {
 void TcpConnection::send(const std::string& msg) {
     // 按理说会在 loop 线程调用 send，但某些应用场景可能会记录 TcpConnection 对象到其他线程使用。为了保险起见，还是做线程切换处理
     loop->assert_in_loop_thread();
-    
+
     size_t oldLen = writeBuffer->readable_bytes();
     writeBuffer->write_to_buffer(msg);
     size_t newLen = writeBuffer->readable_bytes();
-    
+
     // 检查是否超过高水位
     if (highWaterMarkCallback && oldLen < highWaterMark && newLen >= highWaterMark) {
         handle_high_water_mark_callback();
     }
-    
+
     channel->enable_writing();
 }
 
@@ -184,12 +183,12 @@ void TcpConnection::on_close(Channel& channel) {
 void TcpConnection::on_error(Channel& channel) {
     loop->assert_in_loop_thread();
     spdlog::error("TcpConnection::on_error() called. fd: {}, error: {}", channel.get_fd(), lastErrorMsg);
-    
+
     // 触发错误回调（如果设置了）
     if (errorCallback) {
         handle_error_callback();
     }
-    
+
     // 错误后关闭连接
     on_close(channel);
 }

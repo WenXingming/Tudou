@@ -54,8 +54,8 @@ void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     spdlog::debug("HttpServer: on_connection fd={}", fd);
     {
-    std::lock_guard<std::mutex> lock(contextsMutex);
-    httpContexts[fd].reset(new HttpContext()); // 兼容 C++11：不使用 std::make_unique
+        std::lock_guard<std::mutex> lock(contextsMutex);
+        httpContexts[fd].reset(new HttpContext()); // 兼容 C++11：不使用 std::make_unique
     }
 }
 
@@ -157,7 +157,7 @@ void HttpServer::handle_http_callback(const HttpRequest& req, HttpResponse& resp
     httpCallback(req, resp); // 调用上层业务回调，处理请求，填充响应
 }
 
-void HttpServer::check_and_set_content_length(HttpResponse & resp){
+void HttpServer::check_and_set_content_length(HttpResponse& resp) {
     auto& headers = const_cast<HttpResponse::Headers&>(resp.get_headers());
     auto it = headers.find("Content-Length");
     if (it == headers.end()) {

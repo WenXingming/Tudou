@@ -19,7 +19,7 @@ HttpContext::HttpContext() :
     currentHeaderField(),
     currentHeaderValue(),
     lastWasValue(false) {
-    
+
     llhttp_settings_init(&settings);
     settings.on_message_begin = &HttpContext::on_message_begin;
     settings.on_url = &HttpContext::on_url;

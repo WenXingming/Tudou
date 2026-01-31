@@ -68,7 +68,7 @@ private:
     ErrorCallback errorCallback;                    // 错误回调：发生错误时触发
     WriteCompleteCallback writeCompleteCallback;    // 写完成回调：数据全部写入内核时触发
     HighWaterMarkCallback highWaterMarkCallback;    // 高水位回调：writeBuffer 积压超过高水位时触发
-    
+
     // 错误信息（遵循高内聚原则，保存在 TcpConnection 内部）
     int lastErrorCode;       // 最近一次的错误码（errno）
     std::string lastErrorMsg; // 最近一次的错误描述
@@ -83,18 +83,18 @@ public:
     int get_fd() const;
     const InetAddress& get_local_addr() const { return localAddr; }
     const InetAddress& get_peer_addr() const { return peerAddr; }
-    
+
     // 设置回调函数
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);
     void set_error_callback(ErrorCallback _cb);
     void set_write_complete_callback(WriteCompleteCallback _cb);
     void set_high_water_mark_callback(HighWaterMarkCallback _cb, size_t highWaterMark);
-    
+
     // 获取错误信息（高内聚：错误信息封装在 TcpConnection 内部）
     int get_last_error() const { return lastErrorCode; }
     const std::string& get_last_error_msg() const { return lastErrorMsg; }
-    
+
     // 获取 buffer 相关信息（高内聚：buffer 状态封装在 TcpConnection 内部）
     size_t get_write_buffer_size() const;  // 获取 writeBuffer 当前积压大小
     size_t get_high_water_mark() const { return highWaterMark; }  // 获取高水位设置

@@ -45,31 +45,31 @@ cd wrk && make -j12
 
 ```bash
 wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c200 -d60s --latency http://192.168.123.3:8080
-Running 1m test @ http://192.168.123.3:8080
+Running 1m test @ http://192.168.123.18:8080
   1 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     1.84ms  113.78us   5.35ms   96.50%
-    Req/Sec   108.44k     4.36k  110.85k    97.00%
+    Latency     0.98ms  329.35us   4.73ms   64.74%
+    Req/Sec   105.18k     5.06k  116.32k    71.62%
   Latency Distribution
-     50%    1.82ms
-     75%    1.85ms
-     90%    1.87ms
-     99%    2.50ms
-  1078304 requests in 10.01s, 118.26MB read
-Requests/sec: 107698.18
-Transfer/sec:     11.81MB
+     50%    0.97ms
+     75%    1.22ms
+     90%    1.39ms
+     99%    1.92ms
+  6282090 requests in 1.00m, 688.97MB read
+Requests/sec: 104632.12
+Transfer/sec:     11.48MB
 ```
 
-测试结果显示，在 **1 线程 + 200 并发连接下**，1 分钟内总共处理了 1078304 个请求，读取了 118.26 MB 数据，具体性能指标如下：
+测试结果显示，在 **1 线程 + 200 并发连接下**，1 分钟内总共处理了 6282090 个请求，读取了 688.97 MB 数据，具体性能指标如下：
 
 - 响应时间（Latency）：
-  - **平均响应时间：1.84 ms**
-  - 最大响应时间： 5.35 ms
-  - 90% 请求的响应时间在 1.87 ms 以下
-  - 99% 请求的响应时间在 2.50 ms 以下
+  - **平均响应时间：0.98 ms**
+  - 最大响应时间： 4.73 ms
+  - 90% 请求的响应时间在 1.39 ms 以下
+  - 99% 请求的响应时间在 1.92 ms 以下
 - 吞吐量（Throughput）：
-  - **每秒处理请求数（Requests/sec）：107698.18**
-  - 每秒传输数据量（Transfer/sec）：11.81 MB
+  - **每秒处理请求数（Requests/sec）：104632.12**
+  - 每秒传输数据量（Transfer/sec）：11.48 MB
 
 这些结果表明该服务器在单 Reactor 模式下能够高效地处理大量并发请求，具有较低的响应时间和较高的吞吐量。**作为对比，对 muduo** 实现的 TcpServer 的单线程性能进行了测试，结果如下：
 
