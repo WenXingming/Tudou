@@ -13,7 +13,8 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     , thread(nullptr) // 默认初始化为空指针
     , mtx()
     , condition()
-    , initCallback(cb) {
+    , initCallback(cb)
+    , started(false) {
 
 }
 
@@ -42,6 +43,8 @@ void EventLoopThread::start() {
             condition.wait(lock); // 只能使用 unique_lock，因为 condition_variable 的 wait 需要释放锁
         }
     }
+
+    started = true;
     return;
 }
 

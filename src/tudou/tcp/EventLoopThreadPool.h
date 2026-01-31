@@ -35,7 +35,7 @@ private:
     bool started;                                                // 是否已启动
 
 public:
-    EventLoopThreadPool(int numThreadsArg, const std::string& nameArg = std::string(), const ThreadInitCallback& cb = ThreadInitCallback());
+    EventLoopThreadPool(const std::string& name = std::string(), int numThreads = 0, const ThreadInitCallback& cb = ThreadInitCallback());
     EventLoopThreadPool(const EventLoopThreadPool&) = delete;
     EventLoopThreadPool& operator=(const EventLoopThreadPool&) = delete;
     ~EventLoopThreadPool() = default;
@@ -43,8 +43,8 @@ public:
     void start();
 
     EventLoop* get_main_loop() { return mainLoop.get(); }
-    EventLoop* get_next_loop(); // 默认轮询算法获取下一个 IO 线程的 EventLoop
-    std::vector<EventLoop*> get_all_loops() const; // 获取所有 IO 线程的 EventLoop
+    EventLoop* get_next_loop();
+    std::vector<EventLoop*> get_all_loops() const;
 
     std::string get_name() const { return name; }
 };

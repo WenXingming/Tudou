@@ -29,6 +29,7 @@ private:
     std::condition_variable condition;
 
     ThreadInitCallback initCallback; // 线程初始化回调函数
+    bool started;
 
 public:
     EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback()); // 默认初始化回调为空，static_cast<bool>(ThreadInitCallback()) == false

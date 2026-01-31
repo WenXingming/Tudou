@@ -23,7 +23,7 @@
 #include "EventLoopThreadPool.h"
 
 TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
-    loopThreadPool(new EventLoopThreadPool(_ioLoopNum, "TcpServerLoopPool")),
+    loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", _ioLoopNum)),
     ip(std::move(_ip)),
     port(_port),
     acceptor(nullptr),
