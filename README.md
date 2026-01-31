@@ -37,15 +37,15 @@ Tudou 是一个基于 Reactor 模式的多线程高性能 C++ 网络框架，旨
 cd ~/ && git clone https://github.com/wg/wrk.git
 cd wrk && make -j12
 # 编译后 wrk 文件夹下会生成可执行文件 wrk，然后运行以下命令进行测试：
-# ./wrk -t${线程数} -c${连接数} -d${测试时间}s --latency http://127.0.0.1:8080
-# ./wrk -t1 -c200 -d10s --latency http://127.0.0.1:8080
+# ./wrk -t${线程数} -c${连接数} -d${测试时间}s --latency http://0.0.0.0:8080
+# ./wrk -t1 -c200 -d10s --latency http://0.0.0.0:8080
 ```
 
 ### 单 Reactor 测试结果 🎢
 
 ```bash
-wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c200 -d60s --latency http://192.168.123.3:8080
-Running 1m test @ http://192.168.123.18:8080
+wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t1 -c200 -d60s --latency http://0.0.0.0:8080
+Running 1m test @ http://0.0.0.0:8080
   1 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency     0.98ms  329.35us   4.73ms   64.74%
@@ -77,8 +77,8 @@ Transfer/sec:     11.48MB
 # 简单 hello world TcpServer 单线程测试
 # wxm@wxm-Precision-7920-Tower:~/build/release-cpp11$ ./bin/hello_http_server 8080 0 /home/wxm/muduo/test/hello-world.html fatal
 
-wxm@wxm-Precision-7920-Tower:~/muduo$ ../wrk/wrk -t1 -c200 -d60s --latency http://192.168.123.3:8080
-Running 1m test @ http://192.168.123.3:8080
+wxm@wxm-Precision-7920-Tower:~/muduo$ ../wrk/wrk -t1 -c200 -d60s --latency http://0.0.0.0:8080
+Running 1m test @ http://0.0.0.0:8080
   1 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency   646.29us  168.61us   6.24ms   97.39%
@@ -100,8 +100,8 @@ Transfer/sec:     41.36MB
 开启 1 个 mainLoop 线程 + 16 个 ioLoop 线程：
 
 ```bash
-wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t6 -c600 -d60s --latency http://192.168.123.3:8080
-Running 1m test @ http://192.168.123.3:8080
+wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t6 -c600 -d60s --latency http://0.0.0.0:8080
+Running 1m test @ http://0.0.0.0:8080
   6 threads and 600 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency   556.19us  171.24us   5.19ms   79.65%
@@ -133,8 +133,8 @@ Transfer/sec:     62.54MB
 # 多线程 hello world TcpServer 测试（1 mainLoop + 16 ioLoop）
 # wxm@wxm-Precision-7920-Tower:~/build/release-cpp11$ ./bin/hello_http_server 8080 16 /home/wxm/muduo/test/hello-world.html fatal
 
-wxm@wxm-Precision-7920-Tower:~/muduo$ ../wrk/wrk -t6 -c600 -d60s --latency http://192.168.123.3:8080
-Running 1m test @ http://192.168.123.3:8080
+wxm@wxm-Precision-7920-Tower:~/muduo$ ../wrk/wrk -t6 -c600 -d60s --latency http://0.0.0.0:8080
+Running 1m test @ http://0.0.0.0:8080
   6 threads and 600 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency   488.00us  117.88us   4.34ms   71.91%

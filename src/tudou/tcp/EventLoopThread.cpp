@@ -31,37 +31,37 @@ EventLoopThread::~EventLoopThread() {
     }
 }
 
-EventLoop* EventLoopThread::start_loop() {
-    // 启动线程，线程执行 thread_func 函数
+void EventLoopThread::start() {
+    // 启动线程，线程内创建 EventLoop 对象并启动事件循环
     thread.reset(new std::thread(&EventLoopThread::thread_func, this));
 
-    EventLoop* retLoop = nullptr;
+    // 线程创建是异步的。等待线程创建好 EventLoop 对象后再返回（确保调用 get_loop() 能够返回有效指针）
     {
         std::unique_lock<std::mutex> lock(mtx);
         while (loop == nullptr) { // 防止虚假唤醒
             condition.wait(lock); // 只能使用 unique_lock，因为 condition_variable 的 wait 需要释放锁
         }
-        retLoop = loop.get();
     }
-    return retLoop;
+    return;
 }
 
 void EventLoopThread::thread_func() {
-    // 在所属线程内创建 EventLoop，并通过 unique_ptr 明确其所有权。
+    // 在所属线程内创建 EventLoop 对象（构造函数内会记录所属线程 id 等。这是 one loop per thread 的关键）
     std::unique_ptr<EventLoop> eventLoop(new EventLoop());
+
+    // 在 EventLoop 创建完成、进入 loop() 之前，调用初始化回调函数（如果传入了的话）
     if (initCallback) {
         initCallback(eventLoop.get());
     }
-
+    // 将创建好的 EventLoop 对象指针传递给调用线程。通知调用线程可以返回 EventLoop 指针了
     {
         std::lock_guard<std::mutex> lock(mtx);
         loop = std::move(eventLoop);
         condition.notify_one();
     }
-
+    // 启动事件循环
     loop->loop();
-
-    // loop 退出
+    // 事件循环退出后，清理资源
     {
         std::lock_guard<std::mutex> lock(mtx);
         loop.reset();

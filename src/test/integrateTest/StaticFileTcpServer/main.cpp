@@ -16,8 +16,8 @@
 #include "spdlog/sinks/basic_file_sink.h" // support for basic file logging
 #include "spdlog/sinks/stdout_color_sinks.h" // support for colored console logging
 
-// ======================================================================================
-// 设置并注册 logger
+ // ======================================================================================
+ // 设置并注册 logger
 void set_logger() {
     // 创建 sinks 列表
     std::vector<spdlog::sink_ptr> sinks;
@@ -29,7 +29,7 @@ void set_logger() {
     // sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/tudou_test.log", true));
     // 添加文件 sink（追加模式）
     // sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("/home/wxm/Tudou/logs/tudou_test.log", false));
-    sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("/home/wxm/Tudou/logs/tudou_test.log", true));
+    sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("Tudou/logs/tudou_test.log", true));
 
     // 创建组合 logger
     auto my_logger = std::make_shared<spdlog::logger>("multi_sink_logger", begin(sinks), end(sinks));
@@ -60,7 +60,7 @@ void test_logger() {
 
 
 void run_static_tcp_server() {
-    std::string ip = "192.168.123.18";
+    std::string ip = "0.0.0.0";
     int port = 8080;
     std::string filepath = "/home/wxm/Tudou/configs/static-file-http-server/html/hello-world.html";
     int threadNum = 16; // 线程数量（设置为 N 则多 Reactor；设置为 0 则单 Reactor）
@@ -77,7 +77,7 @@ void run_static_tcp_server() {
 int main() {
     set_logger();
     // test_logger();
-    
+
     run_static_tcp_server();
 
     return 0;

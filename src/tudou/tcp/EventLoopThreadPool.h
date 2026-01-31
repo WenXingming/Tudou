@@ -20,23 +20,22 @@
 class EventLoop;
 class EventLoopThread;
 class EventLoopThreadPool {
-    using ThreadInitCallback = std::function<void(EventLoop*)>; // 线程创建后可以调用该回调函数进行一些初始化操作，如果未传入，则不进行任何操作
+    using ThreadInitCallback = std::function<void(EventLoop*)>;
 
 private:
     std::unique_ptr<EventLoop> mainLoop; // 监听线程的 EventLoop（之前是放在 TcpServer 里的，这里放到线程池里可能更合适一些）
 
     std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads; // IO 线程池
-    // std::vector<EventLoop*> ioLoops;                          // 在一起感觉不用，EventLoopThread 提供的 get_loop() 方法也能获取到。都封装在一起了，没必要额外存一份指针数组。而且也不安全，可能会出现悬空指针的问题，EventLoopThread 里面的 EventLoop 指针比较安全一些
     size_t ioLoopsIndex;                                         // 轮询索引
 
     std::string name;                                            // 线程池名称
-    int numThreads;                                              // 线程池中的线程数量，感觉没必要单独存这个变量了，直接用 ioLoopThreads.size() 就行
+    int numThreads;                                              // 线程池中的 IO 线程数量（构造时确定）
 
-    ThreadInitCallback initCallback;                              // IO 线程初始化回调
-    bool started;                                                 // 是否已启动
+    ThreadInitCallback initCallback;                             // IO 线程初始化回调
+    bool started;                                                // 是否已启动
 
 public:
-    EventLoopThreadPool(const std::string& nameArg = std::string(), int numThreadsArg = 0, const ThreadInitCallback& cb = ThreadInitCallback());
+    EventLoopThreadPool(int numThreadsArg, const std::string& nameArg = std::string(), const ThreadInitCallback& cb = ThreadInitCallback());
     EventLoopThreadPool(const EventLoopThreadPool&) = delete;
     EventLoopThreadPool& operator=(const EventLoopThreadPool&) = delete;
     ~EventLoopThreadPool() = default;
@@ -48,5 +47,4 @@ public:
     std::vector<EventLoop*> get_all_loops() const; // 获取所有 IO 线程的 EventLoop
 
     std::string get_name() const { return name; }
-    void set_thread_num(int numThreads) { this->numThreads = numThreads; }
 };

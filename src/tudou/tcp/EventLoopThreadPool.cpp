@@ -12,10 +12,9 @@
 
 #include <cassert>
 
-EventLoopThreadPool::EventLoopThreadPool(const std::string& nameArg, int numThreadsArg, const ThreadInitCallback& cb) :
+EventLoopThreadPool::EventLoopThreadPool(int numThreadsArg, const std::string& nameArg, const ThreadInitCallback& cb) :
     mainLoop(new EventLoop()),
     ioLoopThreads(),
-    // ioLoops(),
     ioLoopsIndex(0),
     name(nameArg),
     numThreads(numThreadsArg),
@@ -32,7 +31,7 @@ void EventLoopThreadPool::start() {
     for (int i = 0; i < numThreads; ++i) {
         std::unique_ptr<EventLoopThread> ioThread(new EventLoopThread(initCallback));
         ioLoopThreads.push_back(std::move(ioThread));
-        ioLoopThreads.back()->start_loop();
+        ioLoopThreads.back()->start();
     }
 
     if (numThreads == 0 && initCallback) {
