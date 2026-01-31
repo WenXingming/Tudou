@@ -79,12 +79,13 @@ void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _h
 }
 
 void TcpServer::start() {
+    spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip, port);
+
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     if (mainLoop == nullptr) {
         spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
         assert(false);
     }
-
     loopThreadPool->start();
     mainLoop->loop(); // 启动监听事件循环，开启服务器
 }

@@ -79,7 +79,7 @@ epoll 的 LT 编程更加简单，因为不需要考虑读写循环的问题，�
        std::unordered_map<int, std::shared_ptr<HttpContext>> httpContexts; // 以连接 fd 作为 key 维护每个连接的 HttpContext。使用 shared_ptr 以便在缩小锁粒度后，仍能安全在锁外使用 HttpContext
    };
    
-   void HttpServer::parse_receive_data(int fd, const std::string& data) {
+   void HttpServer::parse_received_data(int fd, const std::string& data) {
        // 1. 在锁内只做 HttpContext 查找和 shared_ptr 拷贝，缩小临界区
        std::shared_ptr<HttpContext> ctx;
        {
@@ -96,7 +96,7 @@ epoll 的 LT 编程更加简单，因为不需要考虑读写循环的问题，�
        bool ok = ctx->parse(data.data(), data.size(), nparsed);
        if (!ok) {
            // 解析失败，返回 400 Bad Request
-           spdlog::debug("HttpServer::parse_receive_data wrong. Bad request from fd={}", fd);
+           spdlog::debug("HttpServer::parse_received_data wrong. Bad request from fd={}", fd);
            HttpResponse resp = generate_bad_response();
            send_data(fd, resp.package_to_string());
            ctx->reset();
@@ -105,10 +105,10 @@ epoll 的 LT 编程更加简单，因为不需要考虑读写循环的问题，�
    
        // 短连接场景下一般一次就收完；长连接场景可多次累积，这里先简单返回等待更多数据
        if (!ctx->is_complete()) {
-           spdlog::debug("HttpServer::parse_receive_data. HTTP request not complete yet, fd={}", fd);
+           spdlog::debug("HttpServer::parse_received_data. HTTP request not complete yet, fd={}", fd);
            return;
        }
-       spdlog::debug("HttpServer::parse_receive_data ok. Complete HTTP request received from fd={}", fd);
+       spdlog::debug("HttpServer::parse_received_data ok. Complete HTTP request received from fd={}", fd);
    
        // 报文完整，进入业务处理逻辑
        process_data(fd, *ctx);

@@ -52,7 +52,7 @@ private:
             3. 业务逻辑处理
             4. 构造响应报文
             5. 发送响应：通过 conn->send() 发送数据
-        
+
         on_message 函数的参数是 TcpConnection 对象指针，业务层通过该对象的接口进行通信。
         这样设计的优点：
         1. 职责清晰：TcpConnection 封装了连接和数据，业务层通过它的接口获取数据
@@ -61,7 +61,7 @@ private:
         4. 性能更好：避免不必要的字符串拷贝
     */
     std::string receive_data(const std::shared_ptr<TcpConnection>& conn);
-    std::string parse_receive_data(const std::string& data);
+    std::string parse_received_data(const std::string& data);
     std::string process_data(const std::string& request);
     std::string package_response_data(const std::string& body);
     void send_data(const std::shared_ptr<TcpConnection>& conn, const std::string& response);

@@ -21,8 +21,8 @@
 #include "spdlog/sinks/basic_file_sink.h" // support for basic file logging
 #include "spdlog/sinks/stdout_color_sinks.h" // support for colored console logging
 
-// ======================================================================================
-// Helper to trim strings
+ // ======================================================================================
+ // Helper to trim strings
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
     if (std::string::npos == first) {
@@ -82,7 +82,7 @@ void set_logger(const std::string& logPath) {
     spdlog::set_default_logger(my_logger);
 
     // 设置日志级别和格式: debug、info、warn、err、critical 等
-    spdlog::set_level(spdlog::level::debug); // 设置全局日志级别
+    spdlog::set_level(spdlog::level::critical); // 设置全局日志级别
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v"); // 设置日志格式
 }
 
@@ -103,7 +103,8 @@ int main(int argc, char* argv[]) {
     std::string serverRoot;
     if (argc > 1) {
         serverRoot = argv[1];
-    } else {
+    }
+    else {
         // Default search roots
         std::vector<std::string> searchRoots = {
             "/home/wxm/Tudou/configs/static-file-http-server/",
@@ -115,21 +116,21 @@ int main(int argc, char* argv[]) {
             std::string checkPath = root;
             if (!checkPath.empty() && checkPath.back() != '/') checkPath += '/';
             checkPath += "conf/server.conf";
-            
+
             std::ifstream f(checkPath);
             if (f.good()) {
                 serverRoot = root;
                 break;
             }
         }
-        
+
         if (serverRoot.empty()) {
             std::cout << "No serverRoot and configuration found in default locations. You have two options:\n"
-                      << "1. Create a serverRoot folder at one of the default locations:\n"
-                      << "   /home/wxm/Tudou/configs/static-file-http-server/\n"
-                      << "   /etc/static-file-http-server/\n"
-                      << "   ./static-file-http-server/\n"
-                      << "2. Specify the server root directory as a command-line argument when running the program.\n";
+                << "1. Create a serverRoot folder at one of the default locations:\n"
+                << "   /home/wxm/Tudou/configs/static-file-http-server/\n"
+                << "   /etc/static-file-http-server/\n"
+                << "   ./static-file-http-server/\n"
+                << "2. Specify the server root directory as a command-line argument when running the program.\n";
             return 1;
         }
     }

@@ -1,7 +1,7 @@
 /**
  * @file StaticFileTcpServer.h
  * @brief 发送文件的 TCP 服务器示例
- * @details 
+ * @details
  * @author wenxingming
  * @date 2025-11-27
  * @project: https://github.com/WenXingming/Tudou
@@ -26,7 +26,7 @@ StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const 
     responseFilepath(_responseFilepath),
     tcpServer(nullptr),
     threadNum(_threadNum) {
-        
+
     int ioLoopNum = threadNum; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
     tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
@@ -62,7 +62,7 @@ void StaticFileTcpServer::on_message(const std::shared_ptr<TcpConnection>& conn)
     // 1. 接收数据
     std::string data = receive_data(conn);
     // 2. 解析数据
-    std::string request = parse_receive_data(data);
+    std::string request = parse_received_data(data);
     // 3. 业务逻辑处理
     std::string body = process_data(request);
     // 4. 构造响应报文
@@ -81,7 +81,7 @@ std::string StaticFileTcpServer::receive_data(const std::shared_ptr<TcpConnectio
     return conn->receive();
 }
 
-std::string StaticFileTcpServer::parse_receive_data(const std::string& data) {
+std::string StaticFileTcpServer::parse_received_data(const std::string& data) {
     // 2. 解析数据（简单起见，该应用服务基于 Tcp 层可以不做任何解析。Http 的话就需要进行解析）
     std::string response(data); // 显式拷贝
     return std::move(response); // 显式移动
@@ -91,7 +91,7 @@ std::string StaticFileTcpServer::process_data(const std::string& request) {
     // 3. 业务逻辑处理。应该根据解析得到的 request 内容进行相应的业务逻辑处理，返回业务逻辑处理后，要发送的响应体内容。下面这两个简单示例都没有根据 request 内容进行处理，实际应用中应该根据 request 内容来决定如何处理：
     //  - 简单业务逻辑就是直接 echo 回去：conn->send(msg);
     //  - 或者返回一个固定的 html 页面内容：
-    
+
     return std::string("Hello, world"); // 测试用，不从硬盘读取文件，避免 IO 操作影响性能测试结果。不过测试结果看起来速度还是差不多
 
     std::string filepath = responseFilepath;
