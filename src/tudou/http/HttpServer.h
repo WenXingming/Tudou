@@ -25,14 +25,13 @@
 #include "tudou/http/HttpContext.h"
 
 class HttpServer {
-    // 上层业务回调：根据 HttpRequest 填充 HttpResponse
+    // 数据流向：Tcp --> HttpRequest --> 上层业务回调 httpCallback 并填充 HttpResponse --> HttpResponse --> Tcp
     using HttpCallback = std::function<void(const HttpRequest& req, HttpResponse& resp)>;
 
 private:
     std::string ip;
     uint16_t port;
 
-    int threadNum;
     std::unique_ptr<TcpServer> tcpServer;
 
     std::unordered_map<int, std::shared_ptr<HttpContext>> httpContexts; // 以连接 fd 作为 key 维护每个连接的 HttpContext。使用 shared_ptr 以便在缩小锁粒度后，仍能安全在锁外使用 HttpContext
@@ -47,6 +46,11 @@ public:
     ~HttpServer() = default;
 
     void set_http_callback(const HttpCallback& cb) { httpCallback = cb; } // 设置上层 HTTP 业务回调
+
+    const std::string& get_ip() const { return ip; }
+    int get_port() const { return port; }
+
+    int get_thread_num() const { return tcpServer ? tcpServer->get_num_threads() : 0; }
 
     void start();
 

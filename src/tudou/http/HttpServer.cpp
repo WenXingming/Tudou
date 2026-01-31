@@ -20,13 +20,12 @@
 HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
     ip(std::move(_ip)),
     port(_port),
-    threadNum(_threadNum),
     tcpServer(nullptr),
     httpContexts(),
     contextsMutex(),
     httpCallback(nullptr) {
 
-    tcpServer.reset(new TcpServer(this->ip, this->port, this->threadNum));
+    tcpServer.reset(new TcpServer(this->ip, this->port, _threadNum));
     tcpServer->set_connection_callback(
         [this](const std::shared_ptr<TcpConnection>& conn) {
             on_connect(conn);

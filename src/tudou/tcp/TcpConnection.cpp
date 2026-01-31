@@ -207,19 +207,25 @@ void TcpConnection::handle_close_callback() {
 }
 
 void TcpConnection::handle_error_callback() {
-    if (errorCallback) {
-        errorCallback(shared_from_this());
+    if (!errorCallback) {
+        spdlog::warn("TcpConnection::handle_error_callback(). errorCallback is nullptr, fd: {}", get_fd());
+        return;
     }
+    errorCallback(shared_from_this());
 }
 
 void TcpConnection::handle_write_complete_callback() {
-    if (writeCompleteCallback) {
-        writeCompleteCallback(shared_from_this());
+    if (!writeCompleteCallback) {
+        spdlog::warn("TcpConnection::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", get_fd());
+        return;
     }
+    writeCompleteCallback(shared_from_this());
 }
 
 void TcpConnection::handle_high_water_mark_callback() {
-    if (highWaterMarkCallback) {
-        highWaterMarkCallback(shared_from_this());
+    if (!highWaterMarkCallback) {
+        spdlog::warn("TcpConnection::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", get_fd());
+        return;
     }
+    highWaterMarkCallback(shared_from_this());
 }

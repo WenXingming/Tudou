@@ -47,4 +47,5 @@ public:
     std::vector<EventLoop*> get_all_loops() const;
 
     std::string get_name() const { return name; }
+    int get_num_threads() const { return numThreads + 1; } // 包括 mainLoop
 };

@@ -36,6 +36,9 @@ class TcpServer {
     using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using ErrorCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
 private:
     std::unique_ptr<EventLoopThreadPool> loopThreadPool; // 包括 1 个 mainLoop（和多个 ioLoops）
@@ -49,7 +52,10 @@ private:
     ConnectionCallback connectionCallback;
     MessageCallback messageCallback;
     CloseCallback closeCallback;
-    /// TODO: WriteCompleteCallback writeCompleteCallback;
+    ErrorCallback errorCallback;
+    WriteCompleteCallback writeCompleteCallback;
+    HighWaterMarkCallback highWaterMarkCallback;
+    size_t highWaterMark;  // 高水位标记，单位字节，默认 64MB
 
 public:
     TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum = 0);
@@ -58,10 +64,15 @@ public:
     const std::string& get_ip() const { return ip; }
     uint16_t get_port() const { return port; }
 
+    int get_num_threads() const { return loopThreadPool ? loopThreadPool->get_num_threads() : 0; }
+
     // 底层由 TcpConnection 触发
     void set_connection_callback(ConnectionCallback _cb);
     void set_message_callback(MessageCallback _cb);
     void set_close_callback(CloseCallback _cb);
+    void set_error_callback(ErrorCallback _cb);
+    void set_write_complete_callback(WriteCompleteCallback _cb);
+    void set_high_water_mark_callback(HighWaterMarkCallback _cb, size_t _highWaterMark = 64 * 1024 * 1024);
 
     // 启动服务器，开始监听
     void start();
@@ -77,6 +88,9 @@ private:
     void handle_connection_callback(const std::shared_ptr<TcpConnection>& conn);
     void handle_message_callback(const std::shared_ptr<TcpConnection>& conn);
     void handle_close_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_error_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn);
 
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
 

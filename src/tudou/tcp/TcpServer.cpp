@@ -31,7 +31,11 @@ TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
     connectionsMutex(),
     connectionCallback(nullptr),
     messageCallback(nullptr),
-    closeCallback(nullptr) {
+    closeCallback(nullptr),
+    errorCallback(nullptr),
+    writeCompleteCallback(nullptr),
+    highWaterMarkCallback(nullptr),
+    highWaterMark(64 * 1024 * 1024) {  // 默认 64MB
 
     EventLoop* mainLoop = loopThreadPool->get_main_loop();
     InetAddress listenAddr(this->ip, this->port);
@@ -59,6 +63,19 @@ void TcpServer::set_message_callback(MessageCallback cb) {
 
 void TcpServer::set_close_callback(CloseCallback cb) {
     this->closeCallback = std::move(cb);
+}
+
+void TcpServer::set_error_callback(ErrorCallback cb) {
+    this->errorCallback = std::move(cb);
+}
+
+void TcpServer::set_write_complete_callback(WriteCompleteCallback cb) {
+    this->writeCompleteCallback = std::move(cb);
+}
+
+void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _highWaterMark) {
+    this->highWaterMarkCallback = std::move(cb);
+    this->highWaterMark = _highWaterMark;
 }
 
 void TcpServer::start() {
@@ -103,6 +120,24 @@ void TcpServer::on_connect(Acceptor& acceptor) {
         conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
             this->on_close(_conn);
             });
+        // 设置错误回调（如果用户设置了）
+        if (errorCallback) {
+            conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+                handle_error_callback(_conn);
+                });
+        }
+        // 设置写完成回调（如果用户设置了）
+        if (writeCompleteCallback) {
+            conn->set_write_complete_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+                handle_write_complete_callback(_conn);
+                });
+        }
+        // 设置高水位回调（如果用户设置了）
+        if (highWaterMarkCallback) {
+            conn->set_high_water_mark_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
+                handle_high_water_mark_callback(_conn);
+                }, highWaterMark);
+        }
         {
             std::lock_guard<std::mutex> lock(connectionsMutex);
             connections[connFd] = conn;
@@ -130,10 +165,9 @@ void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
 void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
     if (this->connectionCallback == nullptr) {
         spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
+        return;
     }
-    else {
-        this->connectionCallback(conn);
-    }
+    this->connectionCallback(conn);
 }
 
 void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn) {
@@ -144,10 +178,33 @@ void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& co
 void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
     if (this->closeCallback == nullptr) {
         spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
+        return;
     }
-    else {
-        this->closeCallback(conn);
+    this->closeCallback(conn);
+}
+
+void TcpServer::handle_error_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->errorCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_error_callback(). errorCallback is nullptr, fd: {}", conn->get_fd());
+        return;
     }
+    this->errorCallback(conn);
+}
+
+void TcpServer::handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->writeCompleteCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", conn->get_fd());
+        return;
+    }
+    this->writeCompleteCallback(conn);
+}
+
+void TcpServer::handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->highWaterMarkCallback == nullptr) {
+        spdlog::warn("TcpServer::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", conn->get_fd());
+        return;
+    }
+    this->highWaterMarkCallback(conn);
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
