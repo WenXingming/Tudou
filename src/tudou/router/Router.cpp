@@ -17,7 +17,6 @@ void Router::add_route(const std::string& method, const std::string& path, Handl
     routes_[key] = std::move(handler);
 
     // 同时记录“这个 path 支持哪些方法”，用于后续生成 405 的 Allow。
-    // 这一步并不是为了加速精确匹配（精确匹配只依赖 routes_），而是为了更符合 HTTP 语义。
     allowed_methods_by_path_[path].insert(method);
 }
 
@@ -34,7 +33,7 @@ void Router::add_head_route(const std::string& path, Handler handler) {
 }
 
 void Router::add_prefix_route(const std::string& prefix, Handler handler) {
-    // 用于静态文件等兜底：按 path 前缀匹配
+    // 按前缀兜底（常用于静态文件服务）：匹配 req.path 以 prefix 开头的请求。注意：前缀路由不区分 method；它的目标是“兜底处理某一类 path”。
     // 重要：dispatch 会按 push_back 的顺序尝试。
     // 所以一般把更具体的前缀先注册，例如：
     //   "/static/" 先
@@ -42,7 +41,9 @@ void Router::add_prefix_route(const std::string& prefix, Handler handler) {
     prefix_routes_.emplace_back(prefix, std::move(handler));
 }
 
-void Router::set_not_found_handler(Handler handler) { not_found_handler_ = std::move(handler); }
+void Router::set_not_found_handler(Handler handler) {
+    not_found_handler_ = std::move(handler);
+}
 
 void Router::set_method_not_allowed_handler(Handler handler) {
     method_not_allowed_handler_ = std::move(handler);
@@ -52,46 +53,44 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     const auto& method = req.get_method();
     const auto& path = req.get_path();
 
-    // 1) 尝试精确匹配
+    // 1. 尝试精确匹配。若命中则执行对应 handler（handler 负责填充 resp 返回数据流）
     RouteKey key{ method, path };
     auto it = routes_.find(key);
     if (it != routes_.end()) {
-        // 命中：直接调用 handler 让它填充 resp
-        auto hander = it->second;
-        hander(req, resp);
+        const Handler& handler = it->second;
+        handler(req, resp);
         return DispatchResult::Matched;
     }
 
-    // 2) 路径存在但方法不匹配 -> 405（更改为优先于前缀兜底）
+    // 2. 路径存在但方法不匹配 -> 405（更改为优先于前缀兜底）
     // 注意：这里必须基于“path 是否存在”来判断 405。
     // 如果某个 path 从未注册过任何 method，那么它应该是 404，而不是 405。
     auto methodIt = allowed_methods_by_path_.find(path);
     if (methodIt != allowed_methods_by_path_.end()) {
-        if (method_not_allowed_handler_) {
-            method_not_allowed_handler_(req, resp);
+        if (!method_not_allowed_handler_) {
+            fill_default_method_not_allowed(path, resp); // 跳过（无）业务处理，直接填充 response
+            return DispatchResult::MethodNotAllowed;
         }
-        else {
-            fill_default_method_not_allowed(path, resp);
-        }
+        method_not_allowed_handler_(req, resp);
         return DispatchResult::MethodNotAllowed;
     }
 
-    // 3) 尝试前缀兜底（按注册顺序）。通常做静态文件分发处理。
+    // 3. 尝试前缀兜底（按注册顺序）。命中前缀：通常是静态文件处理器或“所有 GET 请求的统一入口”（特殊的 Get 由前面的精确路由处理）
     for (const auto& pr : prefix_routes_) {
-        if (starts_with(path, pr.first)) {
-            // 命中前缀：通常是静态文件处理器或“所有 GET 请求的统一入口”（特殊的 Get 由精确路由处理）
-            pr.second(req, resp);
+        const std::string& prefix = pr.first;
+        if (starts_with(path, prefix)) {
+            const Handler& handler = pr.second;
+            handler(req, resp);
             return DispatchResult::Matched;
         }
     }
 
-    // 4) 路径不存在 -> 404
-    if (not_found_handler_) {
-        not_found_handler_(req, resp);
+    // 4. 路径不存在 -> 404
+    if (!not_found_handler_) {
+        fill_default_not_found(resp); // 跳过（无）业务处理，直接填充 response
+        return DispatchResult::NotFound;
     }
-    else {
-        fill_default_not_found(resp);
-    }
+    not_found_handler_(req, resp);
     return DispatchResult::NotFound;
 }
 
@@ -103,9 +102,8 @@ bool Router::starts_with(const std::string& text, const std::string& prefix) {
     return text.compare(0, prefix.size(), prefix) == 0;
 }
 
-// 私有工具函数，填充默认 404 响应
 void Router::fill_default_not_found(HttpResponse& resp) const {
-    // 默认 404 响应（纯文本，关闭连接）
+    // 私有工具函数，填充默认 404 响应（纯文本，关闭连接）
     resp.set_http_version("HTTP/1.1");
     resp.set_status(404, "Not Found");
     resp.set_body("Not Found");
@@ -114,9 +112,9 @@ void Router::fill_default_not_found(HttpResponse& resp) const {
     resp.set_close_connection(true);
 }
 
-// 私有工具函数，填充默认 405 响应
+
 void Router::fill_default_method_not_allowed(const std::string& path, HttpResponse& resp) const {
-    // 默认 405 响应，自动生成 Allow 头
+    // 私有工具函数，填充默认 405 响应（纯文本，自动生成 Allow 头）
     resp.set_http_version("HTTP/1.1");
     resp.set_status(405, "Method Not Allowed");
 
@@ -145,8 +143,8 @@ std::string Router::build_allow_header(const std::string& path) const {
         if (!first) {
             oss << ", ";
         }
-        first = false;
         oss << method;
+        first = false;
     }
     return oss.str();
 }

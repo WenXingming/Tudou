@@ -108,7 +108,7 @@ private:
     std::unordered_map<std::string, std::unordered_set<std::string>> allowed_methods_by_path_;
 
     // prefix_routes_：前缀兜底路由。
-    // 存储顺序 = 注册顺序，dispatch 时会按顺序依次尝试。
+    // 存储顺序 = 注册顺序，dispatch 时会按顺序依次尝试。pair: {prefix, handler}
     // 建议：把更“具体”的前缀先注册，把更“宽泛”的前缀（如 "/"）最后注册。
     std::vector<std::pair<std::string, Handler>> prefix_routes_;
 
