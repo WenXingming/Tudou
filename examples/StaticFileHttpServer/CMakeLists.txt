@@ -15,7 +15,7 @@ set(source_files_dir ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB source_files 
     ${source_files_dir}/*.cpp
 )
-add_executable(StaticFileHttpServer ${source_files})
+add_executable(static-server ${source_files})
 
 
 # ======================================================================================
@@ -28,12 +28,12 @@ add_executable(StaticFileHttpServer ${source_files})
 
 # ======================================================================================
 # 添加库的头文件路径（编译时需要），因为代码中包含了 spdlog 头文件和 tudou 头文件
-target_include_directories(StaticFileHttpServer PRIVATE "${CMAKE_SOURCE_DIR}/libs/") 
-target_include_directories(StaticFileHttpServer PRIVATE
+target_include_directories(static-server PRIVATE "${CMAKE_SOURCE_DIR}/libs/") 
+target_include_directories(static-server PRIVATE
     "${CMAKE_SOURCE_DIR}/src"  # Tudou 源码头文件（base/, http/, tudou/ 等）
 )
 # 链接库
-target_link_libraries(StaticFileHttpServer PRIVATE 
+target_link_libraries(static-server PRIVATE 
     tudou
     ) 
 # ======================================================================================

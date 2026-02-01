@@ -1,7 +1,7 @@
 /**
  * @file StaticFileHttpServer.h
  * @brief 发送文件的 HTTP 服务器示例
- * @details 得益于 Tudou 框架的模块化设计，实现一个发送文件的 HTTP 服务器变得非常简单。只需持有 Tudou 提供的 HttpServer 类，并设置相应的回调函数即可完成文件发送功能
+ * @details 得益于 Tudou 框架的模块化设计，实现一个发送文件的 HTTP 服务器变得非常简单。只需持有 Tudou 提供的 HttpServer 类，并设置相应的回调函数即可完成文件发送功能。为了方便起见，我们还引入了一个简单的路由器 Router 类来管理 URL 路径与文件系统路径之间的映射关系。
  * 静态文件 HTTP 服务器，用于测试 HttpServer：
  *   - 根据 URL 路径从指定根目录读取文件并返回
  *   - 例如：GET /hello-world.html -> <baseDir>/hello-world.html
@@ -17,29 +17,41 @@
 #include <mutex>
 #include <memory>
 #include <ctime>
-
 #include "tudou/http/HttpServer.h"
 #include "tudou/router/Router.h"
+
+struct CacheEntry {
+    std::string content;
+    std::time_t mtime;
+    long long size;
+};
 
 class HttpServer;
 class HttpRequest;
 class HttpResponse;
-
 class StaticFileHttpServer {
 public:
-    StaticFileHttpServer(const std::string& ip,
-                         uint16_t port,
-                         const std::string& baseDir,
-                         int threadNum = 0);
+    StaticFileHttpServer(const std::string& ip, uint16_t port, const std::string& baseDir, int threadNum = 0);
 
-    // 启动服务器（阻塞当前线程）
-    void start();
+    void start(); // 启动服务器（阻塞当前线程）
 
 private:
     void on_http_request(const HttpRequest& req, HttpResponse& resp); // 仅需设置消息处理回调即可
+
+    bool is_not_get_and_head(const std::string& method) const;
+    void package_method_not_allowed_response(HttpResponse& resp) const;
+    void package_not_found_response(HttpResponse& resp) const;
+
+    bool get_file_meta(const std::string& path, std::time_t& mtime, long long& size) const;
+    void package_metadata_response(HttpResponse& resp, std::string contentType, std::time_t mtime, long long size) const;
+
+    void package_file_response(const std::string& realPath, HttpResponse& resp);
+    bool get_file_content_from_cached(const std::string& realPath, std::string& content) const;
+    bool get_file_content_from_disk(const std::string& realPath, std::string& content) const;
+
     std::string resolve_path(const std::string& urlPath) const;
+
     std::string guess_content_type(const std::string& filepath) const;
-    bool get_file_content_cached(const std::string& realPath, std::string& content) const;
 
 private:
     std::string ip_;
@@ -49,16 +61,11 @@ private:
 
     std::unique_ptr<HttpServer> httpServer_;
 
-    Router router_;
-
-    struct CacheEntry {
-        std::string content;
-        std::time_t mtime;
-        long long size;
-    };
+    std::unique_ptr<Router> router_;
 
     // 简单的文件内容缓存：避免每个请求都从磁盘读取同一个静态文件
     // 同时缓存文件的 mtime/size，用于源文件变更时自动刷新
-    mutable std::mutex cacheMutex_;
+    // fileCache_ 映射：文件路径 -> 缓存条目
+    mutable std::mutex fileCacheMutex_;
     mutable std::unordered_map<std::string, CacheEntry> fileCache_;
 };
