@@ -10,7 +10,6 @@
  */
 
 #pragma once
-
 #include <string>
 #include <vector>
 #include <memory>
@@ -22,18 +21,6 @@ class EventLoopThread;
 class EventLoopThreadPool {
     using ThreadInitCallback = std::function<void(EventLoop*)>;
 
-private:
-    std::unique_ptr<EventLoop> mainLoop; // 监听线程的 EventLoop（之前是放在 TcpServer 里的，这里放到线程池里可能更合适一些）
-
-    std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads; // IO 线程池
-    size_t ioLoopsIndex;                                         // 轮询索引
-
-    std::string name;                                            // 线程池名称
-    int numThreads;                                              // 线程池中的 IO 线程数量（构造时确定）
-
-    ThreadInitCallback initCallback;                             // IO 线程初始化回调
-    bool started;                                                // 是否已启动
-
 public:
     EventLoopThreadPool(const std::string& name = std::string(), int numThreads = 0, const ThreadInitCallback& cb = ThreadInitCallback());
     EventLoopThreadPool(const EventLoopThreadPool&) = delete;
@@ -42,10 +29,21 @@ public:
 
     void start();
 
-    EventLoop* get_main_loop() { return mainLoop.get(); }
+    EventLoop* get_main_loop() { return mainLoop_.get(); }
     EventLoop* get_next_loop();
     std::vector<EventLoop*> get_all_loops() const;
 
-    std::string get_name() const { return name; }
-    int get_num_threads() const { return numThreads + 1; } // 包括 mainLoop
+    std::string get_name() const { return name_; }
+    int get_num_threads() const { return numThreads_ + 1; } // 包括 mainLoop
+
+private:
+    std::unique_ptr<EventLoop> mainLoop_; // 监听线程的 EventLoop（之前是放在 TcpServer 里的，这里放到线程池里可能更合适一些）
+
+    std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads_; // IO 线程池
+    size_t ioLoopsIndex_;                                         // 轮询索引
+
+    std::string name_;                                            // 线程池名称
+    int numThreads_;                                              // 线程池中的 IO 线程数量（构造时确定）
+    ThreadInitCallback initCallback_;                             // IO 线程初始化回调
+    bool started_;                                                // 是否已启动
 };

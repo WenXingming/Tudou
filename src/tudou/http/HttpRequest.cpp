@@ -9,37 +9,36 @@
 
 #include "HttpRequest.h"
 
-
 HttpRequest::HttpRequest() :
-    method(),
-    url(),
-    path(),
-    query(),
-    version(),
-    headers(),
-    body() {
+    method_(),
+    url_(),
+    path_(),
+    query_(),
+    version_(),
+    headers_(),
+    body_() {
 }
 
 void HttpRequest::add_header(const std::string& field, const std::string& value) {
-    headers[field] = value;
+    headers_[field] = value;
 }
 
 const std::string& HttpRequest::get_header(const std::string& field) const {
     static const std::string empty;
-    auto it = headers.find(field);
-    if (it != headers.end()) {
+    auto it = headers_.find(field);
+    if (it != headers_.end()) {
         return it->second;
     }
     return empty;
 }
 
 void HttpRequest::clear() {
-    method.clear();
-    url.clear();
-    path.clear();
-    query.clear();
-    version.clear();
-    headers.clear();
-    body.clear();
+    method_.clear();
+    url_.clear();
+    path_.clear();
+    query_.clear();
+    version_.clear();
+    headers_.clear();
+    body_.clear();
 }
 

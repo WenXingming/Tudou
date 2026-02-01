@@ -21,7 +21,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 
@@ -77,13 +76,13 @@ public:
     // 注意：前缀路由不区分 method；它的目标是“兜底处理某一类 path”。
     void add_prefix_route(const std::string& prefix, Handler handler);
 
-    // 自定义 404/405 响应（可选）
-    void set_not_found_handler(Handler handler);
-    void set_method_not_allowed_handler(Handler handler);
-
     // 最核心的分发函数：根据 req 的 method + path 找到对应的 handler 并执行，填充 resp。
     // 返回值表示分发结果（命中/未命中/方法不允许）。
     DispatchResult dispatch(const HttpRequest& req, HttpResponse& resp) const;
+
+    // 自定义 404/405 响应（可选）
+    void set_not_found_handler(Handler handler);
+    void set_method_not_allowed_handler(Handler handler);
 
 private:
     static bool starts_with(const std::string& text, const std::string& prefix); // 私有工具函数，判断 text 是否以 prefix 开头
@@ -100,20 +99,20 @@ private:
 
     // allowed_methods_by_path_：辅助表，用来生成 405 Method Not Allowed。
     // 例如注册了：GET /health、POST /health
-    // 那 allowed_methods_by_path_["/health"] = {"GET", "POST"}
+    // 那 allowedMethodsByPath_["/health"] = {"GET", "POST"}
     // 当收到 PUT /health 时：
     //  - 精确匹配找不到
     //  - 但是 path 存在（allowed_methods_by_path_ 有）
     //  - 应返回 405，并在 Allow 头里告诉客户端支持哪些方法
-    std::unordered_map<std::string, std::unordered_set<std::string>> allowed_methods_by_path_;
+    std::unordered_map<std::string, std::unordered_set<std::string>> allowedMethodsByPath_;
 
     // prefix_routes_：前缀兜底路由。
     // 存储顺序 = 注册顺序，dispatch 时会按顺序依次尝试。pair: {prefix, handler}
     // 建议：把更“具体”的前缀先注册，把更“宽泛”的前缀（如 "/"）最后注册。
-    std::vector<std::pair<std::string, Handler>> prefix_routes_;
+    std::vector<std::pair<std::string, Handler>> prefixRoutes_;
 
     // 自定义 404/405 的 handler 接口（可选）。
     // 不设置则走默认实现（纯文本 404/405）。
-    Handler not_found_handler_;
-    Handler method_not_allowed_handler_;
+    Handler notFoundHandler_;
+    Handler methodNotAllowedHandler_;
 };

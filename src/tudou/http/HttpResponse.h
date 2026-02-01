@@ -19,47 +19,43 @@
 #include <string>
 #include <unordered_map>
 
-
 class HttpResponse {
 public:
     using Headers = std::unordered_map<std::string, std::string>;
-
-private:
-    std::string httpVersion;
-    int statusCode;
-    std::string statusMessage;
-    Headers headers;
-    std::string body;
-
-    bool closeConnection; // 标记连接是否需要关闭, 暂时未使用
 
 public:
     HttpResponse();
     ~HttpResponse() = default;
 
-    void set_http_version(const std::string& version) { httpVersion = version; }
-    const std::string& get_http_version() const { return httpVersion; }
-
-    void set_status(int _code, const std::string& _message) {
-        statusCode = _code;
-        statusMessage = _message;
-    }
-
-    int get_status_code() const { return statusCode; }
-    const std::string& get_status_message() const { return statusMessage; }
-
-    void add_header(const std::string& field, const std::string& value) {
-        headers[field] = value;
-    }
-    const Headers& get_headers() const { return headers; }
-
-    void set_body(const std::string& _body) { body = _body; }
-    const std::string& get_body() const { return body; }
-
-    void set_close_connection(bool _on) { closeConnection = _on; }
-    bool get_close_connection() const { return closeConnection; }
-
     std::string package_to_string() const;
 
+    void set_http_version(const std::string& version) { httpVersion_ = version; }
+    const std::string& get_http_version() const { return httpVersion_; }
+
+    void set_status(int _code, const std::string& _message) {
+        statusCode_ = _code;
+        statusMessage_ = _message;
+    }
+
+    int get_status_code() const { return statusCode_; }
+    const std::string& get_status_message() const { return statusMessage_; }
+
+    void add_header(const std::string& field, const std::string& value) {
+        headers_[field] = value;
+    }
+    const Headers& get_headers() const { return headers_; }
+    void set_body(const std::string& _body) { body_ = _body; }
+    const std::string& get_body() const { return body_; }
+
+    void set_close_connection(bool _on) { closeConnection_ = _on; }
+    bool get_close_connection() const { return closeConnection_; }
+
+private:
+    std::string httpVersion_;
+    int statusCode_;
+    std::string statusMessage_;
+    Headers headers_;
+    std::string body_;
+    bool closeConnection_; // 标记连接是否需要关闭, 暂时未使用
 };
 

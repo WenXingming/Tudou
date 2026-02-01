@@ -21,46 +21,44 @@
 #include <string>
 #include <unordered_map>
 
-
 class HttpRequest {
     using Headers = std::unordered_map<std::string, std::string>;
-
-private:
-    std::string method;
-    std::string url;
-    std::string path;
-    std::string query;
-    std::string version;
-    Headers headers;
-    std::string body;
 
 public:
     HttpRequest();
     ~HttpRequest() = default;
 
-    void set_method(const std::string& m) { method = m; }
-    const std::string& get_method() const { return method; }
+    void set_method(const std::string& m) { method_ = m; }
+    const std::string& get_method() const { return method_; }
 
-    void set_url(const std::string& u) { url = u; }
-    const std::string& get_url() const { return url; }
+    void set_url(const std::string& u) { url_ = u; }
+    const std::string& get_url() const { return url_; }
+    void set_path(const std::string& p) { path_ = p; }
+    const std::string& get_path() const { return path_; }
 
-    void set_path(const std::string& p) { path = p; }
-    const std::string& get_path() const { return path; }
+    void set_query(const std::string& q) { query_ = q; }
+    const std::string& get_query() const { return query_; }
 
-    void set_query(const std::string& q) { query = q; }
-    const std::string& get_query() const { return query; }
-
-    void set_version(const std::string& v) { version = v; }
-    const std::string& get_version() const { return version; }
+    void set_version(const std::string& v) { version_ = v; }
+    const std::string& get_version() const { return version_; }
 
     void add_header(const std::string& field, const std::string& value);
-    const Headers& get_headers() const { return headers; }
+    const Headers& get_headers() const { return headers_; }
     const std::string& get_header(const std::string& field) const;
 
-    void append_body(const char* data, size_t len) { body.append(data, len); }
-    void set_body(const std::string& b) { body = b; }
-    const std::string& get_body() const { return body; }
+    void append_body(const char* data, size_t len) { body_.append(data, len); }
+    void set_body(const std::string& b) { body_ = b; }
+    const std::string& get_body() const { return body_; }
 
     void clear();
+
+private:
+    std::string method_;
+    std::string url_;
+    std::string path_;
+    std::string query_;
+    std::string version_;
+    Headers headers_;
+    std::string body_;
 };
 

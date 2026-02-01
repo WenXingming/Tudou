@@ -205,7 +205,7 @@ sequenceDiagram
 - **HttpResponse**：HTTP 响应封装器。用于构造 HTTP 响应报文。
 - **HttpRequest**：HTTP 请求封装器。用于封装 HTTP 请求报文数据，类似一个数据结构体。
 - **HttpContext**：HTTP 解析器。持有 llhttp 解析器实例、HttpRequest 实例，用于解析 HTTP 请求报文，并将解析结果存入 HttpRequest 实例中。
-- **HttpServer**：HTTP 服务器。持有 TcpServer 实例；还持有回调函数 httpCallback 用于执行上层应用的 HTTP 请求处理回调，当收到 HTTP 请求时触发调用。callback（on_message、on_connection） 用于处理 TcpServer 的消息处理事件和连接建立、断开事件
+- **HttpServer**：HTTP 服务器。持有 TcpServer 实例；还持有回调函数 messageCallback 用于执行上层应用的 HTTP 请求处理回调，当收到 HTTP 请求时触发调用。callback（on_message、on_connection） 用于处理 TcpServer 的消息处理事件和连接建立、断开事件
 
 > 陈硕为什么使用水平触发，且fd也不是非阻塞，见书平均只读一次（注重短而快的连接）
 

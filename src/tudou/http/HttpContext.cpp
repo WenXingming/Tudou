@@ -12,29 +12,28 @@
 
 
 HttpContext::HttpContext() :
-    parser(),
-    settings(),
-    request(),
-    messageComplete(false),
-    currentHeaderField(),
-    currentHeaderValue(),
-    lastWasValue(false) {
+    parser_(),
+    settings_(),
+    request_(),
+    messageComplete_(false),
+    currentHeaderField_(),
+    currentHeaderValue_(),
+    lastWasValue_(false) {
 
-    llhttp_settings_init(&settings);
-    settings.on_message_begin = &HttpContext::on_message_begin;
-    settings.on_url = &HttpContext::on_url;
-    settings.on_header_field = &HttpContext::on_header_field;
-    settings.on_header_value = &HttpContext::on_header_value;
-    settings.on_body = &HttpContext::on_body;
-    settings.on_message_complete = &HttpContext::on_message_complete;
-
-    llhttp_init(&parser, HTTP_REQUEST, &settings);
-    parser.data = this;
+    llhttp_settings_init(&settings_);
+    settings_.on_message_begin = &HttpContext::on_message_begin;
+    settings_.on_url = &HttpContext::on_url;
+    settings_.on_header_field = &HttpContext::on_header_field;
+    settings_.on_header_value = &HttpContext::on_header_value;
+    settings_.on_body = &HttpContext::on_body;
+    settings_.on_message_complete = &HttpContext::on_message_complete;
+    llhttp_init(&parser_, HTTP_REQUEST, &settings_);
+    parser_.data = this;
 }
 
 bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
     // llhttp_execute 消费的是全部 len，如果中途错误会返回错误码
-    auto err = llhttp_execute(&parser, data, len);
+    auto err = llhttp_execute(&parser_, data, len);
     // 只要无错误即视为消费了全部输入数据即 len 字节（未完成的消息会保留在 llhttp 内部状态中，等待下一次 execute 调用继续解析）
     if (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) {
         nparsed = len;
@@ -46,12 +45,12 @@ bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
 }
 
 void HttpContext::reset() {
-    request.clear();
-    messageComplete = false;
-    currentHeaderField.clear();
-    currentHeaderValue.clear();
-    lastWasValue = false;
-    llhttp_reset(&parser);
+    request_.clear();
+    messageComplete_ = false;
+    currentHeaderField_.clear();
+    currentHeaderValue_.clear();
+    lastWasValue_ = false;
+    llhttp_reset(&parser_);
 }
 
 int HttpContext::on_message_begin(llhttp_t* parser) {
@@ -91,67 +90,67 @@ int HttpContext::on_message_complete(llhttp_t* parser) {
 }
 
 void HttpContext::on_message_begin_impl() {
-    request.clear();
-    messageComplete = false;
-    currentHeaderField.clear();
-    currentHeaderValue.clear();
-    lastWasValue = false;
+    request_.clear();
+    messageComplete_ = false;
+    currentHeaderField_.clear();
+    currentHeaderValue_.clear();
+    lastWasValue_ = false;
 }
 
 void HttpContext::on_url_impl(const char* at, size_t length) {
     // 解析 method、url、path、query、version
     // Method
-    const char* method_str = llhttp_method_name(static_cast<llhttp_method>(parser.method));
+    const char* method_str = llhttp_method_name(static_cast<llhttp_method>(parser_.method));
     if (method_str) {
-        request.set_method(method_str);
+        request_.set_method(method_str);
     }
 
     // URL
     std::string url(at, length);
-    request.set_url(url);
+    request_.set_url(url);
 
     // 简单拆分 URL 的 path 和 query
     auto pos = url.find('?');
     if (pos == std::string::npos) {
-        request.set_path(url);
+        request_.set_path(url);
     }
     else {
-        request.set_path(url.substr(0, pos));
-        request.set_query(url.substr(pos + 1));
+        request_.set_path(url.substr(0, pos));
+        request_.set_query(url.substr(pos + 1));
     }
 
     // version 统一用 HTTP/1.1
-    request.set_version("HTTP/1.1");
+    request_.set_version("HTTP/1.1");
 }
 
 void HttpContext::on_header_field_impl(const char* at, size_t length) {
     // 上一个是 value，说明一个完整的 header field-value 对已经结束
-    if (lastWasValue) {
-        if (!currentHeaderField.empty()) {
-            request.add_header(currentHeaderField, currentHeaderValue);
+    if (lastWasValue_) {
+        if (!currentHeaderField_.empty()) {
+            request_.add_header(currentHeaderField_, currentHeaderValue_);
         }
-        currentHeaderField.clear();
-        currentHeaderValue.clear();
-        lastWasValue = false;
+        currentHeaderField_.clear();
+        currentHeaderValue_.clear();
+        lastWasValue_ = false;
     }
-    currentHeaderField.append(at, length);
+    currentHeaderField_.append(at, length);
 }
 
 void HttpContext::on_header_value_impl(const char* at, size_t length) {
     // 并非每次调用都是新的 value，可能是分块传输。不知道 value 是否会被分块传输，所以每次都 append。
     // 因为不知道 value 的结尾，所以只能等到下一个 header field 或消息结束时再保存。
-    currentHeaderValue.append(at, length);
-    lastWasValue = true;
+    currentHeaderValue_.append(at, length);
+    lastWasValue_ = true;
 }
 
 void HttpContext::on_body_impl(const char* at, size_t length) {
-    request.append_body(at, length);
+    request_.append_body(at, length);
 }
 
 void HttpContext::on_message_complete_impl() {
-    if (!currentHeaderField.empty()) {
-        request.add_header(currentHeaderField, currentHeaderValue);
+    if (!currentHeaderField_.empty()) {
+        request_.add_header(currentHeaderField_, currentHeaderValue_);
     }
-    messageComplete = true;
+    messageComplete_ = true;
 }
 

@@ -13,7 +13,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
 #include "base/InetAddress.h"
 #include "spdlog/spdlog.h"
 #include "Acceptor.h"
@@ -22,72 +21,72 @@
 #include "EventLoopThread.h"
 #include "EventLoopThreadPool.h"
 
-TcpServer::TcpServer(std::string _ip, uint16_t _port, size_t _ioLoopNum) :
-    loopThreadPool(new EventLoopThreadPool("TcpServerLoopPool", _ioLoopNum)),
-    ip(std::move(_ip)),
-    port(_port),
-    acceptor(nullptr),
-    connections(),
-    connectionsMutex(),
-    connectionCallback(nullptr),
-    messageCallback(nullptr),
-    closeCallback(nullptr),
-    errorCallback(nullptr),
-    writeCompleteCallback(nullptr),
-    highWaterMarkCallback(nullptr),
-    highWaterMark(64 * 1024 * 1024) {  // 默认 64MB
+TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
+    loopThreadPool_(nullptr),
+    ip_(std::move(ip)),
+    port_(port),
+    acceptor_(nullptr),
+    connections_(),
+    connectionsMutex_(),
+    connectionCallback_(nullptr),
+    messageCallback_(nullptr),
+    closeCallback_(nullptr),
+    errorCallback_(nullptr),
+    writeCompleteCallback_(nullptr),
+    highWaterMarkCallback_(nullptr),
+    highWaterMark_(64 * 1024 * 1024) {  // 默认 64MB
 
-    EventLoop* mainLoop = loopThreadPool->get_main_loop();
-    InetAddress listenAddr(this->ip, this->port);
+    // 创建线程池（创建 mainLoop，ioLoops 在 start() 时创建并启动）
+    loopThreadPool_.reset(new EventLoopThreadPool("TcpServerLoopPool", ioLoopNum));
+
+    // 创建 Acceptor，绑定新连接回调
+    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
+    InetAddress listenAddr(this->ip_, this->port_);
     if (mainLoop == nullptr) {
         spdlog::critical("TcpServer::TcpServer(). mainLoop is nullptr.");
         assert(false);
     }
-    acceptor.reset(new Acceptor(mainLoop, listenAddr));
-    acceptor->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 传递 Acceptor 引用
-
-    spdlog::debug("TcpServer::TcpServer() called, ip: {}, port: {}, ioLoopNum: {}", ip, port, _ioLoopNum);
+    acceptor_.reset(new Acceptor(mainLoop, listenAddr));
+    acceptor_->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 传递 Acceptor 引用
 }
 
 TcpServer::~TcpServer() {
-    spdlog::debug("TcpServer::~TcpServer() called.");
-}
-
-void TcpServer::set_connection_callback(ConnectionCallback cb) {
-    this->connectionCallback = std::move(cb);
-}
-
-void TcpServer::set_message_callback(MessageCallback cb) {
-    this->messageCallback = std::move(cb);
-}
-
-void TcpServer::set_close_callback(CloseCallback cb) {
-    this->closeCallback = std::move(cb);
-}
-
-void TcpServer::set_error_callback(ErrorCallback cb) {
-    this->errorCallback = std::move(cb);
-}
-
-void TcpServer::set_write_complete_callback(WriteCompleteCallback cb) {
-    this->writeCompleteCallback = std::move(cb);
-}
-
-void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _highWaterMark) {
-    this->highWaterMarkCallback = std::move(cb);
-    this->highWaterMark = _highWaterMark;
 }
 
 void TcpServer::start() {
-    spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip, port);
-
-    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
+    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
     if (mainLoop == nullptr) {
         spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
         assert(false);
     }
-    loopThreadPool->start();
+    loopThreadPool_->start();
     mainLoop->loop(); // 启动监听事件循环，开启服务器
+}
+
+void TcpServer::set_connection_callback(ConnectionCallback cb) {
+    this->connectionCallback_ = std::move(cb);
+}
+
+void TcpServer::set_message_callback(MessageCallback cb) {
+    this->messageCallback_ = std::move(cb);
+}
+
+void TcpServer::set_close_callback(CloseCallback cb) {
+    this->closeCallback_ = std::move(cb);
+}
+
+void TcpServer::set_error_callback(ErrorCallback cb) {
+    this->errorCallback_ = std::move(cb);
+}
+
+void TcpServer::set_write_complete_callback(WriteCompleteCallback cb) {
+    this->writeCompleteCallback_ = std::move(cb);
+}
+
+void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _highWaterMark) {
+    this->highWaterMarkCallback_ = std::move(cb);
+    this->highWaterMark_ = _highWaterMark;
 }
 
 void TcpServer::on_connect(Acceptor& acceptor) {
@@ -122,26 +121,26 @@ void TcpServer::on_connect(Acceptor& acceptor) {
             this->on_close(_conn);
             });
         // 设置错误回调（如果用户设置了）
-        if (errorCallback) {
+        if (errorCallback_) {
             conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
                 handle_error_callback(_conn);
                 });
         }
         // 设置写完成回调（如果用户设置了）
-        if (writeCompleteCallback) {
+        if (writeCompleteCallback_) {
             conn->set_write_complete_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
                 handle_write_complete_callback(_conn);
                 });
         }
         // 设置高水位回调（如果用户设置了）
-        if (highWaterMarkCallback) {
+        if (highWaterMarkCallback_) {
             conn->set_high_water_mark_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
                 handle_high_water_mark_callback(_conn);
-                }, highWaterMark);
+                }, highWaterMark_);
         }
         {
-            std::lock_guard<std::mutex> lock(connectionsMutex);
-            connections[connFd] = conn;
+            std::lock_guard<std::mutex> lock(connectionsMutex_);
+            connections_[connFd] = conn;
         }
         conn->connection_establish(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
 
@@ -164,48 +163,48 @@ void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
 }
 
 void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->connectionCallback == nullptr) {
+    if (this->connectionCallback_ == nullptr) {
         spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
-    this->connectionCallback(conn);
+    this->connectionCallback_(conn);
 }
 
 void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn) {
-    assert(this->messageCallback != nullptr);
-    this->messageCallback(conn);
+    assert(this->messageCallback_ != nullptr);
+    this->messageCallback_(conn);
 }
 
 void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->closeCallback == nullptr) {
+    if (this->closeCallback_ == nullptr) {
         spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
-    this->closeCallback(conn);
+    this->closeCallback_(conn);
 }
 
 void TcpServer::handle_error_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->errorCallback == nullptr) {
+    if (this->errorCallback_ == nullptr) {
         spdlog::warn("TcpServer::handle_error_callback(). errorCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
-    this->errorCallback(conn);
+    this->errorCallback_(conn);
 }
 
 void TcpServer::handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->writeCompleteCallback == nullptr) {
+    if (this->writeCompleteCallback_ == nullptr) {
         spdlog::warn("TcpServer::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
-    this->writeCompleteCallback(conn);
+    this->writeCompleteCallback_(conn);
 }
 
 void TcpServer::handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->highWaterMarkCallback == nullptr) {
+    if (this->highWaterMarkCallback_ == nullptr) {
         spdlog::warn("TcpServer::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
-    this->highWaterMarkCallback(conn);
+    this->highWaterMarkCallback_(conn);
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
@@ -216,10 +215,10 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
         int fd = conn->get_fd();
         bool erased = false;
         {
-            std::lock_guard<std::mutex> lock(connectionsMutex);
-            auto findIt = connections.find(fd);
-            if (findIt != connections.end()) {
-                connections.erase(findIt);
+            std::lock_guard<std::mutex> lock(connectionsMutex_);
+            auto findIt = connections_.find(fd);
+            if (findIt != connections_.end()) {
+                connections_.erase(findIt);
                 erased = true;
             }
         }
@@ -234,10 +233,10 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
             int fd = conn->get_fd();
             bool erased = false;
             {
-                std::lock_guard<std::mutex> lock(connectionsMutex);
-                auto findIt = connections.find(fd);
-                if (findIt != connections.end()) {
-                    connections.erase(findIt);
+                std::lock_guard<std::mutex> lock(connectionsMutex_);
+                auto findIt = connections_.find(fd);
+                if (findIt != connections_.end()) {
+                    connections_.erase(findIt);
                     erased = true;
                 }
             }
@@ -251,7 +250,7 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
 
 void TcpServer::assert_in_main_loop_thread() const {
     // 创建连接时确保在 mainLoop 线程调用 on_connect
-    EventLoop* mainLoop = loopThreadPool->get_main_loop();
+    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
     if (mainLoop == nullptr) { // 不太可能发生，只是防御性编程。为了提高效率可以注释掉
         spdlog::critical("TcpServer::on_connect(). mainLoop is nullptr.");
         assert(false);
@@ -260,7 +259,7 @@ void TcpServer::assert_in_main_loop_thread() const {
 }
 
 EventLoop* TcpServer::select_loop() const {
-    EventLoop* ioLoop = loopThreadPool->get_next_loop();
+    EventLoop* ioLoop = loopThreadPool_->get_next_loop();
     if (ioLoop == nullptr) {
         spdlog::critical("TcpServer::on_connect(). ioLoop is nullptr.");
         assert(false);

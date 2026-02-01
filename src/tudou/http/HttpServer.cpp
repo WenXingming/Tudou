@@ -18,62 +18,62 @@
 
  // ==================== 构造与析构 ====================
 
-HttpServer::HttpServer(std::string _ip, uint16_t _port, int _threadNum) :
-    ip(std::move(_ip)),
-    port(_port),
-    tcpServer(nullptr),
-    httpContexts(),
-    contextsMutex(),
-    httpCallback(nullptr) {
+HttpServer::HttpServer(std::string ip, uint16_t port, int threadNum) :
+    ip_(std::move(ip)),
+    port_(port),
+    tcpServer_(nullptr),
+    httpContexts_(),
+    contextsMutex_(),
+    messageCallback_(nullptr) {
 
     // 创建底层 TcpServer
-    tcpServer.reset(new TcpServer(this->ip, this->port, _threadNum));
+    tcpServer_.reset(new TcpServer(this->ip_, this->port_, threadNum));
 
     // 注册 TcpServer 事件回调
-    tcpServer->set_connection_callback([this](const std::shared_ptr<TcpConnection>& conn) {
+    tcpServer_->set_connection_callback([this](const std::shared_ptr<TcpConnection>& conn) {
         on_connect(conn);
         });
-    tcpServer->set_message_callback([this](const std::shared_ptr<TcpConnection>& conn) {
+    tcpServer_->set_message_callback([this](const std::shared_ptr<TcpConnection>& conn) {
         on_message(conn);
         });
-    tcpServer->set_close_callback([this](const std::shared_ptr<TcpConnection>& conn) {
+    tcpServer_->set_close_callback([this](const std::shared_ptr<TcpConnection>& conn) {
         on_close(conn);
         });
 }
 
 void HttpServer::start() {
-    spdlog::debug("HttpServer: Starting HTTP server at {}:{}", ip, port);
-    if (!tcpServer) {
+    spdlog::debug("HttpServer: Starting HTTP server at {}:{}", ip_, port_);
+    if (!tcpServer_) {
         spdlog::critical("HttpServer: tcpServer is nullptr, cannot start server.");
         return;
     }
-    tcpServer->start();
+    tcpServer_->start();
 }
 
-void HttpServer::set_http_callback(const HttpCallback& cb) {
-    httpCallback = cb;
+void HttpServer::set_http_callback(const MessageCallback& cb) {
+    messageCallback_ = cb;
 }
 
 const std::string& HttpServer::get_ip() const {
-    return ip;
+    return ip_;
 }
 
 int HttpServer::get_port() const {
-    return port;
+    return port_;
 }
 
 int HttpServer::get_thread_num() const {
-    return tcpServer ? tcpServer->get_num_threads() : 0;
+    return tcpServer_ ? tcpServer_->get_num_threads() : 0;
 }
 
 void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     {
-        std::lock_guard<std::mutex> lock(contextsMutex);
-        if (httpContexts.find(fd) != httpContexts.end()) {
+        std::lock_guard<std::mutex> lock(contextsMutex_);
+        if (httpContexts_.find(fd) != httpContexts_.end()) {
             spdlog::warn("HttpServer: HttpContext already exists for fd={}, overwriting.", fd);
         }
-        httpContexts[fd] = std::shared_ptr<HttpContext>(new HttpContext()); // 这里的逻辑是如果存在则覆盖
+        httpContexts_[fd] = std::shared_ptr<HttpContext>(new HttpContext()); // 这里的逻辑是如果存在则覆盖
         spdlog::debug("HttpServer: New connection established, fd={}", fd);
     }
 }
@@ -87,12 +87,12 @@ void HttpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
 void HttpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     int fd = conn->get_fd();
     {
-        std::lock_guard<std::mutex> lock(contextsMutex);
-        if (httpContexts.find(fd) == httpContexts.end()) {
+        std::lock_guard<std::mutex> lock(contextsMutex_);
+        if (httpContexts_.find(fd) == httpContexts_.end()) {
             spdlog::warn("HttpServer: No HttpContext found for fd={} on close.", fd);
             return;
         }
-        httpContexts.erase(fd);
+        httpContexts_.erase(fd);
         spdlog::debug("HttpServer: Connection closed, fd={}", fd);
     }
 }
@@ -106,9 +106,9 @@ void HttpServer::parse_received_data(const std::shared_ptr<TcpConnection>& conn,
     int fd = conn->get_fd();
     std::shared_ptr<HttpContext> ctx;
     {
-        std::lock_guard<std::mutex> lock(contextsMutex);
-        auto it = httpContexts.find(fd);
-        if (it == httpContexts.end()) {
+        std::lock_guard<std::mutex> lock(contextsMutex_);
+        auto it = httpContexts_.find(fd);
+        if (it == httpContexts_.end()) {
             spdlog::error("HttpServer: No HttpContext found for fd={}", fd);
             return;
         }
@@ -173,12 +173,12 @@ void HttpServer::send_data(const std::shared_ptr<TcpConnection>& conn, const std
 
 
 void HttpServer::handle_http_callback(const HttpRequest& req, HttpResponse& resp) {
-    if (!httpCallback) {
+    if (!messageCallback_) {
         spdlog::warn("HttpServer: HTTP callback not set, returning 404 Not Found");
         resp = generate_404_response(); // 未进行业务处理，并直接返回 404 响应
         return;
     }
-    httpCallback(req, resp); // 调用上层业务回调，由业务层处理请求并填充响应
+    messageCallback_(req, resp); // 调用上层业务回调，由业务层处理请求并填充响应
 }
 
 void HttpServer::check_and_set_content_length(HttpResponse& resp) {

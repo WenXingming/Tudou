@@ -19,7 +19,6 @@
  */
 
 #pragma once
-
 #include <sys/epoll.h>
 #include <vector>
 #include <unordered_map>
@@ -27,28 +26,29 @@
 class EventLoop;
 class Channel;
 class EpollPoller {
-private:
-    // const static 可以在类内初始化
-    static const size_t initEventListSize = 16;         // 初始事件数组大小
-
-    EventLoop* loop;                                    // 依赖注入，所属的 EventLoop 指针
-    int epollFd;
-    std::vector<epoll_event> eventList;                 // 存放 epoll_wait 返回的就绪事件列表
-    std::unordered_map<int, Channel*> channels;         // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
-
 public:
-    explicit EpollPoller(EventLoop* _loop);
+    explicit EpollPoller(EventLoop* loop);
     ~EpollPoller();
 
     void poll(int timeoutMs);
-    bool has_channel(Channel* channel) const;
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
 
+    bool has_channel(Channel* channel) const;
+
 private:
-    // 完成 poll() 的辅助函数（面向过程设计）
+    // 完成 poll 的辅助函数（面向过程设计）
     int get_ready_num(int timeoutMs);
     auto get_activate_channels(int numReady) -> std::vector<Channel*>;
     void dispatch_events(const std::vector<Channel*>& activeChannels);
     void resize_event_list(int numReady);
+
+private:
+    // const static 可以在类内初始化
+    static const size_t initEventListSize_ = 16;        // 初始事件数组大小
+
+    EventLoop* loop_;                                   // 依赖注入，所属的 EventLoop 指针
+    int epollFd_;                                       // epoll 文件描述符
+    std::vector<epoll_event> eventList_;                // 存放 epoll_wait 返回的就绪事件列表
+    std::unordered_map<int, Channel*> channels_;        // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
 };

@@ -13,113 +13,69 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <cassert>
-
 #include "spdlog/spdlog.h"
 
- // 构造缓冲区，预留 prepend 区域并初始化读写索引。
+const size_t Buffer::kCheapPrepend_ = 8;
+const size_t Buffer::kInitialSize_ = 1024;
+
+// 构造缓冲区，预留 prepend 区域并初始化读写索引。
 Buffer::Buffer(size_t initialSize) :
-    buffer(kCheapPrepend + initialSize),
-    readIndex(kCheapPrepend),
-    writeIndex(kCheapPrepend) {
+    buffer_(kCheapPrepend_ + initialSize),
+    readIndex_(kCheapPrepend_),
+    writeIndex_(kCheapPrepend_) {
 
     assert(readable_bytes() == 0);
     assert(writable_bytes() == initialSize);
-    assert(prependable_bytes() == kCheapPrepend);
+    assert(prependable_bytes() == kCheapPrepend_);
 }
 
 Buffer::~Buffer() {
 
 }
 
-size_t Buffer::readable_bytes() const {
-    return writeIndex - readIndex;
-}
-
-size_t Buffer::writable_bytes() const {
-    return buffer.size() - writeIndex;
-}
-
-size_t Buffer::prependable_bytes() const {
-    return readIndex - 0;
-}
-
-const char* Buffer::readable_start_ptr() const {
-    return buffer.data() + readIndex;
-}
-
-// 从缓冲区读取 len 字节后维护 readIndex
-void Buffer::maintain_read_index(size_t len) {
-    if (len < readable_bytes()) { // 应用只读取了可读缓冲区的一部分
-        readIndex += len;
-    }
-    else { // 应用读取了所有可读数据, 直接重置
-        maintain_all_index();
-    }
-}
-
-// 将读写索引重置为初始位置，清空缓冲区
-void Buffer::maintain_all_index() {
-    readIndex = kCheapPrepend;
-    writeIndex = kCheapPrepend;
-}
-
-// 读取 len 字节为字符串并消费对应数据
 std::string Buffer::read_from_buffer(size_t len) {
+    // 读取 len 字节为字符串并消费对应数据
     if (len > readable_bytes()) {
         spdlog::error("Buffer::read_from_buffer(). len > readable_bytes");
     }
 
-    std::string str(readable_start_ptr(), len);
+    const char* start = readable_start_ptr();
+    std::string str(start, len);
     maintain_read_index(len);
     return std::move(str);
 }
 
-// 读取全部可读数据
 std::string Buffer::read_from_buffer() {
+    // 读取全部可读数据
     int readableBytes = readable_bytes();
-    std::string str(read_from_buffer(readableBytes));
-    maintain_read_index(readableBytes); // 其实 read_from_buffer 已经维护过了。为了保证语义清晰，再次调用
+    std::string str = read_from_buffer(readableBytes);
     return std::move(str);
 }
 
-// 写入原始数据到缓冲区，不够空间时扩容或整理。
 void Buffer::write_to_buffer(const char* data, size_t len) {
+    // 写入原始数据到缓冲区，不够空间时扩容或整理。
     if (writable_bytes() < len) {
         make_space(len); // 环形缓冲区：要么扩容要么调整
     }
-    std::copy(data, data + len, buffer.begin() + writeIndex);
-    writeIndex += len;
+    std::copy(data, data + len, buffer_.begin() + writeIndex_);
+    writeIndex_ += len;
 }
 
-// 写入 std::string 数据到缓冲区。
 void Buffer::write_to_buffer(const std::string& str) {
+    // 写入 std::string 数据到缓冲区。
     write_to_buffer(str.data(), str.size());
 }
 
-// 通过搬移或扩容确保有 len 字节可写空间。
-void Buffer::make_space(size_t len) {
-    if (writable_bytes() + prependable_bytes() < len + kCheapPrepend) { // 环形缓冲区
-        buffer.resize(writeIndex + len);
-    }
-    else { // 调整缓冲区
-        int readableBytes = readable_bytes();
-        std::copy(buffer.begin() + readIndex, buffer.begin() + writeIndex, buffer.begin() + kCheapPrepend);
-        readIndex = kCheapPrepend;
-        writeIndex = readIndex + readableBytes; // 不可直接调用 readable_bytes()，正在维护 index
-    }
-}
-
-/**
- * 从 fd 上读取数据，注意 events 是 LT 模式，数据没有读完也不会丢失。没有使用 while 读
- * 使用 readv，buffer 不会太小也不会太大，完美利用内存
- */
- // 从 fd 读取数据写入缓冲区的 writable 区域，并根据读取量调整索引。readBuffer 调用此函数
 ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
+    // 从 fd 上读取数据，注意 events 是 LT 模式，数据没有读完也不会丢失。没有使用 while 读
+    // 使用 readv，buffer 不会太小也不会太大，完美利用内存
+    // TODO: 设置 fd 为非阻塞，然后循环接受到 buffer
+
     char extraBuf[65536];
     size_t writableBytes = writable_bytes();
 
     struct iovec vec[2];
-    vec[0].iov_base = buffer.data() + writeIndex;
+    vec[0].iov_base = buffer_.data() + writeIndex_;
     vec[0].iov_len = writableBytes;
     vec[1].iov_base = extraBuf;
     vec[1].iov_len = sizeof(extraBuf);
@@ -130,19 +86,17 @@ ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
         *savedErrno = errno;
     }
     else if (static_cast<size_t>(n) <= writableBytes) {
-        writeIndex += n;
+        writeIndex_ += n;
     }
     else {
-        writeIndex = buffer.size();
+        writeIndex_ = buffer_.size();
         write_to_buffer(extraBuf, n - writableBytes);
     }
     return n;
-
-    /// TODO: 设置 fd 为非阻塞，然后循环接受到 buffer
 }
 
-// 将缓冲区可读数据写入 fd，并根据写入量调整索引。writeBuffer 调用此函数
 ssize_t Buffer::write_to_fd(int fd, int* savedErrno) {
+    // 将缓冲区可读数据写入 fd，并根据写入量调整索引。writeBuffer 调用此函数
     auto readablePtr = readable_start_ptr();
     auto readableBytes = readable_bytes();
     ssize_t n = ::write(fd, readablePtr, readableBytes);
@@ -153,4 +107,51 @@ ssize_t Buffer::write_to_fd(int fd, int* savedErrno) {
         maintain_read_index(n);
     }
     return n;
+}
+
+size_t Buffer::readable_bytes() const {
+    return writeIndex_ - readIndex_;
+}
+
+size_t Buffer::writable_bytes() const {
+    return buffer_.size() - writeIndex_;
+}
+
+size_t Buffer::prependable_bytes() const {
+    return readIndex_ - 0;
+}
+
+const char* Buffer::readable_start_ptr() const {
+    return buffer_.data() + readIndex_;
+}
+
+void Buffer::maintain_read_index(size_t len) {
+    // 从缓冲区读取 len 字节后维护 readIndex
+    // 应用只读取了可读缓冲区的一部分
+    if (len < readable_bytes()) {
+        readIndex_ += len;
+        return;
+    }
+    // 应用读取了所有可读数据, 直接重置
+    maintain_all_index();
+}
+
+void Buffer::maintain_all_index() {
+    // 将读写索引重置为初始位置，清空缓冲区
+    readIndex_ = kCheapPrepend_;
+    writeIndex_ = kCheapPrepend_;
+}
+
+void Buffer::make_space(size_t len) {
+    // 通过搬移或扩容确保有 len 字节可写空间。
+    // 判断是否通过搬移数据可以满足需求（环形缓冲区），若不行则扩容
+    if (writable_bytes() + prependable_bytes() < len + kCheapPrepend_) {
+        buffer_.resize(writeIndex_ + len);
+        return;
+    }
+    // 若搬移数据可以满足需求，则通过搬移数据调整缓冲区
+    int readableBytes = readable_bytes();
+    std::copy(buffer_.begin() + readIndex_, buffer_.begin() + writeIndex_, buffer_.begin() + kCheapPrepend_);
+    readIndex_ = kCheapPrepend_;
+    writeIndex_ = readIndex_ + readableBytes; // 不可直接调用 readable_bytes()，正在维护 index
 }

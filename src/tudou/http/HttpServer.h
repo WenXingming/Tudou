@@ -25,19 +25,19 @@
 #include "tudou/http/HttpContext.h"
 
 class HttpServer {
-    // 数据流向：Tcp --> HttpRequest --> 上层业务回调 httpCallback 并填充 HttpResponse --> HttpResponse --> Tcp
+    // 数据流向：Tcp --> HttpRequest --> 上层业务回调 messageCallback 并填充 HttpResponse --> HttpResponse --> Tcp
     // 使用回调是因为事件触发机制
-    using HttpCallback = std::function<void(const HttpRequest& req, HttpResponse& resp)>;
+    using MessageCallback = std::function<void(const HttpRequest& req, HttpResponse& resp)>;
 
 public:
-    HttpServer(std::string _ip, uint16_t _port, int _threadNum = 0);
+    HttpServer(std::string ip, uint16_t port, int threadNum = 0);
     HttpServer(const HttpServer&) = delete;
     HttpServer& operator=(const HttpServer&) = delete;
     ~HttpServer() = default;
 
     void start();
 
-    void set_http_callback(const HttpCallback& cb);
+    void set_http_callback(const MessageCallback& cb);
 
     const std::string& get_ip() const;
     int get_port() const;
@@ -72,12 +72,12 @@ private:
     HttpResponse generate_404_response();
 
 private:
-    std::string ip;                              // 监听 IP 地址
-    uint16_t port;                               // 监听端口
-    std::unique_ptr<TcpServer> tcpServer;        // 底层 TCP 服务器
+    std::string ip_;                              // 监听 IP 地址
+    uint16_t port_;                               // 监听端口
+    std::unique_ptr<TcpServer> tcpServer_;        // 底层 TCP 服务器
 
-    std::unordered_map<int, std::shared_ptr<HttpContext>> httpContexts; // HTTP 上下文管理（每个连接维护一个 HttpContext 用于解析 HTTP 报文）。fd -> HttpContext 映射
-    std::mutex contextsMutex;
+    std::unordered_map<int, std::shared_ptr<HttpContext>> httpContexts_; // HTTP 上下文管理（每个连接维护一个 HttpContext 用于解析 HTTP 报文）。fd -> HttpContext 映射
+    std::mutex contextsMutex_;
 
-    HttpCallback httpCallback;                   // 上层 HTTP 业务回调
+    MessageCallback messageCallback_;             // 上层 HTTP 业务回调。TODO: 是否需要添加更多回调（如连接建立、连接关闭等）？如果添加参数如何设计
 };

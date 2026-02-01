@@ -30,36 +30,36 @@
 #include <string>
 
 class Buffer {
-private:
-    static const size_t kCheapPrepend = 8;
-    static const size_t kInitialSize = 1024;
-
-    std::vector<char> buffer;
-    size_t readIndex;
-    size_t writeIndex;
-
-private:
-    void make_space(size_t len);
-
 public:
-    explicit Buffer(size_t initialSize = kInitialSize);
+    explicit Buffer(size_t initialSize = kInitialSize_);
     ~Buffer();
-
-    size_t prependable_bytes() const;
-    size_t readable_bytes() const;
-    size_t writable_bytes() const;
-
-    const char* readable_start_ptr() const;
-
-    void maintain_read_index(size_t len);   // 读走 len 个字节，维护 index
-    void maintain_all_index();  // 读走所有字节，维护 index
 
     std::string read_from_buffer(size_t len);              // 读走 len 个字节
     std::string read_from_buffer();
     void write_to_buffer(const char* data, size_t len);
     void write_to_buffer(const std::string& str);
 
-    // 提供给 TcpConnection （回调函数）使用的接口。内部实现调用 write_to_buffer/read_from_buffer
     ssize_t read_from_fd(int fd, int* savedErrno); // fd ==> buffer: 从 fd 读数据写入 buffer 的 writable 区域（写入 buffer）
     ssize_t write_to_fd(int fd, int* savedErrno);  // buffer ==> fd: 把 buffer 的 readable 区域写入 fd（从 buffer 读出）
+
+    size_t readable_bytes() const;
+    size_t writable_bytes() const;
+
+private:
+    size_t prependable_bytes() const;
+
+    const char* readable_start_ptr() const;
+
+    void maintain_read_index(size_t len);   // 读走 len 个字节，维护 index
+    void maintain_all_index();  // 读走所有字节，维护 index
+
+    void make_space(size_t len);
+
+private:
+    static const size_t kCheapPrepend_;
+    static const size_t kInitialSize_;
+
+    std::vector<char> buffer_;
+    size_t readIndex_;
+    size_t writeIndex_;
 };

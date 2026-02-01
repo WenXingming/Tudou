@@ -17,7 +17,7 @@ void Router::add_route(const std::string& method, const std::string& path, Handl
     routes_[key] = std::move(handler);
 
     // 同时记录“这个 path 支持哪些方法”，用于后续生成 405 的 Allow。
-    allowed_methods_by_path_[path].insert(method);
+    allowedMethodsByPath_[path].insert(method);
 }
 
 void Router::add_get_route(const std::string& path, Handler handler) {
@@ -38,15 +38,7 @@ void Router::add_prefix_route(const std::string& prefix, Handler handler) {
     // 所以一般把更具体的前缀先注册，例如：
     //   "/static/" 先
     //   "/" 最后
-    prefix_routes_.emplace_back(prefix, std::move(handler));
-}
-
-void Router::set_not_found_handler(Handler handler) {
-    not_found_handler_ = std::move(handler);
-}
-
-void Router::set_method_not_allowed_handler(Handler handler) {
-    method_not_allowed_handler_ = std::move(handler);
+    prefixRoutes_.emplace_back(prefix, std::move(handler));
 }
 
 DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) const {
@@ -65,18 +57,18 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     // 2. 路径存在但方法不匹配 -> 405（更改为优先于前缀兜底）
     // 注意：这里必须基于“path 是否存在”来判断 405。
     // 如果某个 path 从未注册过任何 method，那么它应该是 404，而不是 405。
-    auto methodIt = allowed_methods_by_path_.find(path);
-    if (methodIt != allowed_methods_by_path_.end()) {
-        if (!method_not_allowed_handler_) {
+    auto methodIt = allowedMethodsByPath_.find(path);
+    if (methodIt != allowedMethodsByPath_.end()) {
+        if (!methodNotAllowedHandler_) {
             fill_default_method_not_allowed(path, resp); // 跳过（无）业务处理，直接填充 response
             return DispatchResult::MethodNotAllowed;
         }
-        method_not_allowed_handler_(req, resp);
+        methodNotAllowedHandler_(req, resp);
         return DispatchResult::MethodNotAllowed;
     }
 
     // 3. 尝试前缀兜底（按注册顺序）。命中前缀：通常是静态文件处理器或“所有 GET 请求的统一入口”（特殊的 Get 由前面的精确路由处理）
-    for (const auto& pr : prefix_routes_) {
+    for (const auto& pr : prefixRoutes_) {
         const std::string& prefix = pr.first;
         if (starts_with(path, prefix)) {
             const Handler& handler = pr.second;
@@ -86,15 +78,22 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     }
 
     // 4. 路径不存在 -> 404
-    if (!not_found_handler_) {
+    if (!notFoundHandler_) {
         fill_default_not_found(resp); // 跳过（无）业务处理，直接填充 response
         return DispatchResult::NotFound;
     }
-    not_found_handler_(req, resp);
+    notFoundHandler_(req, resp);
     return DispatchResult::NotFound;
 }
 
-// 私有工具函数，判断 text 是否以 prefix 开头
+void Router::set_not_found_handler(Handler handler) {
+    notFoundHandler_ = std::move(handler);
+}
+
+void Router::set_method_not_allowed_handler(Handler handler) {
+    methodNotAllowedHandler_ = std::move(handler);
+}
+
 bool Router::starts_with(const std::string& text, const std::string& prefix) {
     if (text.size() < prefix.size()) {
         return false;
@@ -128,10 +127,10 @@ void Router::fill_default_method_not_allowed(const std::string& path, HttpRespon
     resp.set_close_connection(true);
 }
 
-// 私有工具函数，返回某 path 支持的所有方法，格式化为 Allow 头的值
 std::string Router::build_allow_header(const std::string& path) const {
-    auto it = allowed_methods_by_path_.find(path);
-    if (it == allowed_methods_by_path_.end() || it->second.empty()) {
+    // 私有工具函数，返回某 path 支持的所有方法，格式化为 Allow 头的值
+    auto it = allowedMethodsByPath_.find(path);
+    if (it == allowedMethodsByPath_.end() || it->second.empty()) {
         return "";
     }
 

@@ -9,29 +9,28 @@
 
 #include "HttpResponse.h"
 
-
 HttpResponse::HttpResponse() :
-    httpVersion("HTTP/1.1"),
-    statusCode(200),
-    statusMessage("OK"),
-    headers(),
-    body(),
-    closeConnection(false) {
+    httpVersion_("HTTP/1.1"),
+    statusCode_(200),
+    statusMessage_("OK"),
+    headers_(),
+    body_(),
+    closeConnection_(false) {
 
 }
 
 std::string HttpResponse::package_to_string() const {
     std::string result;
-    result.reserve(128 + body.size());
+    result.reserve(128 + body_.size());
 
-    result.append(httpVersion);
+    result.append(httpVersion_);
     result.push_back(' ');
-    result.append(std::to_string(statusCode));
+    result.append(std::to_string(statusCode_));
     result.push_back(' ');
-    result.append(statusMessage);
+    result.append(statusMessage_);
     result.append("\r\n");
 
-    for (const auto& kv : headers) {
+    for (const auto& kv : headers_) {
         result.append(kv.first);
         result.push_back(':');
         result.push_back(' ');
@@ -40,8 +39,7 @@ std::string HttpResponse::package_to_string() const {
     }
 
     result.append("\r\n");
-    result.append(body);
-
+    result.append(body_);
     return std::move(result);
 }
 
