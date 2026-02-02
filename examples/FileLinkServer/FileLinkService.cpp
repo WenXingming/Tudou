@@ -4,11 +4,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fstream>
+#include <errno.h>
 
-#include "util/Uuid.h"
-#include "util/HttpUtil.h"
+#include "utils/Uuid.h"
+#include "utils/HttpUtil.h"
+#include "utils/Sha256.h"
 
-static bool get_file_size(const std::string& path, int64_t& outSize) {
+namespace {
+
+static const char* kUnknownFileName = "unknown";
+
+bool get_file_size(const std::string& path, int64_t& outSize) {
     struct stat st;
     if (::stat(path.c_str(), &st) != 0) {
         return false;
@@ -17,7 +23,7 @@ static bool get_file_size(const std::string& path, int64_t& outSize) {
     return true;
 }
 
-static bool copy_file(const std::string& srcPath, const std::string& dstPath) {
+bool copy_file(const std::string& srcPath, const std::string& dstPath) {
     std::ifstream src(srcPath, std::ios::binary);
     if (!src) return false;
     std::ofstream dst(dstPath, std::ios::binary | std::ios::trunc);
@@ -36,106 +42,232 @@ static bool copy_file(const std::string& srcPath, const std::string& dstPath) {
     return true;
 }
 
-FileLinkService::FileLinkService(FileSystemStorage storage,
-                                 std::shared_ptr<IFileMetaStore> metaStore,
-                                 std::shared_ptr<IFileMetaCache> metaCache)
-    : storage_(std::move(storage)),
-      metaStore_(std::move(metaStore)),
-      metaCache_(std::move(metaCache)) {}
-
-UploadResult FileLinkService::upload(const std::string& originalName,
-                                     const std::string& contentType,
-                                     const std::string& fileContent) {
-    UploadResult result;
-
-    // 业务主键：这里用随机 32hex 字符串，作为
-    // - 对外暴露的下载 id（/file/{id}）
-    // - 对内落盘文件名（rootDir/{id}）
-    const std::string fileId = filelink::generate_hex_uuid32();
-
-    // 第一阶段：落盘（成功后才写 meta）。
-    std::string storagePath;
-    const bool ok = storage_.save(fileId, fileContent, storagePath);
-    if (!ok) {
-        return result;
-    }
-
-    FileMetadata meta;
-    meta.fileId = fileId;
-    meta.originalName = originalName.empty() ? "unknown" : originalName;
-    meta.storagePath = storagePath;
-    meta.contentType = !contentType.empty() ? contentType : filelink::guess_content_type_by_name(meta.originalName);
-    meta.fileSize = static_cast<int64_t>(fileContent.size());
-    meta.createdAtUnix = static_cast<int64_t>(::time(nullptr));
-
-    // 第二阶段：写入元数据（store）+ 热数据（cache）。
-    // demo 里不强制要求 store/cache 成功，避免因为基础设施不可用阻断上传。
-    if (metaStore_) {
-        metaStore_->put(meta);
-    }
-    if (metaCache_) {
-        metaCache_->put(meta, cacheTtlSeconds_);
-    }
-
-    result.fileId = fileId;
-    result.urlPath = "/file/" + fileId;
-    return result;
+bool path_exists(const std::string& path) {
+    struct stat st;
+    return ::stat(path.c_str(), &st) == 0;
 }
 
-UploadResult FileLinkService::upload_from_path(const std::string& originalName,
-                                               const std::string& contentType,
-                                               const std::string& tempPath,
-                                               int64_t fileSize) {
-    UploadResult result;
-    if (tempPath.empty()) {
-        return result;
+bool ensure_dir_exists_single_level(const std::string& dirPath) {
+    if (dirPath.empty()) {
+        return false;
     }
 
-    const std::string fileId = filelink::generate_hex_uuid32();
-
-    // 目标路径：storageRoot/{fileId}
-    std::string finalPath = storage_.rootDir();
-    if (!finalPath.empty() && finalPath.back() != '/') {
-        finalPath.push_back('/');
-    }
-    finalPath += fileId;
-
-    // 确保目录存在
-    if (!storage_.ensureRootExists()) {
-        return result;
+    struct stat st;
+    if (::stat(dirPath.c_str(), &st) == 0) {
+        return S_ISDIR(st.st_mode);
     }
 
-    // 优先 rename（同一文件系统几乎 O(1)）；失败则 copy+unlink。
-    bool moved = (::rename(tempPath.c_str(), finalPath.c_str()) == 0);
+    if (::mkdir(dirPath.c_str(), 0755) == 0) {
+        return true;
+    }
+
+    if (errno == EEXIST) {
+        return true;
+    }
+
+    return false;
+}
+
+std::string join_path2(const std::string& a, const std::string& b) {
+    if (a.empty()) return b;
+    if (b.empty()) return a;
+    if (a.back() == '/') return a + b;
+    return a + "/" + b;
+}
+
+// Write fileContent into a blob file addressed by sha256Hex, without overwriting existing.
+// Uses a tmp file + link() for atomic create semantics.
+bool ensure_blob_from_content(const std::string& blobDir,
+    const std::string& sha256Hex,
+    const std::string& fileContent,
+    std::string& outBlobPath) {
+    outBlobPath = join_path2(blobDir, sha256Hex);
+    if (path_exists(outBlobPath)) {
+        return true;
+    }
+
+    const std::string tmpName = "." + sha256Hex + ".tmp." + filelink::generate_hex_uuid32();
+    const std::string tmpPath = join_path2(blobDir, tmpName);
+
+    {
+        std::ofstream ofs(tmpPath, std::ios::binary);
+        if (!ofs) {
+            return false;
+        }
+        if (!fileContent.empty()) {
+            ofs.write(fileContent.data(), static_cast<std::streamsize>(fileContent.size()));
+        }
+        ofs.close();
+        if (!ofs) {
+            (void)::unlink(tmpPath.c_str());
+            return false;
+        }
+    }
+
+    if (::link(tmpPath.c_str(), outBlobPath.c_str()) == 0) {
+        (void)::unlink(tmpPath.c_str());
+        return true;
+    }
+
+    if (errno == EEXIST) {
+        // Another request won the race.
+        (void)::unlink(tmpPath.c_str());
+        return true;
+    }
+
+    (void)::unlink(tmpPath.c_str());
+    return false;
+}
+
+// Move/copy temp file into blob addressed by sha256Hex, without overwriting existing.
+// Uses a tmp file in blobDir + link() for atomic create semantics.
+bool ensure_blob_from_tempfile(const std::string& blobDir,
+    const std::string& sha256Hex,
+    const std::string& tempPath,
+    std::string& outBlobPath) {
+    outBlobPath = join_path2(blobDir, sha256Hex);
+    if (path_exists(outBlobPath)) {
+        (void)::unlink(tempPath.c_str());
+        return true;
+    }
+
+    const std::string tmpName = "." + sha256Hex + ".tmp." + filelink::generate_hex_uuid32();
+    const std::string tmpPath = join_path2(blobDir, tmpName);
+
+    bool moved = (::rename(tempPath.c_str(), tmpPath.c_str()) == 0);
     if (!moved) {
-        if (!copy_file(tempPath, finalPath)) {
-            return result;
+        if (!copy_file(tempPath, tmpPath)) {
+            return false;
         }
         (void)::unlink(tempPath.c_str());
     }
 
-    if (fileSize <= 0) {
-        (void)get_file_size(finalPath, fileSize);
+    if (::link(tmpPath.c_str(), outBlobPath.c_str()) == 0) {
+        (void)::unlink(tmpPath.c_str());
+        return true;
     }
 
+    if (errno == EEXIST) {
+        (void)::unlink(tmpPath.c_str());
+        return true;
+    }
+
+    // Keep tmp for debugging? In demo, cleanup.
+    (void)::unlink(tmpPath.c_str());
+    return false;
+}
+
+FileMetadata build_meta(const std::string& fileId,
+    const std::string& originalName,
+    const std::string& contentType,
+    const std::string& storagePath,
+    int64_t fileSize) {
     FileMetadata meta;
     meta.fileId = fileId;
-    meta.originalName = originalName.empty() ? "unknown" : originalName;
-    meta.storagePath = finalPath;
+    meta.originalName = originalName.empty() ? kUnknownFileName : originalName;
+    meta.storagePath = storagePath;
     meta.contentType = !contentType.empty() ? contentType : filelink::guess_content_type_by_name(meta.originalName);
     meta.fileSize = fileSize > 0 ? fileSize : 0;
     meta.createdAtUnix = static_cast<int64_t>(::time(nullptr));
+    return meta;
+}
 
-    if (metaStore_) {
-        metaStore_->put(meta);
+void persist_meta(const std::shared_ptr<IFileMetaStore>& metaStore,
+    const std::shared_ptr<IFileMetaCache>& metaCache,
+    const FileMetadata& meta,
+    int cacheTtlSeconds) {
+    if (metaStore) {
+        metaStore->put(meta);
     }
-    if (metaCache_) {
-        metaCache_->put(meta, cacheTtlSeconds_);
+    if (metaCache) {
+        metaCache->put(meta, cacheTtlSeconds);
+    }
+}
+
+UploadResult make_upload_result(const std::string& fileId) {
+    UploadResult r;
+    r.fileId = fileId;
+    r.urlPath = "/file/" + fileId;
+    return r;
+}
+
+} // namespace
+
+FileLinkService::FileLinkService(FileSystemStorage storage,
+    std::shared_ptr<IFileMetaStore> metaStore,
+    std::shared_ptr<IFileMetaCache> metaCache)
+    : storage_(std::move(storage)),
+    metaStore_(std::move(metaStore)),
+    metaCache_(std::move(metaCache)) {
+}
+
+UploadResult FileLinkService::upload(const std::string& originalName,
+    const std::string& contentType,
+    const std::string& fileContent) {
+    // 软去重：
+    // - 对外仍然使用随机 fileId（每次上传一个新链接）
+    // - 对内文件内容落到 blobs/{sha256}（相同内容只存一份）
+    const std::string fileId = filelink::generate_hex_uuid32();
+
+    if (!storage_.ensureRootExists()) {
+        return UploadResult();
+    }
+    const std::string blobDir = join_path2(storage_.rootDir(), "blobs");
+    if (!ensure_dir_exists_single_level(blobDir)) {
+        return UploadResult();
     }
 
-    result.fileId = fileId;
-    result.urlPath = "/file/" + fileId;
-    return result;
+    const std::string sha256Hex = filelink::sha256_hex(fileContent);
+    std::string storagePath;
+    if (!ensure_blob_from_content(blobDir, sha256Hex, fileContent, storagePath)) {
+        return UploadResult();
+    }
+
+    const FileMetadata meta = build_meta(
+        fileId,
+        originalName,
+        contentType,
+        storagePath,
+        static_cast<int64_t>(fileContent.size()));
+    persist_meta(metaStore_, metaCache_, meta, cacheTtlSeconds_);
+    return make_upload_result(fileId);
+}
+
+UploadResult FileLinkService::upload_from_path(const std::string& originalName,
+    const std::string& contentType,
+    const std::string& tempPath,
+    int64_t fileSize) {
+    if (tempPath.empty()) {
+        return UploadResult();
+    }
+
+    const std::string fileId = filelink::generate_hex_uuid32();
+
+    if (!storage_.ensureRootExists()) {
+        return UploadResult();
+    }
+    const std::string blobDir = join_path2(storage_.rootDir(), "blobs");
+    if (!ensure_dir_exists_single_level(blobDir)) {
+        return UploadResult();
+    }
+
+    std::string sha256Hex;
+    if (!filelink::sha256_file_hex(tempPath, sha256Hex)) {
+        return UploadResult();
+    }
+
+    std::string blobPath;
+    if (!ensure_blob_from_tempfile(blobDir, sha256Hex, tempPath, blobPath)) {
+        return UploadResult();
+    }
+
+    if (fileSize <= 0) {
+        (void)get_file_size(blobPath, fileSize);
+    }
+
+    const FileMetadata meta = build_meta(fileId, originalName, contentType, blobPath, fileSize);
+    persist_meta(metaStore_, metaCache_, meta, cacheTtlSeconds_);
+    return make_upload_result(fileId);
 }
 
 bool FileLinkService::download(const std::string& fileId, DownloadResult& out) {
@@ -144,7 +276,8 @@ bool FileLinkService::download(const std::string& fileId, DownloadResult& out) {
     // cache-aside：优先查 cache，miss 时回源 store，再把结果写回 cache。
     if (metaCache_ && metaCache_->get(fileId, meta)) {
         // cache hit
-    } else {
+    }
+    else {
         if (!metaStore_ || !metaStore_->get(fileId, meta)) {
             return false;
         }

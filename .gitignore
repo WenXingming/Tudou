@@ -1,8 +1,13 @@
 .vscode/
+
 build/
-.cache/
+
 cmake-build*/
+
 .idea/
-assets/static-file-http-server/html/wenxingming.github.io
+
+configs/static-file-http-server/assets/Homepage/
+
 configs/file-link-server/storage/*
+
 *.log

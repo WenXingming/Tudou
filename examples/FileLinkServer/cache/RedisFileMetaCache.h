@@ -8,8 +8,7 @@
 
 class RedisFileMetaCache : public IFileMetaCache {
 public:
-    RedisFileMetaCache(std::string host, int port)
-        : host_(std::move(host)), port_(port) {}
+    RedisFileMetaCache(std::string host, int port);
 
     bool put(const FileMetadata& meta, int ttlSeconds) override;
     bool get(const std::string& fileId, FileMetadata& outMeta) override;
@@ -21,6 +20,7 @@ private:
     bool ensure_connected(); // 作用：懒连接。即第一次用时才连接 Redis。
     std::string make_key(const std::string& fileId) const;
 
+private:
     std::string host_;
     int port_;
 

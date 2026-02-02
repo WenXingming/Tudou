@@ -14,13 +14,16 @@ endif()
 set(source_files_dir ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB source_files
     ${source_files_dir}/*.cpp
+    ${source_files_dir}/auth/*.cpp
+    ${source_files_dir}/cache/*.cpp
     ${source_files_dir}/meta/*.cpp
     ${source_files_dir}/storage/*.cpp
-    ${source_files_dir}/util/*.cpp
-    ${source_files_dir}/cache/*.cpp
 )
-add_executable(FileLinkServer ${source_files})
+add_executable(filelink-server ${source_files})
 
+# OpenSSL (SHA-256 for content-addressed storage / dedup)
+find_package(OpenSSL REQUIRED)
+target_link_libraries(filelink-server PRIVATE OpenSSL::Crypto)
 
 # ======================================================================================
 # 使用库的几个步骤总结
@@ -33,12 +36,12 @@ add_executable(FileLinkServer ${source_files})
 # ===============================================================================================
 # ===============================================================================================
 # 添加库的头文件路径（编译时需要），因为代码中包含了 spdlog 头文件和 tudou 头文件
-target_include_directories(FileLinkServer PRIVATE "${CMAKE_SOURCE_DIR}/libs/")
-target_include_directories(FileLinkServer PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_include_directories(filelink-server PRIVATE "${CMAKE_SOURCE_DIR}/libs/")
+target_include_directories(filelink-server PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
 # 链接库
 # tudou 库
-target_link_libraries(FileLinkServer PRIVATE
+target_link_libraries(filelink-server PRIVATE
     tudou
 )
 
@@ -50,12 +53,12 @@ find_library(MYSQLCPPCONN_LIBRARY
     NAMES mysqlcppconn mysqlcppconn8
 )
 if (MYSQLCPPCONN_INCLUDE_DIR AND MYSQLCPPCONN_LIBRARY)
-    target_include_directories(FileLinkServer PRIVATE ${MYSQLCPPCONN_INCLUDE_DIR})
-    target_link_libraries(FileLinkServer PRIVATE ${MYSQLCPPCONN_LIBRARY})
-    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_MYSQLCPPCONN=1)
+    target_include_directories(filelink-server PRIVATE ${MYSQLCPPCONN_INCLUDE_DIR})
+    target_link_libraries(filelink-server PRIVATE ${MYSQLCPPCONN_LIBRARY})
+    target_compile_definitions(filelink-server PRIVATE FILELINK_WITH_MYSQLCPPCONN=1)
 else()
     message(WARNING "mysql-connector-c++ not found; FileLinkServer will build without MySQL support. Install libmysqlcppconn-dev to enable.")
-    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_MYSQLCPPCONN=0)
+    target_compile_definitions(filelink-server PRIVATE FILELINK_WITH_MYSQLCPPCONN=0)
 endif()
 
 # Redis (hiredis)
@@ -66,12 +69,12 @@ find_library(HIREDIS_LIBRARY
     NAMES hiredis
 )
 if (HIREDIS_INCLUDE_DIR AND HIREDIS_LIBRARY)
-    target_include_directories(FileLinkServer PRIVATE ${HIREDIS_INCLUDE_DIR})
-    target_link_libraries(FileLinkServer PRIVATE ${HIREDIS_LIBRARY})
-    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_HIREDIS=1)
+    target_include_directories(filelink-server PRIVATE ${HIREDIS_INCLUDE_DIR})
+    target_link_libraries(filelink-server PRIVATE ${HIREDIS_LIBRARY})
+    target_compile_definitions(filelink-server PRIVATE FILELINK_WITH_HIREDIS=1)
 else()
     message(WARNING "hiredis not found; FileLinkServer will build without Redis support. Install libhiredis-dev to enable.")
-    target_compile_definitions(FileLinkServer PRIVATE FILELINK_WITH_HIREDIS=0)
+    target_compile_definitions(filelink-server PRIVATE FILELINK_WITH_HIREDIS=0)
 endif()
 # ===============================================================================================
 # ===============================================================================================

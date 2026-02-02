@@ -19,8 +19,8 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-// ======================================================================================
-// Helper to trim strings
+ // ======================================================================================
+ // Helper to trim strings
 static std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
     if (std::string::npos == first) {
@@ -68,8 +68,8 @@ static std::string resolve_path(const std::string& serverRoot, const std::string
 }
 
 static bool parse_bool(const std::map<std::string, std::string>& cfg,
-                       const std::string& key,
-                       bool defaultValue) {
+    const std::string& key,
+    bool defaultValue) {
     auto it = cfg.find(key);
     if (it == cfg.end()) return defaultValue;
     std::string v = it->second;
@@ -79,12 +79,50 @@ static bool parse_bool(const std::map<std::string, std::string>& cfg,
     return (v == "1" || v == "true" || v == "yes" || v == "on");
 }
 
+static std::string get_string_or(const std::map<std::string, std::string>& cfg,
+    const std::string& key,
+    const std::string& defaultValue) {
+    auto it = cfg.find(key);
+    if (it == cfg.end()) {
+        return defaultValue;
+    }
+    return it->second;
+}
+
+static int get_int_or(const std::map<std::string, std::string>& cfg,
+    const std::string& key,
+    int defaultValue) {
+    auto it = cfg.find(key);
+    if (it == cfg.end()) {
+        return defaultValue;
+    }
+    try {
+        return std::stoi(it->second);
+    }
+    catch (...) {
+        return defaultValue;
+    }
+}
+
+static uint16_t get_u16_or(const std::map<std::string, std::string>& cfg,
+    const std::string& key,
+    uint16_t defaultValue) {
+    const int v = get_int_or(cfg, key, static_cast<int>(defaultValue));
+    if (v < 0) {
+        return defaultValue;
+    }
+    if (v > 65535) {
+        return defaultValue;
+    }
+    return static_cast<uint16_t>(v);
+}
+
 static void set_logger(const std::string& logPath) {
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
     sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true));
 
-    auto logger = std::make_shared<spdlog::logger>("filelink", begin(sinks), end(sinks));
+    auto logger = std::make_shared<spdlog::logger>("filelink", sinks.begin(), sinks.end());
     spdlog::register_logger(logger);
     spdlog::set_default_logger(logger);
 
@@ -106,11 +144,13 @@ int main(int argc, char* argv[]) {
     std::string serverRoot;
     if (argc > 1) {
         serverRoot = argv[1];
-    } else {
+    }
+    else {
         std::vector<std::string> searchRoots = {
             "/etc/file-link-server/",
+            "./file-link-server/",
+            "./",
             "/home/wxm/Tudou/configs/file-link-server/",
-            "./"
         };
 
         for (const auto& root : searchRoots) {
@@ -127,11 +167,10 @@ int main(int argc, char* argv[]) {
 
         if (serverRoot.empty()) {
             std::cout << "No serverRoot and configuration found in default locations. You have two options:\n"
-                      << "1. Create a serverRoot folder at one of the default locations:\n"
-                      << "   /home/wxm/Tudou/configs/file-link-server/\n"
-                      << "   /etc/file-link-server/\n"
-                      << "   ./file-link-server/\n"
-                      << "2. Specify the server root directory as a command-line argument when running the program.\n";
+                << "1. Create a serverRoot folder at one of the default locations:\n"
+                << "   /etc/file-link-server/\n"
+                << "   ./file-link-server/\n"
+                << "2. Specify the server root directory as a command-line argument when running the program.\n";
             return 1;
         }
     }
@@ -148,12 +187,21 @@ int main(int argc, char* argv[]) {
 
     // 把 key=value 配置映射到 server cfg（这里保持最小字段，便于你按需扩展）。
     FileLinkServerConfig cfg;
-    cfg.ip = config.count("ip") ? config.at("ip") : "0.0.0.0";
-    cfg.port = config.count("port") ? static_cast<uint16_t>(std::stoi(config.at("port"))) : 8080;
-    cfg.threadNum = config.count("threadNum") ? std::stoi(config.at("threadNum")) : 4;
-    cfg.storageRoot = config.count("storageRoot") ? resolve_path(serverRoot, config.at("storageRoot")) : (serverRoot + "storage/");
-    cfg.webRoot = config.count("webRoot") ? resolve_path(serverRoot, config.at("webRoot")) : (serverRoot + "html/");
-    cfg.indexFile = config.count("indexFile") ? config.at("indexFile") : "homepage.html";
+    cfg.ip = get_string_or(config, "ip", "0.0.0.0");
+    cfg.port = get_u16_or(config, "port", 8080);
+    cfg.threadNum = get_int_or(config, "threadNum", 4);
+    cfg.storageRoot = resolve_path(serverRoot, get_string_or(config, "storageRoot", serverRoot + "storage/"));
+    cfg.webRoot = resolve_path(serverRoot, get_string_or(config, "webRoot", serverRoot + "html/"));
+    cfg.indexFile = get_string_or(config, "indexFile", "homepage.html");
+
+    cfg.authEnabled = parse_bool(config, "auth.enabled", false);
+    cfg.authUser = get_string_or(config, "auth.user", "");
+    cfg.authPassword = get_string_or(config, "auth.password", "");
+    cfg.authTokenTtlSeconds = get_int_or(config, "auth.token_ttl_seconds", 3600);
+
+    if (cfg.authEnabled && (cfg.authUser.empty() || cfg.authPassword.empty())) {
+        spdlog::warn("auth.enabled=true but auth.user/auth.password not set; all logins will fail.");
+    }
 
     // 依赖注入：在 main 中决定“用哪个实现”，上层业务只依赖抽象接口。
     std::shared_ptr<IFileMetaStore> metaStore;
@@ -170,7 +218,8 @@ int main(int argc, char* argv[]) {
         const std::string password = config.count("mysql.password") ? config.at("mysql.password") : "";
         const std::string database = config.count("mysql.database") ? config.at("mysql.database") : "tudou_db";
         metaStore = std::make_shared<MysqlFileMetaStore>(host, port, user, password, database);
-    } else {
+    }
+    else {
         metaStore = std::make_shared<InMemoryFileMetaStore>();
     }
 #else
@@ -184,7 +233,8 @@ int main(int argc, char* argv[]) {
         const std::string host = config.count("redis.host") ? config.at("redis.host") : "127.0.0.1";
         const int port = config.count("redis.port") ? std::stoi(config.at("redis.port")) : 6379;
         metaCache = std::make_shared<RedisFileMetaCache>(host, port);
-    } else {
+    }
+    else {
         metaCache = std::make_shared<NoopFileMetaCache>();
     }
 #else

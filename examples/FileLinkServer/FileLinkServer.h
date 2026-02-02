@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "auth/AuthService.h"
+
 #include "tudou/http/HttpServer.h"
 #include "tudou/router/Router.h"
 #include "FileLinkService.h"
@@ -17,6 +19,12 @@ struct FileLinkServerConfig {
     // 用于前后端最小打通：FileLinkServer 直接返回一个静态首页
     std::string webRoot = ""; // 为空表示不提供静态页面
     std::string indexFile = "index.html";
+
+    // Auth (simple demo): require login to upload
+    bool authEnabled = false;
+    std::string authUser = "";
+    std::string authPassword = "";
+    int authTokenTtlSeconds = 3600;
 };
 
 class FileLinkServer {
@@ -26,8 +34,10 @@ public:
     // - 不做业务规则本身，业务交给 FileLinkService
     // - 通过依赖注入把 metaStore/metaCache 换成不同实现
     FileLinkServer(FileLinkServerConfig cfg,
-                   std::shared_ptr<IFileMetaStore> metaStore,
-                   std::shared_ptr<IFileMetaCache> metaCache);
+        std::shared_ptr<IFileMetaStore> metaStore,
+        std::shared_ptr<IFileMetaCache> metaCache);
+
+    ~FileLinkServer();
 
     void start();
 
@@ -37,13 +47,20 @@ private:
 
     void handle_health(const HttpRequest& req, HttpResponse& resp);
     void handle_index(const HttpRequest& req, HttpResponse& resp);
+    void handle_auth_status(const HttpRequest& req, HttpResponse& resp);
+    void handle_login(const HttpRequest& req, HttpResponse& resp);
     void handle_upload(const HttpRequest& req, HttpResponse& resp);
     void handle_download(const HttpRequest& req, HttpResponse& resp);
 
     static bool parse_file_id_from_path(const std::string& path, std::string& outFileId);
 
+    bool is_auth_enabled() const;
+    bool require_auth(const HttpRequest& req, HttpResponse& resp);
+
 private:
     FileLinkServerConfig cfg_;
+
+    filelink::AuthService auth_;
 
     FileSystemStorage storage_;
     std::unique_ptr<HttpServer> httpServer_;

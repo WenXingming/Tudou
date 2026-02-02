@@ -3,18 +3,15 @@
 #if FILELINK_WITH_HIREDIS
 
 #include <hiredis/hiredis.h>
-
 #include <stdlib.h>
 
-static bool is_ok_status(const redisReply* r) {
-    if (!r) return false;
-    if (r->type == REDIS_REPLY_STATUS) {
-        return true;
-    }
-    if (r->type == REDIS_REPLY_STRING) {
-        return true;
-    }
-    return false;
+RedisFileMetaCache::RedisFileMetaCache(std::string host, int port) :
+    host_(std::move(host)),
+    port_(port),
+    mutex_(),
+    ctx_(nullptr) {
+
+    // 构造函数不连接 Redis，采用懒连接策略
 }
 
 bool RedisFileMetaCache::ensure_connected() {

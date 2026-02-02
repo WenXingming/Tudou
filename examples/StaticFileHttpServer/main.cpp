@@ -193,8 +193,8 @@ std::string find_server_root(int argc, char* argv[]) {
     const std::vector<std::string> searchRoots = {
         "/etc/static-file-http-server/",
         "./static-file-http-server/",
-        "/home/wxm/Tudou/configs/static-file-http-server/",
         "./",
+        "/home/wxm/Tudou/configs/static-file-http-server/",
     };
 
     for (size_t i = 0; i < searchRoots.size(); ++i) {

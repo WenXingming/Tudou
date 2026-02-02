@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FileShare - 极速文件分享</title>
+    <title>FileShare</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -44,6 +44,9 @@
 
             --danger-bg: #fef2f2;
             --danger-border: #fecaca;
+
+            /* 卡片模糊：默认（白天）保留玻璃质感 */
+            --card-backdrop: blur(16px);
         }
 
         [data-theme="dark"] {
@@ -53,11 +56,14 @@
             --bg-gradient-start: var(--dark-bg-gradient-start);
             --bg-gradient-end: var(--dark-bg-gradient-end);
 
-            /* 夜间卡片：更通透的玻璃质感，降低突兀对比 */
-            --card-bg: linear-gradient(180deg, rgba(17, 24, 39, 0.66), rgba(17, 24, 39, 0.54));
-            --card-border: rgba(255, 255, 255, 0.16);
-            --card-inner-highlight: rgba(255, 255, 255, 0.07);
-            --card-inner-shadow: rgba(0, 0, 0, 0.24);
+            /* 夜间卡片：实体深色面板 + 轻微紫调，和背景紫色渐变更协调 */
+            /* 面板更偏“淡紫”，且下半不要太黑 */
+            --card-bg: linear-gradient(180deg,
+                    rgba(0, 0, 0, 0.5),
+                    rgba(0, 0, 0, 0.55));
+            --card-border: rgba(221, 214, 254, 0.20);
+            --card-inner-highlight: rgba(255, 255, 255, 0.06);
+            --card-inner-shadow: rgba(17, 24, 39, 0.52);
 
             --text-main: rgba(249, 250, 251, 0.92);
             --text-secondary: rgba(229, 231, 235, 0.74);
@@ -68,7 +74,8 @@
             --border-color: rgba(255, 255, 255, 0.14);
             --upload-area-bg: rgba(31, 41, 55, 0.28);
             --upload-area-hover: rgba(31, 41, 55, 0.42);
-            --shadow-color: rgba(0, 0, 0, 0.35);
+            /* 面板阴影：略带深紫氛围光，避免与背景割裂 */
+            --shadow-color: rgba(88, 28, 135, 0.22);
 
             /* 切换按钮在夜间也要变深色，而不是一直白 */
             --toggle-bg: rgba(17, 24, 39, 0.6);
@@ -86,6 +93,9 @@
 
             --danger-bg: rgba(239, 68, 68, 0.12);
             --danger-border: rgba(239, 68, 68, 0.25);
+
+            /* 仍然是实体面板，但保留轻微柔化，让面板更融入背景渐变 */
+            --card-backdrop: blur(6px) saturate(120%);
         }
 
         * {
@@ -95,12 +105,18 @@
         }
 
         /* 全局过渡效果，实现丝滑切换 */
-        body, .container, .upload-area, .file-info, .upload-action-btn, .cancel-btn, .theme-toggle {
-            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
-                        border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
-                        color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                        box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                        background-image 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        body,
+        .container,
+        .upload-area,
+        .file-info,
+        .upload-action-btn,
+        .cancel-btn,
+        .theme-toggle {
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                background-image 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* 主题切换遮罩：根据切换方向从角落“揭开” */
@@ -128,7 +144,7 @@
 
         .container {
             background: var(--card-bg);
-            backdrop-filter: blur(16px);
+            backdrop-filter: var(--card-backdrop);
             border-radius: 24px;
             box-shadow:
                 0 25px 50px -12px var(--shadow-color),
@@ -161,7 +177,134 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(8px);
         }
-        
+
+        /* Auth button: sits left to theme toggle */
+        .auth-toggle {
+            position: fixed;
+            top: 24px;
+            right: 84px;
+            z-index: 1000;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid var(--toggle-border);
+            background: var(--toggle-bg);
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .auth-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .auth-toggle svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Auth modal */
+        .auth-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1500;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .auth-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .auth-modal {
+            position: relative;
+            width: min(520px, calc(100vw - 32px));
+            border-radius: 18px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            backdrop-filter: var(--card-backdrop);
+            box-shadow:
+                0 25px 50px -12px var(--shadow-color),
+                inset 0 1px 0 var(--card-inner-highlight),
+                inset 0 -1px 0 var(--card-inner-shadow);
+            transform: translateY(10px) scale(0.98);
+            transition: transform 0.25s ease;
+            padding: 18px;
+            overflow: hidden;
+        }
+
+        .auth-modal::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(800px 200px at 20% 0%, rgba(255, 255, 255, 0.12), transparent 60%),
+                radial-gradient(500px 200px at 90% 30%, rgba(124, 58, 237, 0.18), transparent 60%);
+            opacity: 0.85;
+        }
+
+        .auth-overlay.show .auth-modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .auth-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-modal-title {
+            font-weight: 800;
+            letter-spacing: -0.01em;
+        }
+
+        .auth-modal-subtitle {
+            margin-top: 4px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .auth-close {
+            border: 1px solid var(--border-color);
+            background: var(--surface-bg);
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        .auth-body {
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-close:hover {
+            background: var(--surface-hover);
+            border-color: var(--surface-border-hover);
+        }
+
         .theme-toggle:hover {
             transform: scale(1.05);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
@@ -218,11 +361,125 @@
             transform: scale(1.02);
         }
 
+        .upload-area.disabled {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
         .upload-icon {
             font-size: 3.5rem;
             color: var(--primary-color);
             margin-bottom: 16px;
             transition: transform 0.3s ease;
+        }
+
+        .login-area {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 0;
+            text-align: left;
+        }
+
+        .login-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+
+        .login-form {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            background: rgba(17, 24, 39, 0.25);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .login-form input:focus {
+            border-color: rgba(139, 92, 246, 0.65);
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
+        }
+
+        .login-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .login-btn,
+        .logout-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(17, 24, 39, 0.35);
+            color: rgba(249, 250, 251, 0.92);
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .login-btn {
+            border: none;
+            background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+            box-shadow: 0 12px 18px -10px rgba(124, 58, 237, 0.55);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 22px -12px rgba(124, 58, 237, 0.65);
+        }
+
+        .logout-btn {
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            color: rgba(239, 68, 68, 0.95);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.6);
+        }
+
+        .login-btn:hover,
+        .logout-btn:hover {
+            background: var(--surface-hover);
+            border-color: var(--surface-border-hover);
+        }
+
+        .login-status {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 9999px;
+            background: rgba(107, 114, 128, 0.8);
+            box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.16);
+        }
+
+        .status-dot.ok {
+            background: rgba(16, 185, 129, 0.95);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
+        }
+
+        .status-dot.warn {
+            background: rgba(245, 158, 11, 0.95);
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
         }
 
         .upload-area:hover .upload-icon {
@@ -369,8 +626,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .success-header {
@@ -450,7 +714,25 @@
     <!-- 切换按钮：固定在右上角 -->
     <button class="theme-toggle" id="themeToggle" title="切换主题">
         <!-- 默认显示太阳图标 -->
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+
+    <!-- 登录按钮：固定在右上角（不影响上传 UI） -->
+    <button class="auth-toggle" id="authToggle" title="登录/退出">
+        <svg viewBox="0 0 24 24">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
     </button>
 
     <div class="container">
@@ -494,6 +776,33 @@
         </div>
     </div>
 
+    <!-- 登录弹窗（丝滑弹出，不占用主卡片空间） -->
+    <div class="auth-overlay" id="authOverlay" aria-hidden="true">
+        <div class="auth-modal" role="dialog" aria-modal="true" aria-label="登录">
+            <div class="auth-modal-header">
+                <div>
+                    <div class="auth-modal-title">登录后可上传</div>
+                    <div class="auth-modal-subtitle">Token 会保存在本地浏览器中</div>
+                </div>
+                <button class="auth-close" id="authClose" type="button">关闭</button>
+            </div>
+
+            <div class="auth-body">
+                <div class="login-area" style="margin: 0;">
+                    <div class="login-form">
+                        <input type="text" id="loginUser" placeholder="用户名" autocomplete="username">
+                        <input type="password" id="loginPassword" placeholder="密码" autocomplete="current-password">
+                    </div>
+                    <div class="login-actions">
+                        <button class="login-btn" id="loginButton" type="button">登录</button>
+                        <button class="logout-btn" id="logoutButton" type="button">退出</button>
+                    </div>
+                    <div class="login-status" id="loginStatus"><span class="status-dot"></span><span>未登录</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
@@ -511,6 +820,22 @@
         const progressText = document.getElementById('progressText');
         const themeToggle = document.getElementById('themeToggle');
 
+        const loginUser = document.getElementById('loginUser');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginButton = document.getElementById('loginButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const loginStatus = document.getElementById('loginStatus');
+
+        const authToggle = document.getElementById('authToggle');
+        const authOverlay = document.getElementById('authOverlay');
+        const authClose = document.getElementById('authClose');
+
+        const THEME_STORAGE_KEY = 'fileshare.theme';
+        const TOKEN_STORAGE_KEY = 'fileshare.token';
+
+        let authEnabled = true;
+        let loginMode = 'password'; // password | unavailable
+
         let selectedFile = null;
         let currentXhr = null;
 
@@ -523,6 +848,34 @@
         let isDarkMode = false;
         let isThemeTransitioning = false;
 
+        function loadThemePreference() {
+            // 返回 true/false 或 null（没有保存过）
+            try {
+                const v = localStorage.getItem(THEME_STORAGE_KEY);
+                if (v === 'dark') return true;
+                if (v === 'light') return false;
+            } catch (_) { }
+            return null;
+        }
+
+        function hasSavedThemePreference() {
+            return loadThemePreference() !== null;
+        }
+
+        function saveThemePreference(isDark) {
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+            } catch (_) { }
+        }
+
+        function getSystemPrefersDark() {
+            try {
+                return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            } catch (_) {
+                return false;
+            }
+        }
+
         function getThemeBackgroundGradient(theme) {
             // 仅用于遮罩层背景：用固定值保证切换过程中不受 CSS 变量变化影响
             if (theme === 'dark') {
@@ -531,7 +884,7 @@
             return 'linear-gradient(135deg, #e0e7ff, #f3e8ff)';
         }
 
-        function setTheme(nextIsDark) {
+        function setTheme(nextIsDark, persist = true) {
             isDarkMode = nextIsDark;
             if (isDarkMode) {
                 document.documentElement.setAttribute('data-theme', 'dark');
@@ -539,6 +892,10 @@
             } else {
                 document.documentElement.removeAttribute('data-theme');
                 themeToggle.innerHTML = sunIcon;
+            }
+
+            if (persist) {
+                saveThemePreference(isDarkMode);
             }
         }
 
@@ -580,6 +937,29 @@
 
         themeToggle.addEventListener('click', toggleThemeWithDiagonalReveal);
 
+        // 初始化主题：优先本地保存，否则跟随系统主题
+        const saved = loadThemePreference();
+        if (saved === null) {
+            setTheme(getSystemPrefersDark(), false);
+
+            // 仅当“未手动选择过主题”时，跟随系统主题变化
+            try {
+                const mq = window.matchMedia('(prefers-color-scheme: dark)');
+                const onChange = (e) => {
+                    if (!hasSavedThemePreference()) {
+                        setTheme(!!e.matches, false);
+                    }
+                };
+                if (mq && mq.addEventListener) {
+                    mq.addEventListener('change', onChange);
+                } else if (mq && mq.addListener) {
+                    mq.addListener(onChange);
+                }
+            } catch (_) { }
+        } else {
+            setTheme(saved, false);
+        }
+
         async function copyToClipboard(text) {
             try {
                 if (navigator.clipboard && window.isSecureContext) {
@@ -611,15 +991,107 @@
             progressText.style.display = 'none';
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
-            
+
             uploadButton.style.display = 'block';
-            uploadButton.disabled = false;
             uploadButton.textContent = '开始上传';
-            
+
             cancelButton.style.display = 'none';
+
+            updateAuthUI();
         }
 
-        uploadArea.addEventListener('click', () => fileInput.click());
+        function loadToken() {
+            try {
+                return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function saveToken(token) {
+            try {
+                localStorage.setItem(TOKEN_STORAGE_KEY, token);
+            } catch (_) { }
+        }
+
+        function clearToken() {
+            try {
+                localStorage.removeItem(TOKEN_STORAGE_KEY);
+            } catch (_) { }
+        }
+
+        function updateAuthUI() {
+            const token = loadToken();
+            const authed = authEnabled ? !!token : true;
+
+            const dotClass = !authEnabled ? 'status-dot' : authed ? 'status-dot ok' : (loginMode === 'unavailable') ? 'status-dot warn' : 'status-dot';
+            let text = '';
+            if (!authEnabled) {
+                text = '未启用登录';
+            } else if (authed) {
+                text = '已登录';
+            } else {
+                if (loginMode === 'unavailable') {
+                    text = '登录不可用：无法检查服务端状态';
+                } else {
+                    text = '未登录';
+                }
+            }
+            loginStatus.innerHTML = `<span class="${dotClass}"></span><span>${text}</span>`;
+
+            loginButton.disabled = !authEnabled || loginMode === 'unavailable' || authed;
+            logoutButton.disabled = !authEnabled || !token;
+            uploadArea.classList.toggle('disabled', !authed);
+            uploadButton.disabled = !authed;
+        }
+
+        function showAuthModal() {
+            authOverlay.classList.add('show');
+            authOverlay.setAttribute('aria-hidden', 'false');
+        }
+
+        function hideAuthModal() {
+            authOverlay.classList.remove('show');
+            authOverlay.setAttribute('aria-hidden', 'true');
+        }
+
+        authToggle.addEventListener('click', () => {
+            if (!authEnabled) return;
+            showAuthModal();
+        });
+
+        authClose.addEventListener('click', () => hideAuthModal());
+
+        authOverlay.addEventListener('click', (e) => {
+            if (e.target === authOverlay) hideAuthModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hideAuthModal();
+        });
+
+        async function fetchAuthStatus() {
+            const resp = await fetch('/auth/status', { cache: 'no-store' });
+            if (resp.status === 404) {
+                authEnabled = false;
+                loginMode = 'password';
+                return;
+            }
+            if (!resp.ok) {
+                throw new Error('加载登录状态失败: ' + resp.status);
+            }
+            authEnabled = true;
+            loginMode = 'password';
+        }
+
+        uploadArea.addEventListener('click', () => {
+            if (uploadArea.classList.contains('disabled')) {
+                showError('请先登录');
+                showAuthModal();
+                return;
+            }
+            fileInput.click();
+        });
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
@@ -654,12 +1126,18 @@
 
         uploadButton.addEventListener('click', () => {
             if (!selectedFile) return;
+            const token = loadToken();
+            if (authEnabled && !token) {
+                showError('请先登录');
+                showAuthModal();
+                return;
+            }
 
             resetUI();
             fileInfo.style.display = 'block';
             progressContainer.style.display = 'block';
             progressText.style.display = 'block';
-            
+
             uploadButton.disabled = true;
             uploadButton.textContent = '上传中...';
             uploadButton.style.display = 'none';
@@ -670,6 +1148,9 @@
 
             currentXhr.setRequestHeader('X-File-Name', encodeURIComponent(selectedFile.name));
             currentXhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
+            if (authEnabled && token) {
+                currentXhr.setRequestHeader('X-Auth-Token', token);
+            }
 
             currentXhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
@@ -701,7 +1182,7 @@
                 showError('网络错误，请检查连接');
                 finishUpload();
             };
-            
+
             currentXhr.onabort = () => {
                 showError('上传已取消');
                 finishUpload();
@@ -725,6 +1206,62 @@
             cancelButton.style.display = 'none';
         }
 
+        loginButton.addEventListener('click', () => {
+            const user = loginUser.value.trim();
+            const pwd = loginPassword.value.trim();
+            if (!user || !pwd) {
+                showError('请输入用户名和密码');
+                return;
+            }
+
+            if (!authEnabled) {
+                showError('服务端未启用登录');
+                return;
+            }
+
+            if (loginMode === 'unavailable') {
+                showError('登录不可用：服务端状态检查失败');
+                return;
+            }
+
+            (async () => {
+                try {
+                    loginButton.disabled = true;
+
+                    const resp = await fetch('/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user, password: pwd })
+                    });
+
+                    if (!resp.ok) {
+                        const t = await resp.text().catch(() => '');
+                        throw new Error(t || ('HTTP ' + resp.status));
+                    }
+
+                    const result = await resp.json();
+                    if (result && result.token) {
+                        saveToken(result.token);
+                        updateAuthUI();
+                        showError('');
+                        hideAuthModal();
+                        return;
+                    }
+                    throw new Error('登录响应格式错误');
+                } catch (e) {
+                    showError('登录失败: ' + (e && e.message ? e.message : String(e)));
+                } finally {
+                    loginButton.disabled = false;
+                }
+            })();
+        });
+
+        logoutButton.addEventListener('click', () => {
+            clearToken();
+            updateAuthUI();
+            hideAuthModal();
+        });
+
         copyButton.addEventListener('click', () => {
             const link = shareLink.href;
             copyToClipboard(link).then((ok) => {
@@ -744,7 +1281,7 @@
 
         function showError(msg) {
             errorMessage.textContent = msg;
-            errorMessage.style.display = 'block';
+            errorMessage.style.display = msg ? 'block' : 'none';
             progressContainer.style.display = 'none';
             progressText.style.display = 'none';
         }
@@ -756,6 +1293,21 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
+
+        (async () => {
+            try {
+                await fetchAuthStatus();
+            } catch (e) {
+                authEnabled = true;
+                loginMode = 'unavailable';
+                showError('初始化登录失败: ' + (e && e.message ? e.message : String(e)));
+            }
+            if (!authEnabled) {
+                // Hide auth UI when server does not require login.
+                authToggle.style.display = 'none';
+            }
+            updateAuthUI();
+        })();
     </script>
 </body>
 

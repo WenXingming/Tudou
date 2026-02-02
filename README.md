@@ -165,15 +165,16 @@ Transfer/sec:    163.08MB
 
 ## Usage 🎯
 
-使用样例见 `/examples`。
+使用 Tudou 编写的所有示例代码均位于 [/examples](./examples) 目录下。
 
 ### 静态文件服务器示例 ✨
 
-[!static-server](assets/static-server.png)
+![static-server](assets/static-server.png)
 
-我使用 Tudou 编写了一个静态文件服务器 `static-server`（详细代码见 [/examples/StaticFileHttpServer](./examples/StaticFileHttpServer)）。使用方式如下：
+我使用 Tudou 编写了一个静态文件服务器 `static-server`（详细代码样例见 [/examples/StaticFileHttpServer](./examples/StaticFileHttpServer)）。使用方式如下：
 
-1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`static-server`）。
+1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件 `static-server`。
+
 2. 创建配置文件目录结构并启动服务器。配置文件目录结构如下：
 
     ```bash
@@ -208,7 +209,9 @@ Transfer/sec:    163.08MB
     ./static-server -r /path/to/directory/static-file-http-server
     ```
 
-    其中 `/path/to/directory/static-file-http-server` 是配置文件目录的路径（如上所示的目录结构）。如果不指定 `-r` 参数，则默认（按照优先级顺序）在 `/etc/static-file-http-server/`、当前目录 `./static-file-http-server/` 下查找配置文件目录。因此为了方便起见，可以将配置文件目录结构放在 `/etc/static-file-http-server/` 目录下。
+    其中 `/path/to/directory/static-file-http-server` 是配置文件目录的路径（如上所示的目录结构）。
+    
+    如果不指定 `-r` 参数，则默认（按照优先级顺序）在 `/etc/static-file-http-server/`、当前目录 `./static-file-http-server/` 下查找配置文件目录。因此为了方便起见，可以将配置文件目录结构放在 `/etc/static-file-http-server/` 目录下。
     
 4. 访问静态文件。启动服务器后，可以通过浏览器或 curl 访问对应的 URL 来获取静态文件内容。例如，如果服务器运行在本地机器的 8080 端口上，可以通过以下 URL 访问：`http://localhost:8080/index.html`（xxx.png,etc.）。
 
