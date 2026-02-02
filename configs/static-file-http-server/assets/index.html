@@ -7,31 +7,46 @@
     <title>静态资源服务器</title>
     <style>
         :root {
-            color-scheme: light dark;
+            color-scheme: light;
 
-            --bg: #f6f7fb;
-            --card: rgba(255, 255, 255, 0.78);
+            /* 字体风格（修改 --font 即可切换）
+               - --font-sans: 现代系统无衬线（默认）
+               - --font-cn:   更偏中文 UI 的无衬线
+               - --font-serif:更偏正式/文档的衬线
+               - --font-rounded:偏圆润（依赖本机是否有圆体） */
+
+            --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            --font-cn: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei",
+                "Helvetica Neue", Arial, sans-serif;
+            --font-serif: ui-serif, serif, "Source Han Serif SC", "Noto Serif SC", "Songti SC", SimSun,
+                Georgia;
+            --font-rounded: "HarmonyOS Sans", "MiSans", "Nunito", "Quicksand", "Noto Sans SC",
+                system-ui, sans-serif;
+            /* 选择字体 */
+            --font: var(--font-serif);
+
+            /* 内容缩放（整体等比放大） */
+            /* --ui-scale: 1.25; */
+
+            --bg: #f7f8fc;
+            /* 浅色背景 */
+            --card: rgba(255, 255, 255, 0.86);
+            /* 浅色卡片背景 */
             --text: #0f172a;
+            /* 主要文字颜色 */
             --muted: #475569;
+            /* 次要文字颜色 */
             --border: rgba(15, 23, 42, 0.10);
+            /* 边框颜色 */
             --shadow: 0 10px 30px rgba(2, 8, 23, 0.10);
+            /* 卡片阴影 */
             --accent: #2563eb;
+            /* 主要强调色 */
             --accent-2: #06b6d4;
-            --ring: rgba(37, 99, 235, 0.20);
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0b1220;
-                --card: rgba(15, 23, 42, 0.72);
-                --text: #e5e7eb;
-                --muted: #a1a1aa;
-                --border: rgba(226, 232, 240, 0.14);
-                --shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
-                --accent: #60a5fa;
-                --accent-2: #22d3ee;
-                --ring: rgba(96, 165, 250, 0.25);
-            }
+            /* 次要强调色 */
+            --ring: rgba(129, 137, 129, 0.2);
+            /* 焦点环颜色 */
         }
 
         * {
@@ -41,29 +56,45 @@
         body {
             margin: 0;
             min-height: 100svh;
-            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-                "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji",
-                "Segoe UI Emoji";
+            font-family: var(--font);
+            font-weight: 600;
             color: var(--text);
+            /* 多层渐变背景 */
+            /* background:
+                radial-gradient(900px 600px at 12% 8%, rgba(37, 99, 235, 0.14), transparent 60%),
+                radial-gradient(700px 520px at 92% 18%, rgba(6, 182, 212, 0.12), transparent 55%),
+                radial-gradient(900px 600px at 50% 100%, rgba(56, 189, 248, 0.10), transparent 55%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.35) 45%, rgba(255, 255, 255, 0.0)),
+                var(--bg); */
             background:
-                radial-gradient(900px 600px at 12% 8%, rgba(37, 99, 235, 0.16), transparent 60%),
-                radial-gradient(700px 520px at 92% 18%, rgba(6, 182, 212, 0.14), transparent 55%),
-                radial-gradient(900px 600px at 50% 100%, rgba(14, 165, 233, 0.10), transparent 55%),
+                radial-gradient(1200px 800px at 8% 6%, rgba(59, 130, 246, 0.08), transparent 75%),
+                radial-gradient(900px 650px at 94% 12%, rgba(14, 165, 233, 0.07), transparent 68%),
+                radial-gradient(1400px 900px at 50% 100%, rgba(241, 245, 249, 0.12), transparent 60%),
+                linear-gradient(180deg,
+                    rgba(255, 255, 255, 0.65),
+                    rgba(255, 255, 255, 0.22) 42%,
+                    rgba(255, 255, 255, 0.0) 70%),
                 var(--bg);
             line-height: 1.6;
+            /* 垂直 + 水平居中，同时保留小屏舒适边距 */
+            display: grid;
+            place-items: center;
+            padding: clamp(1.25rem, 4vw, 3.25rem) 1.25rem;
         }
 
         .wrap {
             max-width: 62rem;
             margin: 0 auto;
-            padding: 3.25rem 1.25rem;
+            width: 100%;
             display: grid;
             place-items: center;
         }
 
         .card {
-            width: 100%;
-            max-width: 46rem;
+            /* 通过“先缩小布局尺寸 + transform 放大”的方式实现等比放大，且不挤出屏幕 */
+            width: calc(100% / var(--ui-scale));
+            max-width: calc(46rem / var(--ui-scale));
+            margin: 0 auto;
             padding: 1.75rem 1.75rem 1.35rem;
             border: 1px solid var(--border);
             background: var(--card);
@@ -71,6 +102,8 @@
             box-shadow: var(--shadow);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            transform: scale(var(--ui-scale));
+            transform-origin: center;
         }
 
         .header {
@@ -122,7 +155,7 @@
             padding: 0.12rem 0.35rem;
             border-radius: 7px;
             border: 1px solid var(--border);
-            background: rgba(148, 163, 184, 0.18);
+            background: rgba(37, 99, 235, 0.10);
         }
 
         b {
@@ -172,12 +205,12 @@
 
             <p>接下来你可以：</p>
             <ul>
-                <li>将静态资源放到正确的目录（例如 <code>html/</code>）</li>
+                <li>将静态资源放到正确的目录（例如 <code>assets/</code>）</li>
                 <li>若需修改配置（如端口号、线程数等），请编辑 <code>conf/server.conf</code>，然后重启服务器</li>
             </ul>
 
             <section class="tips" tabindex="-1" aria-label="提示">
-                <p style="margin: 0;"><b>提示：</b>你也可以把此页替换成你的站点首页。</p>
+                <p style="margin: 0;"><b>提示：</b>你也可以把此页替换成你的（自定义）站点首页。</p>
             </section>
 
             <div class="footer">祝使用顺利。</div>

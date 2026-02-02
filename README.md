@@ -169,13 +169,15 @@ Transfer/sec:    163.08MB
 
 ### 静态文件服务器示例 ✨
 
-我使用 Tudou 编写了一个静态文件服务器 `static-server`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
+[!static-server](assets/static-server.png)
 
-1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`static-server`）
-2. 在 `/etc` 目录下创建配置文件目录结构，目录结构如下：
+我使用 Tudou 编写了一个静态文件服务器 `static-server`（详细代码见 [/examples/StaticFileHttpServer](./examples/StaticFileHttpServer)）。使用方式如下：
+
+1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`static-server`）。
+2. 创建配置文件目录结构并启动服务器。配置文件目录结构如下：
 
     ```bash
-    static-file-http-server # /etc 目录下的配置文件目录
+    static-file-http-server
       ├─ conf
       │  └─ server.conf
       ├─ assets
@@ -185,8 +187,8 @@ Transfer/sec:    163.08MB
          └─ server.log
     ```
 
-    在 server.conf 只需要设置好自己的 IP 地址、端口号、启用的线程数，然后编译运行即可启动一个高性能的静态文件 HTTP 服务器，支持多线程处理请求。通过浏览器或 curl 访问对应的 URL 即可获取静态文件内容。server.conf 示例内容如下：
-
+    并配置 server.conf 文件，示例如下：
+    
     ```yaml
     # Server IP and Port
     # Port: 0 ~ 1023 may require root privilege (Linux's port privilege)
@@ -198,11 +200,19 @@ Transfer/sec:    163.08MB
     threadNum = 1 # 1 mainLoop + 1 ioLoop (total 2 threads)
     ```
 
-3. 配置文件目录路径可以不放在 /etc 目录下，此时可以通过手动运行 `static-server` 并在命令行终端中使用 `-r` 参数指定配置文件目录路径，例如：
+    在 server.conf 只需要设置好自己的 IP 地址、端口号、启用的线程数即可。在 assets 目录下放置好托管的静态文件。
+
+3. 通过命令行运行服务器。在命令行终端中进入 `static-server` 可执行文件所在目录，运行以下命令启动服务器：
 
     ```bash
-    ./static-server -r ${/path/to/directory}/static-file-http-server
+    ./static-server -r /path/to/directory/static-file-http-server
     ```
+
+    其中 `/path/to/directory/static-file-http-server` 是配置文件目录的路径（如上所示的目录结构）。如果不指定 `-r` 参数，则默认（按照优先级顺序）在 `/etc/static-file-http-server/`、当前目录 `./static-file-http-server/` 下查找配置文件目录。因此为了方便起见，可以将配置文件目录结构放在 `/etc/static-file-http-server/` 目录下。
+    
+4. 访问静态文件。启动服务器后，可以通过浏览器或 curl 访问对应的 URL 来获取静态文件内容。例如，如果服务器运行在本地机器的 8080 端口上，可以通过以下 URL 访问：`http://localhost:8080/index.html`（xxx.png,etc.）。
+
+综上，只需按照上述步骤：编译运行 `static-server` 可执行文件；创建配置文件目录结构，配置 server.conf 文件、静态文件。即可启动一个高性能的静态文件 HTTP 服务器，支持多线程处理请求。通过浏览器或 curl 访问对应的 URL 即可获取静态文件内容。
 
 ### FileLink Server 示例 ✨
 
