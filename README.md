@@ -169,16 +169,16 @@ Transfer/sec:    163.08MB
 
 ### 静态文件服务器示例 ✨
 
-我使用 Tudou 编写了一个静态文件服务器 `StaticFileHttpServer`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
+我使用 Tudou 编写了一个静态文件服务器 `static-server`（详细代码见 `/examples/StaticFileHttpServer`）。使用方式如下：
 
-1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`StaticFileHttpServer`）
+1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件（`static-server`）
 2. 在 `/etc` 目录下创建配置文件目录结构，目录结构如下：
 
     ```bash
     static-file-http-server # /etc 目录下的配置文件目录
       ├─ conf
       │  └─ server.conf
-      ├─ html
+      ├─ assets
       │  ├─ index.html
       │  ├─ xxx.html
       └─ log
@@ -189,6 +189,7 @@ Transfer/sec:    163.08MB
 
     ```yaml
     # Server IP and Port
+    # Port: 0 ~ 1023 may require root privilege (Linux's port privilege)
     ip = 0.0.0.0
     port = 8080
 
@@ -197,12 +198,10 @@ Transfer/sec:    163.08MB
     threadNum = 1 # 1 mainLoop + 1 ioLoop (total 2 threads)
     ```
 
-3. 配置文件目录路径可以不放在 /etc 目录下，此时可以通过手动运行 StaticFileHttpServer 并在命令行终端中指定配置文件目录的路径
+3. 配置文件目录路径可以不放在 /etc 目录下，此时可以通过手动运行 `static-server` 并在命令行终端中使用 `-r` 参数指定配置文件目录路径，例如：
 
     ```bash
-    # 如在用户主目录下的 static-file-http-server 目录下存放配置文件，则运行命令为：
-    # ./StaticFileHttpServer /home/xxx/static-file-http-server
-    ./StaticFileHttpServer /path/to/config/directory 
+    ./static-server -r ${/path/to/directory}/static-file-http-server
     ```
 
 ### FileLink Server 示例 ✨

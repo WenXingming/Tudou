@@ -162,7 +162,7 @@ ServerPaths make_paths(std::string root) {
     paths.configPath = root + "conf/server.conf";
     paths.logDir = root + "log/";
     paths.logPath = root + "log/server.log";
-    paths.baseDir = root + "html/";
+    paths.baseDir = root + "assets/";
     return paths;
 }
 
@@ -212,7 +212,7 @@ void print_missing_root_help() {
         << "Usage:\n"
         << "  StaticFileHttpServer -r <serverRoot>\n"
         << "  StaticFileHttpServer -h\n\n"
-        << "serverRoot should contain: conf/server.conf, html/, log/ ...\n\n"
+        << "serverRoot should contain: conf/server.conf, assets/, log/ ...\n\n"
         << "No configuration found in default locations. You have two options:\n"
         << "1. Create a serverRoot folder at one of the default locations:\n"
         << "   /etc/static-file-http-server/\n"
@@ -243,7 +243,7 @@ void set_logger(const std::string& logPath) {
 void run_static_http_server(const ConfigMap& config) {
     const std::string ip = get_string(config, "ip", "0.0.0.0");
     const int port = get_int(config, "port", 80);
-    const std::string baseDir = get_string(config, "baseDir", "./html/");
+    const std::string baseDir = get_string(config, "baseDir", "./assets/");
     const int threadNum = get_int(config, "threadNum", 0);
 
     if (port < 0 || port > 65535) {
@@ -251,7 +251,9 @@ void run_static_http_server(const ConfigMap& config) {
         return;
     }
 
-    std::cout << "Config: ip=" << ip << ", port=" << port << ", baseDir=" << baseDir << ", threadNum=" << threadNum << std::endl;
+    std::cout << "Serving static files from: " << baseDir << std::endl;
+    std::cout << "The thread number（sub reactor threads） is: " << threadNum << std::endl;
+    std::cout << "Server is running at http://" << ip << ":" << port << "/" << std::endl;
 
     StaticFileHttpServer server(ip, static_cast<uint16_t>(port), baseDir, threadNum);
     server.start();
@@ -266,6 +268,7 @@ int main(int argc, char* argv[]) {
     }
 
     const ServerPaths paths = make_paths(serverRoot);
+    std::cout << "============================================================================================" << std::endl;
     std::cout << "Server root: " << paths.root << std::endl;
     std::cout << "Loading configuration from: " << paths.configPath << std::endl;
 
@@ -277,7 +280,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Log path: " << paths.logPath << std::endl;
     std::cout << "Static file base directory: " << paths.baseDir << std::endl;
-
+    std::cout << "============================================================================================" << std::endl;
     set_logger(paths.logPath);
     run_static_http_server(config);
 

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>静态资源服务器</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+
+            --bg: #f6f7fb;
+            --card: rgba(255, 255, 255, 0.78);
+            --text: #0f172a;
+            --muted: #475569;
+            --border: rgba(15, 23, 42, 0.10);
+            --shadow: 0 10px 30px rgba(2, 8, 23, 0.10);
+            --accent: #2563eb;
+            --accent-2: #06b6d4;
+            --ring: rgba(37, 99, 235, 0.20);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b1220;
+                --card: rgba(15, 23, 42, 0.72);
+                --text: #e5e7eb;
+                --muted: #a1a1aa;
+                --border: rgba(226, 232, 240, 0.14);
+                --shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+                --accent: #60a5fa;
+                --accent-2: #22d3ee;
+                --ring: rgba(96, 165, 250, 0.25);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100svh;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji",
+                "Segoe UI Emoji";
+            color: var(--text);
+            background:
+                radial-gradient(900px 600px at 12% 8%, rgba(37, 99, 235, 0.16), transparent 60%),
+                radial-gradient(700px 520px at 92% 18%, rgba(6, 182, 212, 0.14), transparent 55%),
+                radial-gradient(900px 600px at 50% 100%, rgba(14, 165, 233, 0.10), transparent 55%),
+                var(--bg);
+            line-height: 1.6;
+        }
+
+        .wrap {
+            max-width: 62rem;
+            margin: 0 auto;
+            padding: 3.25rem 1.25rem;
+            display: grid;
+            place-items: center;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 46rem;
+            padding: 1.75rem 1.75rem 1.35rem;
+            border: 1px solid var(--border);
+            background: var(--card);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px dashed var(--border);
+            margin-bottom: 1.2rem;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 1.6rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            margin: 0.35rem 0 0;
+            color: var(--muted);
+            font-size: 0.98rem;
+        }
+
+        .badge {
+            flex: none;
+            padding: 0.45rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(6, 182, 212, 0.12));
+            color: var(--text);
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+
+        ul {
+            margin: 0.65rem 0 0.25rem;
+            padding-left: 1.15rem;
+        }
+
+        li {
+            margin: 0.35rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+                "Courier New", monospace;
+            font-size: 0.95em;
+            padding: 0.12rem 0.35rem;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: rgba(148, 163, 184, 0.18);
+        }
+
+        b {
+            font-weight: 650;
+        }
+
+        .tips {
+            margin-top: 1rem;
+            padding: 0.9rem 1rem;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(6, 182, 212, 0.08));
+            box-shadow: 0 0 0 6px transparent;
+        }
+
+        .tips:focus-within {
+            box-shadow: 0 0 0 6px var(--ring);
+        }
+
+        .footer {
+            margin-top: 1.1rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <main class="card">
+            <div class="header">
+                <div>
+                    <h1 class="title">静态资源服务器已开启</h1>
+                    <p class="subtitle">静态文件服务已成功启动并正在工作。</p>
+                </div>
+                <div class="badge">Ready</div>
+            </div>
+
+            <p>接下来你可以：</p>
+            <ul>
+                <li>将静态资源放到正确的目录（例如 <code>html/</code>）</li>
+                <li>若需修改配置（如端口号、线程数等），请编辑 <code>conf/server.conf</code>，然后重启服务器</li>
+            </ul>
+
+            <section class="tips" tabindex="-1" aria-label="提示">
+                <p style="margin: 0;"><b>提示：</b>你也可以把此页替换成你的站点首页。</p>
+            </section>
+
+            <div class="footer">祝使用顺利。</div>
+        </main>
+    </div>
+</body>
+
+</html>
