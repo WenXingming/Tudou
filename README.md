@@ -233,7 +233,7 @@ Transfer/sec:    163.08MB
 
 环境要求：
 
-1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务（见 docker-compose.yml）。
+1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务（见 [docker-compose.yml](./docker-compose.yml)）。
 2. 需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`），以便能够使用 C++ 连接 MySQL 和 Redis 服务端进行操作。
 
     ```bash
