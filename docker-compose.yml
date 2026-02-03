@@ -1,32 +1,50 @@
 # 使用 Docker Compose 来管理 Tudou 的服务，启动命令：
 # 
-# cd /home/wxm/Tudou && sudo docker compose up -d （启动并以后台模式运行）
-# cd /home/wxm/Tudou && sudo docker compose down （停止并删除容器）
+# 启动并以后台模式运行容器：
+# cd /home/wxm/Tudou && sudo docker compose up -d
+# 查看容器运行状态：
+# cd /home/wxm/Tudou && sudo docker compose ps
+# 查看容器日志：
+# cd /home/wxm/Tudou && sudo docker compose logs -f
+# 停止容器：
+# cd /home/wxm/Tudou && sudo docker compose stop
+# 重启容器：
+# cd /home/wxm/Tudou && sudo docker compose restart
+# 停止并删除容器：
+# cd /home/wxm/Tudou && sudo docker compose down
+#
+# 注意：
+#   1. 确保 /home/wxm/mysql-data 和 /home/wxm/redis-data 目录存在且有适当的权限，以便容器能够读写数据。
+#   2. 可以使用 Navicat 或其他数据库管理工具连接到 MySQL/Redis 服务，主机地址为 ${local_ip}，端口分别为 3306（MySQL）和 6379（Redis）。
 
 services:
   # ===============================================================================================
   # --- 数据库服务 ---
+  # --- docker pull mysql:8.0.44-debian ---（下载 MySQL 镜像）
   # ===============================================================================================
+
   db:
-    image: mysql:8.0.44-debian # 使用的 MySQL 镜像名称
-    container_name: mysql-server # 容器名称
-    restart: always # 容器退出时自动重启
+    image: mysql:8.0.44-debian
+    container_name: mysql-server
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: wenxingming # root 用户的密码
-      MYSQL_DATABASE: tudou_db # 默认创建的数据库名称
-      TZ: Asia/Shanghai # 设置时区为上海时间
+      MYSQL_ROOT_PASSWORD: wenxingming
+      MYSQL_DATABASE: tudou_db
+      TZ: Asia/Shanghai
     ports:
       - "3306:3306" # 映射主机的 3306 端口到容器的 3306 端口
     volumes:
-    # 不要使用 ~ 相对路径。当使用 sudo 运行 Docker 命令时，~ 符号（代表用户主目录）会被解析为 root 而不是您的用户目录 wxm。因此，数据库文件实际上被创建到了 /root/mysql-deploy/ 下，而不是您期望的位置。
-      - /home/wxm/mysql-data/mysql/data:/var/lib/mysql # 将主机的目录映射到容器内，确保数据持久化。
+    # 不要使用 ~ 相对路径。当使用 sudo 运行 Docker 命令时，~ 符号（代表用户主目录）会被解析为 root 而不是您的用户目录
+    # 因此数据库文件实际上被创建到了 /root/mysql-data 目录下，而不是 /home/wxm/mysql-data
+      - /home/wxm/mysql-data/mysql/data:/var/lib/mysql  # 将主机的目录映射到容器内，确保数据持久化
       - /home/wxm/mysql-data/mysql/logs:/var/log/mysql
       - /home/wxm/mysql-data/mysql/conf:/etc/mysql/conf.d
-    command: --default-authentication-plugin=mysql_native_password # 使用 mysql_native_password 认证插件，确保兼容性，解决部分旧版客户端连接问题
+    command: --default-authentication-plugin=mysql_native_password  # 使用 mysql_native_password 认证插件，确保兼容性，解决部分旧版客户端连接问题
 
 
   # ===============================================================================================
   # --- Redis 缓存服务 ---
+  # --- docker pull redis:latest ---（下载 Redis 镜像）
   # ===============================================================================================
   redis:
     image: redis:latest
@@ -35,14 +53,15 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - /home/wxm/redis-data:/data # 将主机的目录（/home/wxm/redis-data）映射到容器内（/data），确保数据持久化。
+      - /home/wxm/redis-data:/data  # 将主机的目录映射到容器内，确保数据持久化
     command: ["redis-server", "--appendonly", "yes"]
 
 
   # ==============================================================================================
-  # Nginx 服务反向代理服务
+  # --- Nginx 服务反向代理服务 ---
+  # --- docker pull nginx:trixie-perl ---（下载 Nginx 镜像）
   # ==============================================================================================
-  # ===============================================================================================
+  #
   # 使用 docker run 命令启动 Nginx 容器。先 cd 到 Tudou 根目录（/home/wxm/Tudou，因为使用到了 $(pwd) 命令）
   # sudo docker run \
   #   --name nginx-forward \
@@ -53,20 +72,22 @@ services:
   #   -v $(pwd)/configs/nginx/log:/var/log/nginx \
   #   -v $(pwd)/configs/nginx/html:/usr/share/nginx/html:ro \
   #   nginx:trixie-perl
-  # ===============================================================================================
+  #
+  # ==============================================================================================
   nginx-forward:
-    image: nginx:trixie-perl # 使用的镜像名称
-    container_name: nginx-forward # 容器名称
+    image: nginx:trixie-perl
+    container_name: nginx-forward
     restart: always
-    network_mode: host # 对应 --network host
+    network_mode: host  # 对应 --network host
     # ports:
-    #   - "80:80"   # 映射主机的 80 端口到容器的 80 端口
-    #   - "443:443" # 映射主机的 443 端口到容器的 443 端口
+    #   - "80:80"     # 映射主机的 80 端口到容器的 80 端口
+    #   - "443:443"   # 映射主机的 443 端口到容器的 443 端口
     #   - "8080:8080" # 映射主机的 8080 端口到容器的 8080 端口（反向代理使用。实践后不行，端口被占用，服务器无法 bind 启动）
     volumes:
-      - ./configs/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro # 对应 -v $(pwd)/...，:ro 表示只读挂载。将自定义配置文件挂载进去
+      - ./configs/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro # :ro 表示只读挂载。将自定义配置文件挂载进去
       - ./configs/nginx/conf/conf.d:/etc/nginx/conf.d:ro
       - ./configs/nginx/log:/var/log/nginx
       - ./configs/nginx/html:/usr/share/nginx/html:ro
     depends_on:
       - db  # 确保数据库先启动
+      - redis  # 确保 Redis 先启动

@@ -1,3 +1,12 @@
+/**
+ * @file FileLinkService.h
+ * @brief 上传下载服务的实现
+ * @details 负责 upload/download 业务流程的编排，调用 filestore/metastore/metacache 完成具体存储与缓存操作。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #include "FileLinkService.h"
 
 #include <time.h>
@@ -47,6 +56,7 @@ bool path_exists(const std::string& path) {
     return ::stat(path.c_str(), &st) == 0;
 }
 
+// 输入目录路径，确保该目录存在（若不存在则创建），仅支持单级目录创建。
 bool ensure_dir_exists_single_level(const std::string& dirPath) {
     if (dirPath.empty()) {
         return false;
@@ -77,6 +87,7 @@ std::string join_path2(const std::string& a, const std::string& b) {
 
 // Write fileContent into a blob file addressed by sha256Hex, without overwriting existing.
 // Uses a tmp file + link() for atomic create semantics.
+// 输入文件内容，写入到以 sha256Hex 命名的 blob 文件中，若已存在则不覆盖。
 bool ensure_blob_from_content(const std::string& blobDir,
     const std::string& sha256Hex,
     const std::string& fileContent,
@@ -172,10 +183,12 @@ FileMetadata build_meta(const std::string& fileId,
     return meta;
 }
 
+// 输入元数据，持久化到 metaStore 和 metaCache。
 void persist_meta(const std::shared_ptr<IFileMetaStore>& metaStore,
     const std::shared_ptr<IFileMetaCache>& metaCache,
     const FileMetadata& meta,
     int cacheTtlSeconds) {
+
     if (metaStore) {
         metaStore->put(meta);
     }
@@ -201,14 +214,13 @@ FileLinkService::FileLinkService(FileSystemStorage storage,
     metaCache_(std::move(metaCache)) {
 }
 
-UploadResult FileLinkService::upload(const std::string& originalName,
-    const std::string& contentType,
-    const std::string& fileContent) {
+UploadResult FileLinkService::upload(const std::string& originalName, const std::string& contentType, const std::string& fileContent) {
     // 软去重：
     // - 对外仍然使用随机 fileId（每次上传一个新链接）
     // - 对内文件内容落到 blobs/{sha256}（相同内容只存一份）
     const std::string fileId = filelink::generate_hex_uuid32();
 
+    // 确保 storage root 及 blobs 子目录存在。
     if (!storage_.ensureRootExists()) {
         return UploadResult();
     }
@@ -217,12 +229,14 @@ UploadResult FileLinkService::upload(const std::string& originalName,
         return UploadResult();
     }
 
+    // 把文件内容写入 blobs/{sha256}。
     const std::string sha256Hex = filelink::sha256_hex(fileContent);
     std::string storagePath;
     if (!ensure_blob_from_content(blobDir, sha256Hex, fileContent, storagePath)) {
         return UploadResult();
     }
 
+    // 构建元数据，并推送到 store（MySQL）和 cache（Redis）。
     const FileMetadata meta = build_meta(
         fileId,
         originalName,
@@ -276,6 +290,7 @@ bool FileLinkService::download(const std::string& fileId, DownloadResult& out) {
     // cache-aside：优先查 cache，miss 时回源 store，再把结果写回 cache。
     if (metaCache_ && metaCache_->get(fileId, meta)) {
         // cache hit
+        // 不需要额外操作
     }
     else {
         if (!metaStore_ || !metaStore_->get(fileId, meta)) {

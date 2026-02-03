@@ -1,3 +1,12 @@
+/**
+ * @file NoopFileMetaCache.h
+ * @brief 文件元数据缓存接口的无操作实现
+ * @details 提供一个永远不命中的缓存实现，用于在不使用缓存时保持代码路径一致。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include "IFileMetaCache.h"

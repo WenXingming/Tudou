@@ -1,3 +1,12 @@
+/**
+ * @file AuthService.h
+ * @brief 认证服务的类
+ * @details 该类实现了一个简单的认证服务，支持基于用户名和密码的认证，并通过令牌（token）管理会话有效期。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -7,6 +16,7 @@
 
 namespace filelink {
 
+// Data Class for Auth Configuration
 struct AuthConfig {
     bool enabled_ = false;
     std::string user_;
@@ -39,8 +49,8 @@ private:
 private:
     AuthConfig cfg_;
 
+    std::unordered_map<std::string, int64_t> tokenExpiry_; // token -> expire unix time
     std::mutex mu_;
-    std::unordered_map<std::string, int64_t> tokenExpiry_; // token -> expire unix
 };
 
 } // namespace filelink

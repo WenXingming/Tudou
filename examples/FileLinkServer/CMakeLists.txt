@@ -11,13 +11,14 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
+# 为了确保在添加或删除源文件时 CMake 能自动更新构建系统，使用 CONFIGURE_DEPENDS 选项
 set(source_files_dir ${CMAKE_CURRENT_SOURCE_DIR})
-file(GLOB source_files
+file(GLOB source_files CONFIGURE_DEPENDS
     ${source_files_dir}/*.cpp
     ${source_files_dir}/auth/*.cpp
-    ${source_files_dir}/cache/*.cpp
-    ${source_files_dir}/meta/*.cpp
-    ${source_files_dir}/storage/*.cpp
+    ${source_files_dir}/metacache/*.cpp
+    ${source_files_dir}/metastore/*.cpp
+    ${source_files_dir}/filestore/*.cpp
 )
 add_executable(filelink-server ${source_files})
 

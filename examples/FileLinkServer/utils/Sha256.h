@@ -11,6 +11,7 @@ namespace filelink {
 
 namespace detail {
 
+// 输入二进制数据，返回小写 hex 即十六进制字符串。
 inline std::string to_hex_lower(const unsigned char* bytes, size_t len) {
     static const char* kHex = "0123456789abcdef";
     std::string out;
@@ -25,7 +26,7 @@ inline std::string to_hex_lower(const unsigned char* bytes, size_t len) {
 
 } // namespace detail
 
-// Returns lowercase hex string (64 chars) for SHA-256 of input.
+// 输入字符串数据，计算其 SHA-256 摘要（binary），并返回小写 hex 即 16 进制字符串（64 字符）。
 inline std::string sha256_hex(const std::string& data) {
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
@@ -56,7 +57,7 @@ inline std::string sha256_hex(const std::string& data) {
     return detail::to_hex_lower(digest, static_cast<size_t>(digestLen));
 }
 
-// Returns true on success and fills outHex with lowercase hex (64 chars).
+// 输入文件路径，计算其 SHA-256 摘要，成功返回 true 并通过 outHex 输出小写 hex 字符串（64 字符）。
 inline bool sha256_file_hex(const std::string& path, std::string& outHex) {
     std::ifstream ifs(path, std::ios::binary);
     if (!ifs) {

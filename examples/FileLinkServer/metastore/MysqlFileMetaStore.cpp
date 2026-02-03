@@ -12,6 +12,8 @@
 #include <cppconn/resultset.h>
 #include <cppconn/exception.h>
 
+#include <spdlog/spdlog.h>
+
 static std::string build_mysql_url(const std::string& host, int port) {
     std::ostringstream oss;
     oss << "tcp://" << host << ":" << port;
@@ -27,6 +29,7 @@ MysqlFileMetaStore::~MysqlFileMetaStore() {
 }
 
 bool MysqlFileMetaStore::ensure_connected() {
+    // 同样是采用懒连接策略连接 MySQL
     if (conn_ != nullptr) {
         return true;
     }
@@ -35,11 +38,14 @@ bool MysqlFileMetaStore::ensure_connected() {
         sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
         conn_ = driver->connect(build_mysql_url(host_, port_), user_, password_);
         if (!conn_) {
+            spdlog::error("MysqlFileMetaStore: failed to connect to MySQL at {}:{}", host_, port_);
             return false;
         }
         conn_->setSchema(database_);
         return true;
-    } catch (const sql::SQLException&) {
+    }
+    catch (const sql::SQLException& e) {
+        spdlog::error("MysqlFileMetaStore: SQLException in ensure_connected: {}", e.what());
         if (conn_) {
             delete conn_;
             conn_ = nullptr;
@@ -50,28 +56,31 @@ bool MysqlFileMetaStore::ensure_connected() {
 }
 
 bool MysqlFileMetaStore::ensure_schema() {
-    if (schemaReady_) {
-        return true;
-    }
+    // 懒建表
     if (!ensure_connected()) {
         return false;
+    }
+    if (schemaReady_) {
+        return true;
     }
 
     try {
         std::unique_ptr<sql::Statement> stmt(conn_->createStatement());
         // 用 BIGINT 存 unix time 方便跨语言
-        stmt->execute(
-            "CREATE TABLE IF NOT EXISTS file_meta ("
+        std::string sql = "CREATE TABLE IF NOT EXISTS file_meta ("
             "  file_id VARCHAR(64) PRIMARY KEY,"
             "  original_name VARCHAR(255) NOT NULL,"
             "  storage_path VARCHAR(512) NOT NULL,"
             "  content_type VARCHAR(128) NOT NULL,"
             "  file_size BIGINT NOT NULL,"
             "  created_at_unix BIGINT NOT NULL"
-            ");");
+            ");";
+        stmt->execute(sql);
         schemaReady_ = true;
         return true;
-    } catch (const sql::SQLException&) {
+    }
+    catch (const sql::SQLException& e) {
+        spdlog::error("MysqlFileMetaStore: SQLException in ensure_schema: {}", e.what());
         return false;
     }
 }
@@ -84,15 +93,15 @@ bool MysqlFileMetaStore::put(const FileMetadata& meta) {
 
     try {
         // upsert：存在则更新
-        std::unique_ptr<sql::PreparedStatement> ps(conn_->prepareStatement(
-            "INSERT INTO file_meta(file_id, original_name, storage_path, content_type, file_size, created_at_unix)"
+        std::string sql = "INSERT INTO file_meta(file_id, original_name, storage_path, content_type, file_size, created_at_unix)"
             " VALUES(?,?,?,?,?,?)"
             " ON DUPLICATE KEY UPDATE"
             " original_name=VALUES(original_name),"
             " storage_path=VALUES(storage_path),"
             " content_type=VALUES(content_type),"
             " file_size=VALUES(file_size),"
-            " created_at_unix=VALUES(created_at_unix)"));
+            " created_at_unix=VALUES(created_at_unix)";
+        std::unique_ptr<sql::PreparedStatement> ps(conn_->prepareStatement(sql));
 
         ps->setString(1, meta.fileId);
         ps->setString(2, meta.originalName);
@@ -103,7 +112,8 @@ bool MysqlFileMetaStore::put(const FileMetadata& meta) {
 
         ps->execute();
         return true;
-    } catch (const sql::SQLException&) {
+    }
+    catch (const sql::SQLException&) {
         // 连接可能断了：下次重连
         if (conn_) {
             delete conn_;
@@ -121,9 +131,9 @@ bool MysqlFileMetaStore::get(const std::string& fileId, FileMetadata& outMeta) {
     }
 
     try {
-        std::unique_ptr<sql::PreparedStatement> ps(conn_->prepareStatement(
-            "SELECT file_id, original_name, storage_path, content_type, file_size, created_at_unix"
-            " FROM file_meta WHERE file_id=? LIMIT 1"));
+        std::string sql = "SELECT file_id, original_name, storage_path, content_type, file_size, created_at_unix"
+            " FROM file_meta WHERE file_id=? LIMIT 1";
+        std::unique_ptr<sql::PreparedStatement> ps(conn_->prepareStatement(sql));
         ps->setString(1, fileId);
         std::unique_ptr<sql::ResultSet> rs(ps->executeQuery());
         if (!rs || !rs->next()) {
@@ -137,7 +147,8 @@ bool MysqlFileMetaStore::get(const std::string& fileId, FileMetadata& outMeta) {
         outMeta.fileSize = rs->getInt64("file_size");
         outMeta.createdAtUnix = rs->getInt64("created_at_unix");
         return true;
-    } catch (const sql::SQLException&) {
+    }
+    catch (const sql::SQLException&) {
         if (conn_) {
             delete conn_;
             conn_ = nullptr;
@@ -150,7 +161,7 @@ bool MysqlFileMetaStore::get(const std::string& fileId, FileMetadata& outMeta) {
 #else
 
 // 未启用 mysql-connector-c++ 时，本文件提供一个“可编译但不可用”的 stub。
-// 这样你可以先把 FileLinkServer 跑起来，再决定是否引入外部依赖。
+// 这样可以先把 FileLinkServer 跑起来，再决定是否引入外部依赖。
 
 MysqlFileMetaStore::~MysqlFileMetaStore() {
 }

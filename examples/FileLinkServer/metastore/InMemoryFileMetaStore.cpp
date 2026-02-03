@@ -1,3 +1,12 @@
+/**
+ * @file InMemoryFileMetaStore.h
+ * @brief 文件元数据存储接口的内存实现
+ * @details 提供一个基于进程内存的文件元数据存储实现。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #include "InMemoryFileMetaStore.h"
 
 bool InMemoryFileMetaStore::put(const FileMetadata& meta) {

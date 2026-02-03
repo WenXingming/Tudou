@@ -1,10 +1,19 @@
+/**
+ * @file MysqlFileMetaStore.h
+ * @brief 基于 MySQL 的文件元数据存储实现
+ * @details 使用 mysql-connector-c++ 进行 MySQL 交互，以使用 MySQL 存储文件元数据。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include <mutex>
 
 #include "IFileMetaStore.h"
 
-// 基于 mysql-connector-c++ 的元数据存储实现
+ // 基于 mysql-connector-c++ 的元数据存储实现
 
 namespace sql {
 class Connection;
@@ -12,16 +21,13 @@ class Connection;
 
 class MysqlFileMetaStore : public IFileMetaStore {
 public:
-    MysqlFileMetaStore(std::string host,
-                       int port,
-                       std::string user,
-                       std::string password,
-                       std::string database)
-        : host_(std::move(host)),
-          port_(port),
-          user_(std::move(user)),
-          password_(std::move(password)),
-          database_(std::move(database)) {}
+    MysqlFileMetaStore(std::string host, int port, std::string user, std::string password, std::string database) :
+        host_(std::move(host)),
+        port_(port),
+        user_(std::move(user)),
+        password_(std::move(password)),
+        database_(std::move(database)) {
+    }
 
     ~MysqlFileMetaStore();
 

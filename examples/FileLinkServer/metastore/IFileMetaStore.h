@@ -1,3 +1,12 @@
+/**
+ * @file IFileMetaStore.h
+ * @brief 文件元数据存储接口（基类）
+ * @details 定义了文件元数据存储的接口，供不同存储实现继承和实现。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include <string>

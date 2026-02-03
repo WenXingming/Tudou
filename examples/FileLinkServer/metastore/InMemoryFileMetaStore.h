@@ -1,3 +1,12 @@
+/**
+ * @file InMemoryFileMetaStore.h
+ * @brief 文件元数据存储接口的内存实现
+ * @details 提供一个基于进程内存的文件元数据存储实现。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include <unordered_map>
@@ -14,5 +23,5 @@ public:
 
 private:
     std::mutex mutex_;
-    std::unordered_map<std::string, FileMetadata> map_;
+    std::unordered_map<std::string, FileMetadata> map_; // fileId -> FileMetadata
 };

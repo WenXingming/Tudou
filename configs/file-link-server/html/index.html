@@ -47,6 +47,9 @@
 
             /* 卡片模糊：默认（白天）保留玻璃质感 */
             --card-backdrop: blur(16px);
+
+            /* 登录弹窗：默认跟随卡片背景 */
+            --auth-modal-bg: var(--card-bg);
         }
 
         [data-theme="dark"] {
@@ -59,14 +62,19 @@
             /* 夜间卡片：实体深色面板 + 轻微紫调，和背景紫色渐变更协调 */
             /* 面板更偏“淡紫”，且下半不要太黑 */
             --card-bg: linear-gradient(180deg,
-                    rgba(0, 0, 0, 0.5),
-                    rgba(0, 0, 0, 0.55));
+                    rgba(0, 0, 0, 0.7),
+                    rgba(0, 0, 0, 0.75));
+
+            /* 夜间登录弹窗背景：稍微更深一点，突出弹窗层级 */
+            --auth-modal-bg: linear-gradient(180deg,
+                    rgba(0, 0, 0, 0.9),
+                    rgba(0, 0, 0, 0.95));
             --card-border: rgba(221, 214, 254, 0.20);
             --card-inner-highlight: rgba(255, 255, 255, 0.06);
             --card-inner-shadow: rgba(17, 24, 39, 0.52);
 
-            --text-main: rgba(249, 250, 251, 0.92);
-            --text-secondary: rgba(229, 231, 235, 0.74);
+            --text-main: rgba(249, 250, 251, 0.95);
+            --text-secondary: rgba(229, 231, 235, 0.80);
 
             --primary-color: #8b5cf6;
             --primary-hover: #7c3aed;
@@ -238,7 +246,7 @@
             width: min(520px, calc(100vw - 32px));
             border-radius: 18px;
             border: 1px solid var(--card-border);
-            background: var(--card-bg);
+            background: var(--auth-modal-bg);
             backdrop-filter: var(--card-backdrop);
             box-shadow:
                 0 25px 50px -12px var(--shadow-color),
@@ -269,7 +277,7 @@
         .auth-modal-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             margin-bottom: 12px;
             position: relative;
             z-index: 1;
@@ -286,23 +294,9 @@
             font-size: 0.95rem;
         }
 
-        .auth-close {
-            border: 1px solid var(--border-color);
-            background: var(--surface-bg);
-            color: var(--text-main);
-            border-radius: 10px;
-            padding: 8px 10px;
-            cursor: pointer;
-        }
-
         .auth-body {
             position: relative;
             z-index: 1;
-        }
-
-        .auth-close:hover {
-            background: var(--surface-hover);
-            border-color: var(--surface-border-hover);
         }
 
         .theme-toggle:hover {
@@ -403,11 +397,18 @@
             background: rgba(17, 24, 39, 0.25);
             color: var(--text-main);
             outline: none;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+            transform-origin: center;
+        }
+
+        .login-form input:hover {
+            transform: scale(1.02);
         }
 
         .login-form input:focus {
             border-color: rgba(139, 92, 246, 0.65);
             box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
+            transform: scale(1.02);
         }
 
         .login-actions {
@@ -426,6 +427,8 @@
             color: rgba(249, 250, 251, 0.92);
             cursor: pointer;
             font-weight: 700;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            transform-origin: center;
         }
 
         .login-btn {
@@ -435,7 +438,7 @@
         }
 
         .login-btn:hover {
-            transform: translateY(-1px);
+            transform: scale(1.03);
             box-shadow: 0 16px 22px -12px rgba(124, 58, 237, 0.65);
         }
 
@@ -446,14 +449,8 @@
         }
 
         .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.12);
-            border-color: rgba(239, 68, 68, 0.6);
-        }
-
-        .login-btn:hover,
-        .logout-btn:hover {
-            background: var(--surface-hover);
-            border-color: var(--surface-border-hover);
+            transform: scale(1.03);
+            box-shadow: 0 12px 18px -12px rgba(239, 68, 68, 0.45);
         }
 
         .login-status {
@@ -707,6 +704,19 @@
             font-size: 0.95rem;
             line-height: 1.5;
         }
+
+        .auth-error-message {
+            color: var(--error-color);
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin: 0 0 12px;
+            display: none;
+            text-align: left;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
     </style>
 </head>
 
@@ -760,18 +770,18 @@
         <div class="error-message" id="errorMessage"></div>
 
         <div class="btn-group">
-            <button class="upload-action-btn" id="uploadButton" type="button">开始上传</button>
-            <button class="cancel-btn" id="cancelButton" type="button">取消</button>
+            <button class="upload-action-btn" id="uploadButton" type="button">Start Upload</button>
+            <button class="cancel-btn" id="cancelButton" type="button">Cancel</button>
         </div>
 
         <div class="result-area" id="resultArea">
             <div class="success-header">
-                <span class="success-icon">✅</span> 上传成功
+                <span class="success-icon">✅</span> Upload Successful
             </div>
-            <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">分享链接：</div>
+            <div style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">Share Link:</div>
             <div class="share-link-container">
                 <a href="#" target="_blank" class="share-link" id="shareLink"></a>
-                <button class="copy-btn-small" id="copyButton" type="button">复制</button>
+                <button class="copy-btn-small" id="copyButton" type="button">Copy</button>
             </div>
         </div>
     </div>
@@ -781,10 +791,8 @@
         <div class="auth-modal" role="dialog" aria-modal="true" aria-label="登录">
             <div class="auth-modal-header">
                 <div>
-                    <div class="auth-modal-title">登录后可上传</div>
-                    <div class="auth-modal-subtitle">Token 会保存在本地浏览器中</div>
+                    <div class="auth-modal-title">登录后才可上传</div>
                 </div>
-                <button class="auth-close" id="authClose" type="button">关闭</button>
             </div>
 
             <div class="auth-body">
@@ -793,9 +801,10 @@
                         <input type="text" id="loginUser" placeholder="用户名" autocomplete="username">
                         <input type="password" id="loginPassword" placeholder="密码" autocomplete="current-password">
                     </div>
+                    <div class="auth-error-message" id="authErrorMessage"></div>
                     <div class="login-actions">
                         <button class="login-btn" id="loginButton" type="button">登录</button>
-                        <button class="logout-btn" id="logoutButton" type="button">退出</button>
+                        <button class="logout-btn" id="logoutButton" type="button">登出</button>
                     </div>
                     <div class="login-status" id="loginStatus"><span class="status-dot"></span><span>未登录</span></div>
                 </div>
@@ -825,15 +834,15 @@
         const loginButton = document.getElementById('loginButton');
         const logoutButton = document.getElementById('logoutButton');
         const loginStatus = document.getElementById('loginStatus');
+        const authErrorMessage = document.getElementById('authErrorMessage');
 
         const authToggle = document.getElementById('authToggle');
         const authOverlay = document.getElementById('authOverlay');
-        const authClose = document.getElementById('authClose');
 
         const THEME_STORAGE_KEY = 'fileshare.theme';
         const TOKEN_STORAGE_KEY = 'fileshare.token';
 
-        let authEnabled = true;
+        let authEnabled = false;
         let loginMode = 'password'; // password | unavailable
 
         let selectedFile = null;
@@ -993,11 +1002,20 @@
             progressText.textContent = '0%';
 
             uploadButton.style.display = 'block';
-            uploadButton.textContent = '开始上传';
+            uploadButton.textContent = 'Start Upload';
 
             cancelButton.style.display = 'none';
 
             updateAuthUI();
+        }
+
+        function showAuthError(msg) {
+            authErrorMessage.textContent = msg;
+            authErrorMessage.style.display = msg ? 'block' : 'none';
+        }
+
+        function clearAuthError() {
+            showAuthError('');
         }
 
         function loadToken() {
@@ -1022,13 +1040,14 @@
 
         function updateAuthUI() {
             const token = loadToken();
-            const authed = authEnabled ? !!token : true;
+            const hasToken = !!token;
+            const canUpload = authEnabled ? hasToken : true;
 
-            const dotClass = !authEnabled ? 'status-dot' : authed ? 'status-dot ok' : (loginMode === 'unavailable') ? 'status-dot warn' : 'status-dot';
+            const dotClass = !authEnabled ? 'status-dot' : hasToken ? 'status-dot ok' : (loginMode === 'unavailable') ? 'status-dot warn' : 'status-dot';
             let text = '';
             if (!authEnabled) {
                 text = '未启用登录';
-            } else if (authed) {
+            } else if (hasToken) {
                 text = '已登录';
             } else {
                 if (loginMode === 'unavailable') {
@@ -1039,13 +1058,16 @@
             }
             loginStatus.innerHTML = `<span class="${dotClass}"></span><span>${text}</span>`;
 
-            loginButton.disabled = !authEnabled || loginMode === 'unavailable' || authed;
-            logoutButton.disabled = !authEnabled || !token;
-            uploadArea.classList.toggle('disabled', !authed);
-            uploadButton.disabled = !authed;
+            // UI 始终保留：即使未启用登录，也允许用户尝试点击登录（服务端会返回 404 并提示）。
+            loginButton.disabled = loginMode === 'unavailable' || hasToken;
+            // “退出”按钮同时作为“关闭弹窗”入口：无论是否已登录都应该可点
+            logoutButton.disabled = false;
+            uploadArea.classList.toggle('disabled', !canUpload);
+            uploadButton.disabled = !canUpload;
         }
 
         function showAuthModal() {
+            clearAuthError();
             authOverlay.classList.add('show');
             authOverlay.setAttribute('aria-hidden', 'false');
         }
@@ -1056,11 +1078,8 @@
         }
 
         authToggle.addEventListener('click', () => {
-            if (!authEnabled) return;
             showAuthModal();
         });
-
-        authClose.addEventListener('click', () => hideAuthModal());
 
         authOverlay.addEventListener('click', (e) => {
             if (e.target === authOverlay) hideAuthModal();
@@ -1070,24 +1089,12 @@
             if (e.key === 'Escape') hideAuthModal();
         });
 
-        async function fetchAuthStatus() {
-            const resp = await fetch('/auth/status', { cache: 'no-store' });
-            if (resp.status === 404) {
-                authEnabled = false;
-                loginMode = 'password';
-                return;
-            }
-            if (!resp.ok) {
-                throw new Error('加载登录状态失败: ' + resp.status);
-            }
-            authEnabled = true;
-            loginMode = 'password';
-        }
+        // 不再通过 /auth/status 主动探测服务端是否启用登录。
+        // 现在改为：默认认为未启用登录（上传可用）；当上传返回 401 时再提示用户登录。
 
         uploadArea.addEventListener('click', () => {
             if (uploadArea.classList.contains('disabled')) {
-                showError('请先登录');
-                showAuthModal();
+                showError('Please Log in First');
                 return;
             }
             fileInput.click();
@@ -1128,8 +1135,7 @@
             if (!selectedFile) return;
             const token = loadToken();
             if (authEnabled && !token) {
-                showError('请先登录');
-                showAuthModal();
+                showError('Please Log in First');
                 return;
             }
 
@@ -1139,7 +1145,7 @@
             progressText.style.display = 'block';
 
             uploadButton.disabled = true;
-            uploadButton.textContent = '上传中...';
+            uploadButton.textContent = 'Uploading...';
             uploadButton.style.display = 'none';
             cancelButton.style.display = 'block';
 
@@ -1173,18 +1179,26 @@
                         showError('解析响应失败: ' + e.message);
                     }
                 } else {
-                    showError(`上传失败 (${currentXhr.status}): ${currentXhr.responseText}`);
+                    if (currentXhr.status === 401) {
+                        authEnabled = true;
+                        loginMode = 'password';
+                        updateAuthUI();
+                        showError('Please Log in First');
+                        finishUpload();
+                        return;
+                    }
+                    showError(`Upload failed (${currentXhr.status}): ${currentXhr.responseText}`);
                 }
                 finishUpload();
             };
 
             currentXhr.onerror = () => {
-                showError('网络错误，请检查连接');
+                showError('Network error, please check your network');
                 finishUpload();
             };
 
             currentXhr.onabort = () => {
-                showError('上传已取消');
+                showError('Upload cancelled');
                 finishUpload();
             };
 
@@ -1200,7 +1214,7 @@
 
         function finishUpload() {
             currentXhr = null;
-            uploadButton.textContent = '开始上传';
+            uploadButton.textContent = 'Start Upload';
             uploadButton.disabled = false;
             uploadButton.style.display = 'block';
             cancelButton.style.display = 'none';
@@ -1210,17 +1224,12 @@
             const user = loginUser.value.trim();
             const pwd = loginPassword.value.trim();
             if (!user || !pwd) {
-                showError('请输入用户名和密码');
-                return;
-            }
-
-            if (!authEnabled) {
-                showError('服务端未启用登录');
+                showAuthError('Please enter username and password');
                 return;
             }
 
             if (loginMode === 'unavailable') {
-                showError('登录不可用：服务端状态检查失败');
+                showAuthError('Login unavailable: server status check failed');
                 return;
             }
 
@@ -1234,6 +1243,12 @@
                         body: JSON.stringify({ user, password: pwd })
                     });
 
+                    if (resp.status === 404) {
+                        authEnabled = false;
+                        updateAuthUI();
+                        throw new Error('Login not enabled on server');
+                    }
+
                     if (!resp.ok) {
                         const t = await resp.text().catch(() => '');
                         throw new Error(t || ('HTTP ' + resp.status));
@@ -1241,15 +1256,16 @@
 
                     const result = await resp.json();
                     if (result && result.token) {
+                        authEnabled = true;
                         saveToken(result.token);
                         updateAuthUI();
-                        showError('');
+                        clearAuthError();
                         hideAuthModal();
                         return;
                     }
-                    throw new Error('登录响应格式错误');
+                    throw new Error('Login response format error');
                 } catch (e) {
-                    showError('登录失败: ' + (e && e.message ? e.message : String(e)));
+                    showAuthError('Login failed: ' + (e && e.message ? e.message : String(e)));
                 } finally {
                     loginButton.disabled = false;
                 }
@@ -1257,7 +1273,9 @@
         });
 
         logoutButton.addEventListener('click', () => {
-            clearToken();
+            // 始终关闭弹窗；如果已登录则顺便退出登录（清除本地 token）
+            const token = loadToken();
+            if (token) clearToken();
             updateAuthUI();
             hideAuthModal();
         });
@@ -1294,20 +1312,7 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        (async () => {
-            try {
-                await fetchAuthStatus();
-            } catch (e) {
-                authEnabled = true;
-                loginMode = 'unavailable';
-                showError('初始化登录失败: ' + (e && e.message ? e.message : String(e)));
-            }
-            if (!authEnabled) {
-                // Hide auth UI when server does not require login.
-                authToggle.style.display = 'none';
-            }
-            updateAuthUI();
-        })();
+        updateAuthUI();
     </script>
 </body>
 

@@ -1,8 +1,17 @@
+/**
+ * @file IFileMetaCache.h
+ * @brief 文件元数据缓存接口（基类）
+ * @details 定义了文件元数据缓存的接口，供不同缓存实现继承和实现。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #pragma once
 
 #include <string>
 
-#include "../meta/FileMetadata.h"
+#include "../metastore/FileMetadata.h"
 
 class IFileMetaCache {
 public:

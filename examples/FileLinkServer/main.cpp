@@ -6,116 +6,13 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <map>
 
+#include "ConfigLoader.h"
 #include "FileLinkServer.h"
-#include "meta/InMemoryFileMetaStore.h"
-#include "meta/MysqlFileMetaStore.h"
-#include "cache/NoopFileMetaCache.h"
-#include "cache/RedisFileMetaCache.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
-
- // ======================================================================================
- // Helper to trim strings
-static std::string trim(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\r\n");
-    if (std::string::npos == first) {
-        return str;
-    }
-    size_t last = str.find_last_not_of(" \t\r\n");
-    return str.substr(first, (last - first + 1));
-}
-
-// Config loader
-static std::map<std::string, std::string> load_config(const std::string& filename) {
-    std::map<std::string, std::string> config;
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open config file " << filename << std::endl;
-        return config;
-    }
-    std::string line;
-    while (std::getline(file, line)) {
-        size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos) {
-            line = line.substr(0, commentPos);
-        }
-        line = trim(line);
-        if (line.empty()) continue;
-
-        size_t delimiterPos = line.find('=');
-        if (delimiterPos != std::string::npos) {
-            std::string key = trim(line.substr(0, delimiterPos));
-            std::string value = trim(line.substr(delimiterPos + 1));
-            config[key] = value;
-        }
-    }
-    return config;
-}
-
-static std::string resolve_path(const std::string& serverRoot, const std::string& configuredPath) {
-    if (configuredPath.empty()) {
-        return configuredPath;
-    }
-    if (!configuredPath.empty() && configuredPath[0] == '/') {
-        return configuredPath;
-    }
-    return serverRoot + configuredPath;
-}
-
-static bool parse_bool(const std::map<std::string, std::string>& cfg,
-    const std::string& key,
-    bool defaultValue) {
-    auto it = cfg.find(key);
-    if (it == cfg.end()) return defaultValue;
-    std::string v = it->second;
-    for (size_t i = 0; i < v.size(); ++i) {
-        if (v[i] >= 'A' && v[i] <= 'Z') v[i] = static_cast<char>(v[i] - 'A' + 'a');
-    }
-    return (v == "1" || v == "true" || v == "yes" || v == "on");
-}
-
-static std::string get_string_or(const std::map<std::string, std::string>& cfg,
-    const std::string& key,
-    const std::string& defaultValue) {
-    auto it = cfg.find(key);
-    if (it == cfg.end()) {
-        return defaultValue;
-    }
-    return it->second;
-}
-
-static int get_int_or(const std::map<std::string, std::string>& cfg,
-    const std::string& key,
-    int defaultValue) {
-    auto it = cfg.find(key);
-    if (it == cfg.end()) {
-        return defaultValue;
-    }
-    try {
-        return std::stoi(it->second);
-    }
-    catch (...) {
-        return defaultValue;
-    }
-}
-
-static uint16_t get_u16_or(const std::map<std::string, std::string>& cfg,
-    const std::string& key,
-    uint16_t defaultValue) {
-    const int v = get_int_or(cfg, key, static_cast<int>(defaultValue));
-    if (v < 0) {
-        return defaultValue;
-    }
-    if (v > 65535) {
-        return defaultValue;
-    }
-    return static_cast<uint16_t>(v);
-}
 
 static void set_logger(const std::string& logPath) {
     std::vector<spdlog::sink_ptr> sinks;
@@ -126,127 +23,29 @@ static void set_logger(const std::string& logPath) {
     spdlog::register_logger(logger);
     spdlog::set_default_logger(logger);
 
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::err); // debug、info、warn、err、critical
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] [thread %t] %v");
 }
 
 int main(int argc, char* argv[]) {
-    // 这个示例故意做成“可插拔分层”，便于你逐步替换基础设施：
-    //  - 业务编排：FileLinkService（upload/download 的流程）
-    //  - 落盘：FileSystemStorage（把二进制内容写到磁盘）
-    //  - 元数据：IFileMetaStore（默认 InMemory；可选 MySQL）
-    //  - 缓存：IFileMetaCache（默认 Noop；可选 Redis）
-    //
-    // 重点：MySQL/Redis 并不是“运行时开关”就能用，还需要编译期开关。
-    // 如果配置里开了 mysql.enabled/redis.enabled，但编译时没链接对应库，
-    // 会回退到 InMemory/Noop（保证 demo 不被环境依赖阻断）。
-
-    std::string serverRoot;
-    if (argc > 1) {
-        serverRoot = argv[1];
-    }
-    else {
-        std::vector<std::string> searchRoots = {
-            "/etc/file-link-server/",
-            "./file-link-server/",
-            "./",
-            "/home/wxm/Tudou/configs/file-link-server/",
-        };
-
-        for (const auto& root : searchRoots) {
-            std::string checkPath = root;
-            if (!checkPath.empty() && checkPath.back() != '/') checkPath += '/';
-            checkPath += "conf/server.conf";
-
-            std::ifstream f(checkPath);
-            if (f.good()) {
-                serverRoot = root;
-                break;
-            }
-        }
-
-        if (serverRoot.empty()) {
-            std::cout << "No serverRoot and configuration found in default locations. You have two options:\n"
-                << "1. Create a serverRoot folder at one of the default locations:\n"
-                << "   /etc/file-link-server/\n"
-                << "   ./file-link-server/\n"
-                << "2. Specify the server root directory as a command-line argument when running the program.\n";
-            return 1;
-        }
-    }
-    if (!serverRoot.empty() && serverRoot.back() != '/') {
-        serverRoot += '/';
+    FileLinkServerBootstrap bootstrap;
+    std::string error;
+    if (!load_filelink_server_bootstrap(argc, argv, bootstrap, error)) {
+        std::cerr << error << "\n";
+        return 1;
     }
 
-    // serverRoot 的含义：一个“自包含目录”，里面有 conf/html/log/storage 等子目录。
-    std::string configPath = serverRoot + "conf/server.conf";
-    auto config = load_config(configPath);
-
-    std::string logPath = serverRoot + "log/server.log";
-    set_logger(logPath);
-
-    // 把 key=value 配置映射到 server cfg（这里保持最小字段，便于你按需扩展）。
-    FileLinkServerConfig cfg;
-    cfg.ip = get_string_or(config, "ip", "0.0.0.0");
-    cfg.port = get_u16_or(config, "port", 8080);
-    cfg.threadNum = get_int_or(config, "threadNum", 4);
-    cfg.storageRoot = resolve_path(serverRoot, get_string_or(config, "storageRoot", serverRoot + "storage/"));
-    cfg.webRoot = resolve_path(serverRoot, get_string_or(config, "webRoot", serverRoot + "html/"));
-    cfg.indexFile = get_string_or(config, "indexFile", "homepage.html");
-
-    cfg.authEnabled = parse_bool(config, "auth.enabled", false);
-    cfg.authUser = get_string_or(config, "auth.user", "");
-    cfg.authPassword = get_string_or(config, "auth.password", "");
-    cfg.authTokenTtlSeconds = get_int_or(config, "auth.token_ttl_seconds", 3600);
+    set_logger(bootstrap.logPath);
+    FileLinkServerConfig cfg = std::move(bootstrap.cfg);
 
     if (cfg.authEnabled && (cfg.authUser.empty() || cfg.authPassword.empty())) {
         spdlog::warn("auth.enabled=true but auth.user/auth.password not set; all logins will fail.");
     }
 
-    // 依赖注入：在 main 中决定“用哪个实现”，上层业务只依赖抽象接口。
-    std::shared_ptr<IFileMetaStore> metaStore;
-    std::shared_ptr<IFileMetaCache> metaCache;
-
-    const bool mysqlEnabled = parse_bool(config, "mysql.enabled", false);
-    const bool redisEnabled = parse_bool(config, "redis.enabled", false);
-
-#if FILELINK_WITH_MYSQLCPPCONN
-    if (mysqlEnabled) {
-        const std::string host = config.count("mysql.host") ? config.at("mysql.host") : "127.0.0.1";
-        const int port = config.count("mysql.port") ? std::stoi(config.at("mysql.port")) : 3306;
-        const std::string user = config.count("mysql.user") ? config.at("mysql.user") : "root";
-        const std::string password = config.count("mysql.password") ? config.at("mysql.password") : "";
-        const std::string database = config.count("mysql.database") ? config.at("mysql.database") : "tudou_db";
-        metaStore = std::make_shared<MysqlFileMetaStore>(host, port, user, password, database);
-    }
-    else {
-        metaStore = std::make_shared<InMemoryFileMetaStore>();
-    }
-#else
-    (void)mysqlEnabled;
-    metaStore = std::make_shared<InMemoryFileMetaStore>();
-    spdlog::warn("MySQL enabled in config but FileLinkServer was built without mysqlcppconn; falling back to InMemoryFileMetaStore.");
-#endif
-
-#if FILELINK_WITH_HIREDIS
-    if (redisEnabled) {
-        const std::string host = config.count("redis.host") ? config.at("redis.host") : "127.0.0.1";
-        const int port = config.count("redis.port") ? std::stoi(config.at("redis.port")) : 6379;
-        metaCache = std::make_shared<RedisFileMetaCache>(host, port);
-    }
-    else {
-        metaCache = std::make_shared<NoopFileMetaCache>();
-    }
-#else
-    (void)redisEnabled;
-    metaCache = std::make_shared<NoopFileMetaCache>();
-    spdlog::warn("Redis enabled in config but FileLinkServer was built without hiredis; falling back to NoopFileMetaCache.");
-#endif
-
-    FileLinkServer server(cfg, metaStore, metaCache);
+    FileLinkServer server(std::move(cfg));
 
     std::cout << "FileLinkServer started: http://" << cfg.ip << ":" << cfg.port << std::endl;
-    std::cout << "Homepage: GET  /" << std::endl;
+    std::cout << "Homepage:  GET  /" << std::endl;
     std::cout << "Upload:    POST /upload (Header: X-File-Name)" << std::endl;
     std::cout << "Download:  GET  /file/{id}" << std::endl;
 

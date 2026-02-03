@@ -1,3 +1,12 @@
+/**
+ * @file FileLinkServer.h
+ * @brief HTTP 服务器实现
+ * @details 负责 HTTP 路由与协议细节，调用 FileLinkService 完成具体业务逻辑。
+ * @author wenxingming
+ * @date 2025-12-17
+ * @project: https://github.com/WenXingming/Tudou
+ */
+
 #include "FileLinkServer.h"
 
 #include <fstream>
@@ -6,6 +15,11 @@
 #include <time.h>
 
 #include "spdlog/spdlog.h"
+
+#include "metastore/InMemoryFileMetaStore.h"
+#include "metastore/MysqlFileMetaStore.h"
+#include "metacache/NoopFileMetaCache.h"
+#include "metacache/RedisFileMetaCache.h"
 
 #include "utils/HttpUtil.h"
 #include "utils/Uuid.h"
@@ -105,65 +119,50 @@ static bool extract_json_string_field(const std::string& body,
 
 } // namespace
 
-FileLinkServer::FileLinkServer(FileLinkServerConfig cfg,
-    std::shared_ptr<IFileMetaStore> metaStore,
-    std::shared_ptr<IFileMetaCache> metaCache)
+namespace {
+
+std::shared_ptr<IFileMetaStore> create_meta_store_from_cfg(const FileLinkServerConfig& cfg) {
+#if FILELINK_WITH_MYSQLCPPCONN
+    if (cfg.mysqlEnabled) {
+        return std::make_shared<MysqlFileMetaStore>(
+            cfg.mysqlHost,
+            cfg.mysqlPort,
+            cfg.mysqlUser,
+            cfg.mysqlPassword,
+            cfg.mysqlDatabase);
+    }
+    return std::make_shared<InMemoryFileMetaStore>();
+#else
+    if (cfg.mysqlEnabled) {
+        spdlog::warn("MySQL enabled in config but FileLinkServer was built without mysqlcppconn; falling back to InMemoryFileMetaStore.");
+    }
+    return std::make_shared<InMemoryFileMetaStore>();
+#endif
+}
+
+std::shared_ptr<IFileMetaCache> create_meta_cache_from_cfg(const FileLinkServerConfig& cfg) {
+#if FILELINK_WITH_HIREDIS
+    if (cfg.redisEnabled) {
+        return std::make_shared<RedisFileMetaCache>(cfg.redisHost, cfg.redisPort);
+    }
+    return std::make_shared<NoopFileMetaCache>();
+#else
+    if (cfg.redisEnabled) {
+        spdlog::warn("Redis enabled in config but FileLinkServer was built without hiredis; falling back to NoopFileMetaCache.");
+    }
+    return std::make_shared<NoopFileMetaCache>();
+#endif
+}
+
+} // namespace
+
+FileLinkServer::FileLinkServer(FileLinkServerConfig cfg)
     : cfg_(std::move(cfg)),
-    storage_(cfg_.storageRoot),
     auth_(filelink::AuthConfig{ cfg_.authEnabled, cfg_.authUser, cfg_.authPassword, cfg_.authTokenTtlSeconds }),
-    httpServer_(nullptr),
-    service_(nullptr) {
+    service_(nullptr),
+    httpServer_(nullptr) {
 
-    httpServer_.reset(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum));
-
-    // 注意：storage_ 这里传给 service 是“按值拷贝/移动”的简单对象，
-    // 这个 demo 里 FileSystemStorage 只持有 rootDir 字符串，所以拷贝成本很低。
-    service_.reset(new FileLinkService(storage_, std::move(metaStore), std::move(metaCache)));
-
-    // 路由注册（启动前完成注册；当前 Router 未做并发防护）
-    router_.add_get_route("/health", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_health(req, resp);
-        });
-
-    // 最小前后端打通：直接由同一进程提供首页（省掉 Nginx/前端工程的依赖）。
-    router_.add_get_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_index(req, resp);
-        });
-    router_.add_get_route("/homepage.html", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_index(req, resp);
-        });
-    router_.add_get_route("/index.html", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_index(req, resp);
-        });
-
-    router_.add_get_route("/auth/status", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_auth_status(req, resp);
-        });
-
-    router_.add_post_route("/login", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_login(req, resp);
-        });
-
-    router_.add_post_route("/upload", [this](const HttpRequest& req, HttpResponse& resp) {
-        handle_upload(req, resp);
-        });
-
-    // 动态路由：/file/{id}
-    // 这里用 prefix 兜底，具体 fileId 解析仍由 handle_download 完成。
-    router_.add_prefix_route("/file/", [this](const HttpRequest& req, HttpResponse& resp) {
-        // prefix 路由不区分 method，这里保持 HTTP 语义：非 GET 直接 405。
-        if (req.get_method() != "GET") {
-            respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
-            resp.add_header("Allow", "GET");
-            return;
-        }
-        handle_download(req, resp);
-        });
-
-    httpServer_->set_http_callback(
-        [this](const HttpRequest& req, HttpResponse& resp) {
-            on_http_request(req, resp);
-        });
+    init();
 }
 
 FileLinkServer::~FileLinkServer() {
@@ -180,49 +179,130 @@ void FileLinkServer::on_http_request(const HttpRequest& req, HttpResponse& resp)
     (void)router_.dispatch(req, resp);
 }
 
-void FileLinkServer::handle_health(const HttpRequest& /*req*/, HttpResponse& resp) {
-    respond_plain(resp, 200, "OK", "OK", true);
+void FileLinkServer::init() {
+    httpServer_.reset(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum));
+
+    auto metaStore = create_meta_store_from_cfg(cfg_);
+    auto metaCache = create_meta_cache_from_cfg(cfg_);
+
+    FileSystemStorage storage(cfg_.storageRoot);
+    service_.reset(new FileLinkService(std::move(storage), std::move(metaStore), std::move(metaCache)));
+
+    // 路由注册（启动前完成注册；当前 Router 未做并发防护）
+    // （已移除 /health 路由）
+
+    router_.add_post_route("/login", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_login(req, resp);
+        });
+
+    router_.add_post_route("/upload", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_upload(req, resp);
+        });
+
+    // 动态路由：/file/{id}
+    // 这里用 prefix 兜底，具体 fileId 解析仍由 handle_download 完成。
+    router_.add_prefix_route("/file/", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_download(req, resp);
+        });
+
+    // 静态文件服务：用前缀路由统一处理（放在最后，作为兜底）。
+    router_.add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
+        handle_static(req, resp);
+        });
+
+    httpServer_->set_http_callback(
+        [this](const HttpRequest& req, HttpResponse& resp) {
+            on_http_request(req, resp);
+        });
 }
 
-void FileLinkServer::handle_auth_status(const HttpRequest& /*req*/, HttpResponse& resp) {
-    if (!is_auth_enabled()) {
-        respond_plain(resp, 404, "Not Found", "Not Found", true);
+void FileLinkServer::handle_static(const HttpRequest& req, HttpResponse& resp) {
+    const std::string& method = req.get_method();
+    if (method != "GET" && method != "HEAD") {
+        respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
+        resp.add_header("Allow", "GET, HEAD");
         return;
     }
-    respond_json(resp, 200, "OK", "{\"enabled\":true}", true);
-    resp.add_header("Cache-Control", "no-store");
-}
 
-void FileLinkServer::handle_index(const HttpRequest& /*req*/, HttpResponse& resp) {
     if (cfg_.webRoot.empty()) {
         respond_plain(resp, 404, "Not Found", "Not Found", true);
         return;
     }
 
-    std::string path = cfg_.webRoot;
-    if (!path.empty() && path.back() != '/') {
-        path.push_back('/');
-    }
-    path += cfg_.indexFile;
-
-    std::ifstream ifs(path);
-    if (!ifs.is_open()) {
-        respond_plain(resp, 500, "Internal Server Error", "index not found", false);
+    std::string realPath;
+    if (!resolve_static_real_path(req.get_path(), realPath)) {
+        respond_plain(resp, 404, "Not Found", "Not Found", true);
         return;
     }
 
-    std::ostringstream oss;
-    oss << ifs.rdbuf();
+    std::string body;
+    if (!read_file_all(realPath, body)) {
+        respond_plain(resp, 404, "Not Found", "Not Found", true);
+        return;
+    }
+    if (method == "HEAD") {
+        body.clear();
+    }
 
-    respond_text(resp, 200, "OK", oss.str(), true, "text/html; charset=utf-8");
+    resp.set_status(200, "OK");
+    resp.set_body(body);
+    resp.add_header("Content-Type", filelink::guess_content_type_by_name(realPath));
+    set_keep_alive(resp, true);
 }
 
-bool FileLinkServer::is_auth_enabled() const {
-    return auth_.enabled();
+bool FileLinkServer::resolve_static_real_path(const std::string& requestPath, std::string& outRealPath) const {
+    std::string urlPath = requestPath;
+    if (urlPath.empty()) {
+        urlPath = "/";
+    }
+
+    // 简单防止目录穿越
+    if (urlPath.find("..") != std::string::npos) {
+        return false;
+    }
+
+    const std::string index = cfg_.indexFile.empty() ? "index.html" : cfg_.indexFile;
+
+    // "/" -> "/index.html"（或 cfg_.indexFile）
+    if (urlPath == "/") {
+        urlPath = std::string("/") + index;
+    }
+
+    // 目录请求（以 / 结尾）-> 追加 indexFile
+    if (!urlPath.empty() && urlPath.back() == '/') {
+        urlPath += index;
+    }
+
+    std::string realPath = cfg_.webRoot;
+    if (!realPath.empty() && realPath.back() != '/') {
+        realPath.push_back('/');
+    }
+
+    // urlPath 以 '/' 开头，拼接时去掉前导 '/'
+    if (!urlPath.empty() && urlPath.front() == '/') {
+        realPath += urlPath.substr(1);
+    }
+    else {
+        realPath += urlPath;
+    }
+
+    outRealPath = std::move(realPath);
+    return true;
+}
+
+bool FileLinkServer::read_file_all(const std::string& realPath, std::string& outBody) const {
+    std::ifstream ifs(realPath, std::ios::binary);
+    if (!ifs.is_open()) {
+        return false;
+    }
+    std::ostringstream oss;
+    oss << ifs.rdbuf();
+    outBody = oss.str();
+    return true;
 }
 
 bool FileLinkServer::require_auth(const HttpRequest& req, HttpResponse& resp) {
-    if (!is_auth_enabled()) {
+    if (!auth_.enabled()) {
         return true;
     }
     const std::string token = get_header_or_empty(req, "X-Auth-Token");
@@ -235,7 +315,7 @@ bool FileLinkServer::require_auth(const HttpRequest& req, HttpResponse& resp) {
 }
 
 void FileLinkServer::handle_login(const HttpRequest& req, HttpResponse& resp) {
-    if (!is_auth_enabled()) {
+    if (!auth_.enabled()) {
         respond_plain(resp, 404, "Not Found", "Not Found", false);
         return;
     }
@@ -366,6 +446,13 @@ bool FileLinkServer::parse_file_id_from_path(const std::string& path, std::strin
 }
 
 void FileLinkServer::handle_download(const HttpRequest& req, HttpResponse& resp) {
+    // prefix 路由不区分 method，这里保持 HTTP 语义：非 GET 直接 405。
+    if (req.get_method() != "GET") {
+        respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
+        resp.add_header("Allow", "GET");
+        return;
+    }
+
     std::string fileId;
     if (!parse_file_id_from_path(req.get_path(), fileId)) {
         respond_plain(resp, 400, "Bad Request", "bad file id", false);
