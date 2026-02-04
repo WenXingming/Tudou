@@ -12,7 +12,8 @@ struct FileLinkServerBootstrap {
 };
 
 // Loads serverRoot + server.conf and fills cfg.
-// - If argc > 1: argv[1] is treated as serverRoot.
+// - If "-r <serverRoot>" or "--root <serverRoot>" is provided: uses that.
+// - Else if argc > 1 and argv[1] doesn't look like an option: argv[1] is treated as serverRoot.
 // - Else: searches a few default roots.
 // Returns true on success; on failure returns false and sets outError.
 bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootstrap& out, std::string& outError);

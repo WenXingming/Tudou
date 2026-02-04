@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StarMind - 登录</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body class="page page-login">
+    <div class="login-shell">
+        <div class="login-card">
+            <div class="brand">
+                <div class="brand-logo">★</div>
+                <div>
+                    <div class="brand-title">StarMind</div>
+                    <div class="brand-subtitle">在线 AI 问答</div>
+                </div>
+            </div>
+
+            <form id="loginForm" class="form">
+                <label class="label">用户名</label>
+                <input id="user" class="input" autocomplete="username" placeholder="admin" />
+
+                <label class="label">密码</label>
+                <input id="password" class="input" type="password" autocomplete="current-password" placeholder="admin" />
+
+                <button id="loginBtn" class="btn btn-primary" type="submit">登录</button>
+                <div id="error" class="hint hint-error" role="alert" aria-live="polite"></div>
+
+                <div class="hint">提示：默认账号密码可在 <code>configs/starmind/conf/server.conf</code> 修改</div>
+            </form>
+        </div>
+
+        <div class="login-footer">
+            <span>HTTP server by Tudou</span>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+
+        async function postJson(url, data) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'same-origin'
+            });
+            const text = await res.text();
+            return { ok: res.ok, status: res.status, text };
+        }
+
+        $('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            $('error').textContent = '';
+
+            const user = $('user').value.trim();
+            const password = $('password').value;
+            if (!user || !password) {
+                $('error').textContent = '请输入用户名和密码';
+                return;
+            }
+
+            $('loginBtn').disabled = true;
+            $('loginBtn').textContent = '登录中...';
+            try {
+                const r = await postJson('/api/login', { user, password });
+                if (!r.ok) {
+                    $('error').textContent = r.text || ('登录失败，状态码 ' + r.status);
+                    return;
+                }
+                window.location.href = '/chat';
+            } catch (err) {
+                $('error').textContent = String(err || '网络错误');
+            } finally {
+                $('loginBtn').disabled = false;
+                $('loginBtn').textContent = '登录';
+            }
+        });
+
+        // If already logged in, go to chat
+        (async () => {
+            try {
+                const res = await fetch('/api/me', { credentials: 'same-origin' });
+                if (res.ok) window.location.href = '/chat';
+            } catch (_) { }
+        })();
+    </script>
+</body>
+
+</html>

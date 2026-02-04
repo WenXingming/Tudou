@@ -82,6 +82,7 @@ target_link_libraries(tudou PRIVATE
 # 递归构建子目录
 add_subdirectory(examples/StaticFileHttpServer)
 add_subdirectory(examples/FileLinkServer)
+add_subdirectory(examples/StarMind)
 add_subdirectory(src/test/unitTest)
 add_subdirectory(src/test/integrateTest/TestNetlib)
 add_subdirectory(src/test/integrateTest/StaticFileTcpServer)

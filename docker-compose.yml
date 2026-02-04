@@ -28,7 +28,7 @@ services:
     container_name: mysql-server
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: wenxingming
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: tudou_db
       TZ: Asia/Shanghai
     ports:
@@ -51,7 +51,7 @@ services:
     container_name: redis-server
     restart: always
     ports:
-      - "6379:6379"
+      - "6379:6379" # 映射主机的 6379 端口到容器的 6379 端口
     volumes:
       - /home/wxm/redis-data:/data  # 将主机的目录映射到容器内，确保数据持久化
     command: ["redis-server", "--appendonly", "yes"]

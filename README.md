@@ -175,7 +175,7 @@ Transfer/sec:    163.08MB
 
 1. 编译项目（中的 StaticFileHttpServer 示例），生成可执行文件 `static-server`。
 
-2. 创建配置文件目录结构并启动服务器。配置文件目录结构如下：
+2. 创建配置文件目录结构并启动服务器（参考 [static-file-http-server 配置](./configs/static-file-http-server)）。配置文件目录结构如下：
 
     ```bash
     static-file-http-server
@@ -225,11 +225,15 @@ Transfer/sec:    163.08MB
 
 元数据管理界面（MySQL + Redis）：
 
-![mysql](assets/filelink-server-mysql.png) ![redis](assets/filelink-server-redis.png)
+![mysql](assets/filelink-server-mysql.png) 
+
+![redis](assets/filelink-server-redis.png)
 
 我使用 Tudou 实现了另一个功能：用户上传一个文件，后端将其组织存储，同时生成一个 URL 返回给前端，用户后续可以使用这个得到的 URL 访问或者下载该文件。
 
 设计采用经典的客户端-服务器架构，前端通过 HTTP 协议与后端通信。后端使用 Tudou 实现高性能的 HTTP 服务器，处理文件上传和下载请求。设计采用 “元数据存数据库（MySQL）+ 文件实体存磁盘 + 热点数据存 Redis” 的经典架构。这种方式既能利用磁盘的大容量存储文件，又能利用数据库管理文件属性，同时利用 Redis 极大地提高文件索引速度。具体实现见 [/examples/FileLinkServer](./examples/FileLinkServer) 。
+
+使用方式和静态文件服务器类似：编译项目，创建配置文件目录结构（[filelink-server 配置](./configs/file-link-server/)）并启动服务器。启动服务器时，配置文件目录可以放在 `/etc/file-link-server/`、当前目录，或者通过 `-r` 参数指定路径。最后访问对应的 URL 即可上传和下载文件。
 
 环境要求：
 

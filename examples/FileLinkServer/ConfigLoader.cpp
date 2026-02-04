@@ -117,6 +117,53 @@ std::string normalize_server_root(std::string root) {
     return root;
 }
 
+bool is_option(const std::string& arg) {
+    return !arg.empty() && arg[0] == '-';
+}
+
+bool try_parse_server_root_from_args(int argc, char* argv[], std::string& outServerRoot, std::string& outError) {
+    outServerRoot.clear();
+    outError.clear();
+    if (argc <= 1 || argv == nullptr) {
+        return false;
+    }
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = (argv[i] ? std::string(argv[i]) : std::string());
+
+        if (a == "-r" || a == "--root") {
+            if (i + 1 >= argc || argv[i + 1] == nullptr) {
+                outError = "Missing value for " + a + ". Usage: filelink-server -r <serverRoot>";
+                return false;
+            }
+            outServerRoot = argv[i + 1];
+            return true;
+        }
+
+        const std::string r1 = "-r=";
+        const std::string r2 = "--root=";
+        if (a.rfind(r1, 0) == 0) {
+            outServerRoot = a.substr(r1.size());
+            return true;
+        }
+        if (a.rfind(r2, 0) == 0) {
+            outServerRoot = a.substr(r2.size());
+            return true;
+        }
+    }
+
+    // Backward-compatible: if argv[1] is a non-option, treat it as serverRoot.
+    if (argv[1] != nullptr) {
+        const std::string first = argv[1];
+        if (!first.empty() && !is_option(first)) {
+            outServerRoot = first;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace
 
 bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootstrap& out, std::string& outError) {
@@ -124,10 +171,14 @@ bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootst
     out = FileLinkServerBootstrap{};
 
     std::string serverRoot;
-    if (argc > 1 && argv && argv[1]) {
-        serverRoot = argv[1];
+    std::string argError;
+    const bool hasRootArg = try_parse_server_root_from_args(argc, argv, serverRoot, argError);
+    if (!argError.empty()) {
+        outError = std::move(argError);
+        return false;
     }
-    else {
+
+    if (!hasRootArg) {
         const std::vector<std::string> searchRoots = {
             "/etc/file-link-server/",
             "./file-link-server/",
@@ -147,7 +198,7 @@ bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootst
         if (serverRoot.empty()) {
             outError =
                 "No serverRoot and configuration found in default locations. "
-                "Specify server root directory as argv[1], or create conf/server.conf under one of: "
+                "Specify server root with -r <serverRoot> (or as argv[1]), or create conf/server.conf under one of: "
                 "/etc/file-link-server/, ./file-link-server/, ./, /home/wxm/Tudou/configs/file-link-server/.";
             return false;
         }
