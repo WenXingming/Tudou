@@ -257,13 +257,13 @@ int main(int argc, char* argv[]) {
 
     set_logger(bootstrap.logPath);
 
-    StarMindServer server(std::move(bootstrap.cfg));
-
     std::cout << "StarMind started: http://" << bootstrap.cfg.ip << ":" << bootstrap.cfg.port << std::endl;
     std::cout << "Login page:  GET  /login" << std::endl;
     std::cout << "Chat page:   GET  /chat" << std::endl;
     std::cout << "Login API:   POST /api/login" << std::endl;
     std::cout << "Chat API:    POST /api/chat" << std::endl;
+
+    StarMindServer server(std::move(bootstrap.cfg));
 
     server.start();
     return 0;

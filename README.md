@@ -245,6 +245,12 @@ Transfer/sec:    163.08MB
     sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev
     ```
 
+### StartMind AI 聊天服务示例 ✨
+
+![starmind-chat](assets/starmind-chat.png)
+
+我使用 Tudou 实现了一个基于 AI 大语言模型的聊天服务，名为 StartMind（详细代码样例见 [/examples/StartMind](./examples/StartMind)）。用户可以通过网页界面与 AI 模型进行对话交流。使用方式类似于前面的示例：1. 编译项目，2. 创建配置文件目录结构（[starmind 配置](./configs/starmind/)）并启动服务器，3. 访问对应的 URL，登录后即可使用聊天服务。
+
 ## Citation 📚
 
 - 网络库（muduo）：https://github.com/chenshuo/muduo

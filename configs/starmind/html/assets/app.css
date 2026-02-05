@@ -526,3 +526,83 @@ code {
         opacity: 1;
     }
 }
+
+/* Centered text for brand class */
+.brand {
+    text-align: center;
+}
+/* History List */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.2s;
+    font-size: 14px;
+    user-select: none;
+}
+
+.history-item:hover {
+    background: var(--panel-hover);
+}
+
+.history-item.active {
+    background: #2A2B32; /* Distinct active state if needed, or same as hover */
+}
+
+.history-item svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+}
+
+.history-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-actions {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.history-item:hover .history-actions {
+    display: flex;
+}
+
+.history-action-btn {
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.history-action-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+}
+
+.history-action-btn svg {
+    width: 14px;
+    height: 14px;
+}
