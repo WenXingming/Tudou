@@ -242,7 +242,7 @@ Transfer/sec:    163.08MB
 
     ```bash
     sudo apt-get update
-    sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev
+    sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev libssl-dev
     ```
 
 ### StarMind AI 聊天服务示例 ✨
@@ -250,6 +250,16 @@ Transfer/sec:    163.08MB
 ![starmind-chat](assets/starmind-chat.png)
 
 我使用 Tudou 实现了一个基于 AI 大语言模型的聊天服务，名为 StarMind（详细代码样例见 [/examples/StarMind](./examples/StarMind)）。用户可以通过网页界面与 AI 模型进行对话交流。使用方式类似于前面的示例：1. 编译项目，2. 创建配置文件目录结构（[/configs/starmind](./configs/starmind/)）并启动服务器，3. 访问对应的 URL，登录后即可使用聊天服务。
+
+环境要求：
+
+1. 需要有一个可用的 AI 大语言模型 API（如 OpenAI 的 GPT-3.5 或 GPT-4 API），并获取相应的 API Key。
+2. 需要安装 libcurl 库（`libcurl4-openssl-dev`），以便能够使用 C++ 进行 HTTP 请求，调用 AI 模型的 API 接口。
+
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y libcurl4-openssl-dev
+    ```
 
 ## Citation 📚
 
