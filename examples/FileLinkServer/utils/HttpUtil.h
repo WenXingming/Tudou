@@ -30,6 +30,61 @@ inline std::string get_extension_lower(const std::string& filename) {
     return ext;
 }
 
+inline bool is_rfc5987_attr_char(unsigned char c) {
+    if ((c >= '0' && c <= '9') ||
+        (c >= 'a' && c <= 'z') ||
+        (c >= 'A' && c <= 'Z')) {
+        return true;
+    }
+
+    switch (c) {
+    case '!': case '#': case '$': case '&': case '+': case '-': case '.':
+    case '^': case '_': case '`': case '|': case '~':
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline std::string to_hex_upper(unsigned char v) {
+    static const char* kHex = "0123456789ABCDEF";
+    std::string out;
+    out.push_back(kHex[(v >> 4) & 0x0F]);
+    out.push_back(kHex[v & 0x0F]);
+    return out;
+}
+
+inline std::string url_encode_rfc5987_utf8(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() * 3);
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        if (is_rfc5987_attr_char(c)) {
+            out.push_back(static_cast<char>(c));
+            continue;
+        }
+        out.push_back('%');
+        out += to_hex_upper(c);
+    }
+    return out;
+}
+
+inline std::string ascii_filename_fallback(const std::string& filename) {
+    std::string out;
+    out.reserve(filename.size());
+
+    for (std::size_t i = 0; i < filename.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(filename[i]);
+        const bool is_safe_ascii = (c >= 0x20 && c <= 0x7E && c != '"' && c != '\\');
+        out.push_back(is_safe_ascii ? static_cast<char>(c) : '_');
+    }
+
+    if (out.empty()) {
+        return "download";
+    }
+    return out;
+}
+
 } // namespace detail
 
 inline std::string guess_content_type_by_name(const std::string& filename) {
@@ -91,6 +146,12 @@ inline std::string json_escape_minimal(const std::string& s) {
         }
     }
     return out;
+}
+
+inline std::string build_content_disposition_attachment(const std::string& originalName) {
+    const std::string fallbackName = detail::ascii_filename_fallback(originalName);
+    const std::string utf8Name = detail::url_encode_rfc5987_utf8(originalName.empty() ? fallbackName : originalName);
+    return std::string("attachment; filename=\"") + fallbackName + "\"; filename*=UTF-8''" + utf8Name;
 }
 
 }

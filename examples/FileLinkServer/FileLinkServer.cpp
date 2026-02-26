@@ -476,8 +476,8 @@ void FileLinkServer::handle_download(const HttpRequest& req, HttpResponse& resp)
         : filelink::guess_content_type_by_name(out.meta.originalName);
     resp.add_header("Content-Type", ct);
 
-    // 触发下载，保留原始文件名
-    resp.add_header("Content-Disposition", "attachment; filename=\"" + out.meta.originalName + "\"");
+    // 触发下载，保留原始文件名（兼容空格/非 ASCII 文件名）
+    resp.add_header("Content-Disposition", filelink::build_content_disposition_attachment(out.meta.originalName));
 
     set_keep_alive(resp, true);
 }

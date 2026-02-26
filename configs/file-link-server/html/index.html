@@ -804,7 +804,7 @@
                     <div class="auth-error-message" id="authErrorMessage"></div>
                     <div class="login-actions">
                         <button class="login-btn" id="loginButton" type="button">登录</button>
-                        <button class="logout-btn" id="logoutButton" type="button">登出</button>
+                        <button class="logout-btn" id="logoutButton" type="button">退出</button>
                     </div>
                     <div class="login-status" id="loginStatus"><span class="status-dot"></span><span>未登录</span></div>
                 </div>
@@ -1009,6 +1009,24 @@
             updateAuthUI();
         }
 
+        function resetUploadDownloadPageState() {
+            if (currentXhr) {
+                currentXhr.abort();
+                currentXhr = null;
+            }
+
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            fileName.textContent = '';
+            fileSize.textContent = '';
+
+            shareLink.href = '#';
+            shareLink.textContent = '';
+
+            resetUI();
+        }
+
         function showAuthError(msg) {
             authErrorMessage.textContent = msg;
             authErrorMessage.style.display = msg ? 'block' : 'none';
@@ -1062,6 +1080,7 @@
             loginButton.disabled = loginMode === 'unavailable' || hasToken;
             // “退出”按钮同时作为“关闭弹窗”入口：无论是否已登录都应该可点
             logoutButton.disabled = false;
+            logoutButton.textContent = hasToken ? '退出' : '关闭';
             uploadArea.classList.toggle('disabled', !canUpload);
             uploadButton.disabled = !canUpload;
         }
@@ -1275,9 +1294,20 @@
         logoutButton.addEventListener('click', () => {
             // 始终关闭弹窗；如果已登录则顺便退出登录（清除本地 token）
             const token = loadToken();
-            if (token) clearToken();
+            const wasLoggedIn = !!token;
+
+            if (wasLoggedIn) {
+                clearToken();
+            }
+
+            resetUploadDownloadPageState();
             updateAuthUI();
             hideAuthModal();
+
+            // 已登录用户点击“退出”后刷新页面，确保上传/下载区域状态完全重置。
+            if (wasLoggedIn) {
+                window.location.reload();
+            }
         });
 
         copyButton.addEventListener('click', () => {

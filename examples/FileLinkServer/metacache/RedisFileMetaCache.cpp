@@ -33,15 +33,35 @@ bool RedisFileMetaCache::put(const FileMetadata& meta, int ttlSeconds) {
     // redis 的 Hash 中存储的 key 为 filelink:file:{id}、字段为属性名
     const std::string key = make_key(meta.fileId);
 
-    // 使用 redis 的 HSET 命令存储 Hash 结构
-    std::string redisCommandStr = "HSET " + key +
-        " fileId " + meta.fileId +
-        " originalName " + meta.originalName +
-        " storagePath " + meta.storagePath +
-        " contentType " + meta.contentType +
-        " fileSize " + std::to_string(meta.fileSize) +
-        " createdAtUnix " + std::to_string(meta.createdAtUnix);
-    redisReply* r1 = static_cast<redisReply*>(redisCommand(ctx_, redisCommandStr.c_str()));
+    const std::string fileSize = std::to_string(meta.fileSize);
+    const std::string createdAtUnix = std::to_string(meta.createdAtUnix);
+
+    // 这种直接拼接命令的方式在字段值中包含空格或特殊字符时会出问题，因此改用 hiredis 的参数化命令接口。
+    // std::string redisCommandStr = "HSET " + key +
+    //     " fileId " + meta.fileId +
+    //     " originalName " + meta.originalName +
+    //     " storagePath " + meta.storagePath +
+    //     " contentType " + meta.contentType +
+    //     " fileSize " + std::to_string(meta.fileSize) +
+    //     " createdAtUnix " + std::to_string(meta.createdAtUnix);
+    // redisReply* r1 = static_cast<redisReply*>(redisCommand(ctx_, redisCommandStr.c_str()));
+    // 使用参数化命令，避免文件名等字段中的空格/UTF-8 字符被错误拆分。
+    redisReply* r1 = static_cast<redisReply*>(redisCommand(
+        ctx_,
+        "HSET %b "
+        "fileId %b "
+        "originalName %b "
+        "storagePath %b "
+        "contentType %b "
+        "fileSize %b "
+        "createdAtUnix %b",
+        key.data(), key.size(),
+        meta.fileId.data(), meta.fileId.size(),
+        meta.originalName.data(), meta.originalName.size(),
+        meta.storagePath.data(), meta.storagePath.size(),
+        meta.contentType.data(), meta.contentType.size(),
+        fileSize.data(), fileSize.size(),
+        createdAtUnix.data(), createdAtUnix.size()));
     if (!r1) {
         spdlog::error("Redis HSET command failed for key {}", key);
         redisFree(ctx_);
@@ -54,8 +74,7 @@ bool RedisFileMetaCache::put(const FileMetadata& meta, int ttlSeconds) {
     if (ttlSeconds < 0) {
         return true;
     }
-    std::string redisExpireCmd = "EXPIRE " + key + " " + std::to_string(ttlSeconds);
-    redisReply* r2 = static_cast<redisReply*>(redisCommand(ctx_, redisExpireCmd.c_str()));
+    redisReply* r2 = static_cast<redisReply*>(redisCommand(ctx_, "EXPIRE %b %d", key.data(), key.size(), ttlSeconds));
     if (!r2) {
         spdlog::error("Redis EXPIRE command failed for key {}", key);
         redisFree(ctx_);
