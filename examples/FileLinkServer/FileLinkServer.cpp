@@ -171,6 +171,7 @@ FileLinkServer::~FileLinkServer() {
 void FileLinkServer::start() {
     spdlog::info("FileLinkServer listening on {}:{} storageRoot={} threadNum={}",
         cfg_.ip, cfg_.port, cfg_.storageRoot, cfg_.threadNum);
+    httpServer_->enable_ssl("certs/test-cert.pem", "certs/test-key.pem"); // 启用 HTTPS 支持
     httpServer_->start();
 }
 

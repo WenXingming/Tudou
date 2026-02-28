@@ -156,9 +156,18 @@ Transfer/sec:    163.08MB
 - 单元测试需要 Google Test 库支持
     ```bash
     sudo apt-get update
-    sudo apt-get install -y libgtest-dev
+    sudo apt-get install -y libgtest-dev libssl-dev
     ```
 - llhttp HTTP 协议解析库（已集成在 Tudou 中，无需额外安装）
+- OpenSSL 库（HTTPS 支持所需的 TLS/SSL 协议实现和加密原语）
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y libssl-dev
+
+    # 创建 OpenSSL 证书和私钥（自签名证书，适用于测试环境）
+    cd ${TUDOU_SOURCE_DIR} && mkdir -p certs
+    openssl req -x509 -newkey rsa:2048 -keyout certs/test-key.pem -out certs/test-cert.pem -days 365 -nodes 2>&1
+    ```
 - spdlog 日志库（已集成在 Tudou 中，无需额外安装）
 - C++11 or higher
 - CMake 3.10 or higher

@@ -65,6 +65,7 @@ StaticFileHttpServer::StaticFileHttpServer(const std::string& ip, uint16_t port,
 
 void StaticFileHttpServer::start() {
     spdlog::info("StaticFileHttpServer listening on {}:{} with baseDir={}", ip_, port_, baseDir_);
+    httpServer_->enable_ssl("certs/test-cert.pem", "certs/test-key.pem"); // 启用 HTTPS 支持
     httpServer_->start();
 }
 

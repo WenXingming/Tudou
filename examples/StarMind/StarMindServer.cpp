@@ -694,6 +694,7 @@ StarMindServer::~StarMindServer() {
 void StarMindServer::start() {
     spdlog::info("StarMind listening on {}:{} webRoot={} threadNum={} llm.provider={}",
         cfg_.ip, cfg_.port, cfg_.webRoot, cfg_.threadNum, cfg_.llmProvider);
+    httpServer_->enable_ssl("certs/test-cert.pem", "certs/test-key.pem"); // 启用 HTTPS 支持
     httpServer_->start();
 }
 

@@ -5,7 +5,7 @@
  * @date 2025-11-27
  * @project: https://github.com/WenXingming/Tudou
  *
- * - 解析 HTTP 报文的类，基于 llhttp 库实现。解析 HTTP 请求报文，结果存储在 HttpRequest 对象中。
+ * - 解析 HTTP 报文的类，基于 llhttp 库实现。解析 HTTP 请求报文，通过回调函数逐步构建 HttpRequest 对象，提供接口供外部使用。
  *
  * - 对外接口包括：
  *   - parse(): 解析传入的数据，返回是否成功解析。nparsed 输出实际解析的字节数。只要无错误即视为消费了全部输入数据即 len 字节

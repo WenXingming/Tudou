@@ -60,11 +60,14 @@ add_library(tudou STATIC ${tudou_source_files})
 
 set(THREADS_PREFER_PTHREAD_FLAG ON) # 优先使用 pthread 选项，生成更兼容的代码
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)   # HTTPS 支持所需的 OpenSSL 库
 
 target_link_libraries(tudou PRIVATE 
     llhttp
     threadpool # （实际没有使用到 threadpool 库）
     Threads::Threads
+    OpenSSL::SSL      # TLS/SSL 协议实现
+    OpenSSL::Crypto   # 加密原语
     ) 
 
 # ======================================================================================================
@@ -86,3 +89,4 @@ add_subdirectory(examples/StarMind)
 add_subdirectory(src/test/unitTest)
 add_subdirectory(src/test/integrateTest/TestNetlib)
 add_subdirectory(src/test/integrateTest/StaticFileTcpServer)
+add_subdirectory(src/test/integrateTest/HttpsTest)

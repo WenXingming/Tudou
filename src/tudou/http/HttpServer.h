@@ -23,6 +23,8 @@
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 #include "tudou/http/HttpContext.h"
+#include "tudou/http/SslContext.h"
+#include "tudou/http/TlsConnection.h"
 
 class HttpServer {
     // 数据流向：Tcp --> HttpRequest --> 上层业务回调 messageCallback 并填充 HttpResponse --> HttpResponse --> Tcp
@@ -38,6 +40,15 @@ public:
     void start();
 
     void set_http_callback(const MessageCallback& cb);
+
+    /**
+     * @brief 启用 HTTPS 支持（必须在 start() 之前调用）
+     * @param certFile 证书文件路径（PEM 格式）
+     * @param keyFile 私钥文件路径（PEM 格式）
+     * @return 成功返回 true，失败返回 false
+     */
+    bool enable_ssl(const std::string& certFile, const std::string& keyFile);
+    bool is_ssl_enabled() const;
 
     const std::string& get_ip() const;
     int get_port() const;
@@ -71,6 +82,13 @@ private:
     HttpResponse generate_bad_response();
     HttpResponse generate_404_response();
 
+    // ==================== TLS 相关处理 ====================
+    void tls_on_connect(int fd);                                               // 为新连接创建 TlsConnection
+    void tls_on_message(const std::shared_ptr<TcpConnection>& conn, int fd);   // TLS 消息处理入口
+    void tls_on_close(int fd);                                                 // 清理 TlsConnection
+    std::string tls_decrypt(int fd, const std::string& encryptedData);         // 解密密文为明文
+    std::string tls_encrypt(int fd, const std::string& plainData);             // 加密明文为密文
+
 private:
     std::string ip_;                              // 监听 IP 地址
     uint16_t port_;                               // 监听端口
@@ -80,4 +98,9 @@ private:
     std::mutex contextsMutex_;
 
     MessageCallback messageCallback_;             // 上层 HTTP 业务回调。TODO: 是否需要添加更多回调（如连接建立、连接关闭等）？如果添加参数如何设计
+
+    // ==================== TLS 相关成员 ====================
+    std::unique_ptr<SslContext> sslContext_;                                    // 全局 SSL 上下文（证书/私钥）
+    std::unordered_map<int, std::shared_ptr<TlsConnection>> tlsConnections_;   // fd -> TlsConnection 映射
+    // tlsConnections_ 与 httpContexts_ 共享 contextsMutex_
 };
