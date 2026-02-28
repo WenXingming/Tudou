@@ -28,7 +28,7 @@ project(Tudou)
 include(CTest)
 
 # 统一设置 C++ 标准，确保代码在不同编译器上行为一致
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置编译类型为 Debug，以启用调试信息和关闭优化

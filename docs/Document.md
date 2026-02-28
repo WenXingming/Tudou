@@ -213,6 +213,68 @@ sequenceDiagram
 
 fd 和 channel 生命期进行绑定，因为从逻辑上讲，channel 就是对 fd 的封装，是 fd 的抽象。fd 的生命周期由操作系统管理，而 channel 的生命周期由 Tudou 管理，为了避免悬空指针等问题，**channel 的生命周期必须和 fd 绑定在一起**，即**channel 的创建和销毁必须和 fd 的创建和销毁同步**。一个很好的方式就是使用 C++ 的 RAII(Resource Acquisition Is Initialization) 原则，在创建 fd 的时候同时创建 channel，在销毁 fd 的时候同时销毁 channel，这样可以确保 channel 始终有效，避免悬空指针等问题。因此在 TcpConnection、Acceptor 类中使用 RAII 原则同步管理 fd 和 channel 的生命周期。
 
+### Channel 构造：立即注册到 Poller {#channel-construct-register}
+
+Channel 在构造函数中立即调用 `update_in_register()` 将自身注册到 EpollPoller，而不是延迟到上层（Acceptor / TcpConnection）手动调用。这一设计的考量：
+
+- Channel 负责和 EpollPoller 同步（相邻类通信原则），不再交给上层 Acceptor / TcpConnection 负责，上层应该感知不到 Poller 的存在。
+- 创建 Channel 后立即注册到 Poller，严格同步 fd 和 Channel 的生命周期，保证了 EpollPoller 访问 Channel 时指针始终有效。
+- Channel（TcpConnection 场景）的创建在 ioLoop 线程中执行，TcpServer 中通过 `run_in_loop` 保证线程安全。
+
+### Channel 析构：负责关闭 fd {#channel-destruct-close-fd}
+
+虽然 fd 由上层（Acceptor / TcpConnection）创建，但关闭 fd 由 Channel 析构函数负责（`::close(fd_)`）。这一设计的考量：
+
+- Channel 完全封装 fd，做到了 fd 从注册到注销再到关闭的全生命周期管理。
+- 析构时先 `disable_all()` + `remove_in_register()` 从 Poller 注销，再 `::close(fd_)`，保证在 Channel 存在期间 EpollPoller 对 Channel 的访问始终有效。
+- 创建与销毁不对称（上层创建、Channel 销毁），未来可引入 `Socket`/`Fd` RAII 类让创建和销毁统一在同一个对象中。
+
+### index_ 字段移除说明 {#channel-index-removed}
+
+在 muduo 中，`Channel::index_` 用于标记 channel 在 Poller 中的状态（新建 `kNew` / 已注册 `kAdded` / 已删除 `kDeleted`），Poller 通过 `index_` 判断应该执行 `EPOLL_CTL_ADD` 还是 `EPOLL_CTL_MOD`。
+
+Tudou 的 EpollPoller 使用 `channels_.find(fd)` 替代了这一状态判断逻辑（map 中找不到则 ADD，找到则 MOD），因此 `index_` 在 Tudou 中是死代码，已移除。
+
+## tie-mechanism
+
+Channel 的 tie 机制是为了防止在事件处理过程中 Channel 对象被销毁导致的悬空指针问题。通过 tie 机制，Channel 可以绑定一个 shared_ptr 对象（通常是 TcpConnection），在事件处理过程中通过 lock() 获取 shared_ptr 的临时对象，确保 Channel 在事件处理期间不会被销毁。
+
+handle_events() 可能有断开连接的情况。断开连接的处理并不简单：对方关闭连接，会触发 Channel::handle_event()，后者调用 handle_close_callback()；handle_close_callback() 调用上层注册的 closeCallback，TcpConnection::close_callback()；TcpConnection::close_callback() 负责关闭连接，在 TcpServer 中销毁 TcpConnection 对象。此时 Channel 对象也会被销毁；然而此时 handle_events_with_guard() 还没有返回，后续代码继续执行，可能访问已经被销毁的 Channel 对象，导致段错误。见书籍 p274。muduo 的做法是通过 Channel::tie() 绑定一个弱智能指针，延长其生命周期，保证 Channel 对象在 handle_events_with_guard() 执行期间不会被销毁
+
+
+通过弱智能指针 tie 绑定一个 shared_ptr 智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。只有对象是通过 shared_ptr 管理的，才能锁定。所以需要 isTied 标志。Accetor 不需要 tie（因为没有 remove 回调，而且也不是 shared_ptr 管理的）；TcpConnection 需要 tie，其有 remove 回调，且是 shared_ptr 管理的。
+
+## EventLoop 设计说明
+
+### wakeup 机制：eventfd 打断 poll 阻塞 {#eventloop-wakeup}
+
+每个 EventLoop 持有一个 `wakeupFd_`（通过 `eventfd` 创建）和对应的 `wakeupChannel_`。当 loop 线程没有活跃事件时，`epoll_wait` 会阻塞在超时等待中。此时如果其他线程通过 `queue_in_loop()` 投递了新任务（functor），需要调用 `wakeup()` 向 `wakeupFd_` 写入 8 字节数据，产生一个可读事件，使 `epoll_wait` 立即返回，从而让 loop 线程在本轮迭代末尾的 `do_pending_functors()` 中及时执行新投递的任务。
+
+`on_read()` 是 `wakeupChannel_` 的读回调，仅负责消费 `wakeupFd_` 中的数据（读取 8 字节），真正的任务执行逻辑在 `do_pending_functors()` 中。
+
+### isCallingPendingFunctors_ 的唤醒逻辑 {#eventloop-wakeup-when-calling}
+
+`queue_in_loop()` 中的唤醒条件：
+
+```cpp
+if (!is_in_loop_thread() || isCallingPendingFunctors_) {
+    wakeup();
+}
+```
+
+- **非 loop 线程投递**：需要唤醒，否则 loop 线程可能阻塞在 `epoll_wait` 上。
+- **loop 线程自身在执行 pendingFunctors 期间又投递了新 functor**：`do_pending_functors()` 先将队列 swap 到局部变量再逐个执行，新投递的 functor 进入了原队列而非当前正在执行的局部队列，不会在本轮被执行。如果不 wakeup，loop 将在下一轮 `epoll_wait` 上阻塞直到超时，新 functor 被延迟处理。因此需要 wakeup 使下一轮 `epoll_wait` 立即返回。
+
+### do_pending_functors 中 front() 必须值拷贝 {#pending-functors-bug}
+
+```cpp
+auto functor = functors.front(); // 值拷贝，不能用引用！
+functors.pop();
+functor();
+```
+
+如果写成 `auto& functor = functors.front()`（引用），`pop()` 之后引用悬空，后续 `functor()` 访问已销毁对象，产生未定义行为。表现为 lambda 捕获的变量值错乱。这是一个容易遗漏的细节 bug。
+
 ## Others
 
 1. ✅（已完成，例如 EventLoop 和 Channel，见 Commit 21ae66caeb34b21e18085e6cd2df515946d85a1c）画一颗类图，类之间只进行相邻类之间的通信（立马就清晰许多了），因此我们知道，update to epoll 应该由 channel做，而不是 Acceptor 和 Tcpconn！ 而且发现，自下而上的通信有两种实现方式：回调和依赖注入。我们或许可以只关注相邻类之间的通信（loop和channe是个例外，能够也融入该思想呢，好像可以！）！相邻类就是数据流通的路径，不应该跳，那样就是出现了环比较复杂！

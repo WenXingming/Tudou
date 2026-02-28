@@ -1,9 +1,8 @@
 /**
- * @file EpollPoller.h
- * @brief 多路 I/O 事件分发器（Reactor 的 I/O 多路复用层）。基于 epoll 的 Poller 实现
+ * @file EpollPoller.cpp
+ * @brief 基于 epoll 的 I/O 多路复用器
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
- *
  */
 
 #include "EpollPoller.h"
@@ -16,12 +15,11 @@
 
 EpollPoller::EpollPoller(EventLoop* loop)
     : loop_(loop)
-    , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 避免 fork 出来的子进程继承 epoll fd
-    , eventList_(EpollPoller::initEventListSize_)
+    , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 确保 exec 后 fd 被自动关闭，避免 fork 的子进程误继承父进程的 epollFd 导致资源泄漏或竞争
+    , eventList_(initEventListSize_)
     , channels_() {
-
     if (epollFd_ < 0) {
-        spdlog::critical("EpollPoller::EpollPoller() error: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
+        spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
     }
 }
@@ -32,12 +30,10 @@ EpollPoller::~EpollPoller() {
 }
 
 void EpollPoller::poll(int timeoutMs) {
-    spdlog::debug("Epoll is running... poller monitors channels's size is: {}", channels_.size());
-
     int numReady = get_ready_num(timeoutMs);
-    std::vector<Channel*> activeChannels = get_activate_channels(numReady);
+    auto activeChannels = get_activate_channels(numReady);
     dispatch_events(activeChannels);
-    resize_event_list(numReady); // get_activate_channels 完成后调用，防止使用过程中 eventList_ 大小变化
+    resize_event_list(numReady); // dispatch 完成后再扩缩，避免遍历期间 eventList_ 重分配
 }
 
 void EpollPoller::update_channel(Channel* channel) {
@@ -48,9 +44,11 @@ void EpollPoller::update_channel(Channel* channel) {
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.events = events; // events | EPOLLET 边沿触发
+    ev.events = events;
     ev.data.fd = fd;
-    // ev.data.ptr = static_cast<void*>(channel); // 不知道为什么一用 data.ptr 就会出错
+    // 注意：epoll_event.data 是 union，data.fd 和 data.ptr 不能同时使用。
+    // 当前使用 data.fd + channels_ hash map 查找 Channel*；若改用 data.ptr
+    // 可省去一次哈希查找，但需要去掉 data.fd 的赋值。保持现状以简化调试。
 
     auto findIt = channels_.find(fd);
     if (findIt == channels_.end()) {
@@ -97,36 +95,32 @@ bool EpollPoller::has_channel(Channel* channel) const {
 }
 
 int EpollPoller::get_ready_num(int timeoutMs) {
-    int numReady = epoll_wait(epollFd_
-        , eventList_.data()
-        , static_cast<int>(eventList_.size())
-        , timeoutMs
-    );
+    int numReady = ::epoll_wait(epollFd_, eventList_.data(),
+        static_cast<int>(eventList_.size()), timeoutMs);
     if (numReady < 0) {
-        spdlog::error("EpollPoller::poll() error: epoll_wait return {}", numReady);
+        // 非致命；其他错误记录后同样安全返回 0
+        if (errno != EINTR) {
+            spdlog::error("EpollPoller::get_ready_num(): epoll_wait error, errno={} ({})", errno, strerror(errno));
+        }
+        numReady = 0;
     }
-    spdlog::debug("EpollPoller::poll() return numReady: {}", numReady);
-
+    spdlog::debug("EpollPoller::get_ready_num(): numReady={}", numReady);
     return numReady;
 }
 
 std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
     std::vector<Channel*> activeChannels;
+    activeChannels.reserve(numReady);
 
     for (int i = 0; i < numReady; ++i) {
-        const epoll_event& event = this->eventList_[i];
-        int fd = event.data.fd;
-        uint32_t revent = event.events;
-        // Channel* channel = event.data.ptr ? static_cast<Channel*>(event.data.ptr) : nullptr;
-
-        auto findIt = channels_.find(fd);
-        assert(findIt != channels_.end()); // 否则说明 epoll 和 channels 不同步
-        Channel* channel = findIt->second;
-        channel->set_revents(revent);
+        int fd = eventList_[i].data.fd;
+        auto it = channels_.find(fd);
+        assert(it != channels_.end()); // epoll 与 channels_ 必须同步
+        Channel* channel = it->second;
+        channel->set_revents(eventList_[i].events);
         activeChannels.push_back(channel);
     }
-
-    return std::move(activeChannels);
+    return activeChannels; // NRVO，勿加 std::move
 }
 
 void EpollPoller::dispatch_events(const std::vector<Channel*>& activeChannels) {
@@ -135,19 +129,18 @@ void EpollPoller::dispatch_events(const std::vector<Channel*>& activeChannels) {
     }
 }
 
-void EpollPoller::resize_event_list(const int numReady) {
-    double loadFactor = static_cast<double>(numReady) / eventList_.size();
-    double expandThreshold = 0.9;
-    double shrinkThreshold = 0.25;
-    double expandRatio = 1.5;
-    double shrinkRatio = 0.5;
+void EpollPoller::resize_event_list(int numReady) {
+    // 根据负载因子自动扩缩 eventList，避免就绪事件被截断或内存浪费
+    constexpr double expandThreshold = 0.9;
+    constexpr double shrinkThreshold = 0.25;
+    constexpr double expandRatio = 1.5;
+    constexpr double shrinkRatio = 0.5;
 
+    double loadFactor = static_cast<double>(numReady) / eventList_.size();
     if (loadFactor >= expandThreshold) {
         eventList_.resize(static_cast<size_t>(eventList_.size() * expandRatio));
-        return;
     }
-    if (eventList_.size() > EpollPoller::initEventListSize_ && loadFactor <= shrinkThreshold) {
+    else if (eventList_.size() > initEventListSize_ && loadFactor <= shrinkThreshold) {
         eventList_.resize(static_cast<size_t>(eventList_.size() * shrinkRatio));
-        return;
     }
 }

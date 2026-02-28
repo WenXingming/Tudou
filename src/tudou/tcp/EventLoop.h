@@ -3,15 +3,11 @@
  * @brief 事件循环（Reactor）核心类，驱动 I/O 事件的收集与回调执行。
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
- * @details
  *
- * 说明：
- * - 封装一个 Poller 如 EpollPoller（持有 poller 的唯一所有权（std::unique_ptr），在 EventLoop 析构时自动释放）
- * -
- * - 提供事件循环 loop() 方法，持续监听和分发事件：持续调用 poller->poll(timeoutMs) 进行事件循环
- * - 对外暴露 update_channel()/remove_channel() 方法，用于 Channel 向 EventLoop 注册或取消自身。
+ * 职责：持有 EpollPoller，通过 loop() 持续监听和分发事件；暴露
+ * update_channel()/remove_channel() 供 Channel 注册/注销；通过 wakeupFd + pendingFunctors 支持跨线程任务投递。
  *
- * 线程模型与约定：EventLoop 禁止拷贝与赋值以避免多个所有者。EventLoop 通常与线程一一绑定（One loop per thread），非线程安全方法须在所属线程调用。
+ * 线程模型：One Loop Per Thread，禁止拷贝、赋值。多数方法须在所属线程调用，跨线程通过 run_in_loop()/queue_in_loop() 投递。
  */
 
 #pragma once
@@ -22,8 +18,7 @@
 #include <mutex>
 #include <atomic>
 
-#include "EpollPoller.h"
-
+class EpollPoller; // 前向声明，避免循环依赖
 class Channel;
 class EventLoop {
 public:
@@ -32,7 +27,7 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    void loop(int timeoutMs = EventLoop::pollTimeoutMs_);
+    void loop(int timeoutMs = pollTimeoutMs_);
     void update_channel(Channel* channel) const;
     void remove_channel(Channel* channel) const;
     bool has_channel(Channel* channel) const;
@@ -46,25 +41,24 @@ public:
     void queue_in_loop(const std::function<void()>& cb);    // 将函数入队到 pendingFunctors 中，唤醒 loop 线程在相应线程执行 cb
 
 private:
-    int create_wakeup_fd();                                 // 创建 eventfd，用于线程间唤醒
-    void wakeup();                                          // 唤醒 loop 所在线程，从 poll 阻塞中被唤醒。因为如果当前没有事件就会阻塞，此时增加一个可读事件，使 poll 被唤醒处理完该简单事件迅速返回，然后执行 pending functors。所以 wakeup 的主要功能是在没有事件时打断 poll 阻塞，快速返回处理 pending functors
-    void on_read();                                         // wakeupFd 所属的 wakeupChannel 的读事件回调
+    int create_wakeup_fd();                                 // 创建 eventfd，用于跨线程唤醒 loop 线程
+    void wakeup();                                          // 写 eventfd 打断 poll 阻塞（没有事件时会阻塞），使 loop 线程及时处理 pendingFunctors
+    void on_read();                                         // wakeupChannel 的读回调，消费 eventfd 数据
     void do_pending_functors();                             // 执行 pendingFunctors 中的函数
 
 private:
-    thread_local static EventLoop* loopInthisThread;        // one loop per thread。防止一个线程创建多个 EventLoop 实例
-    const static int pollTimeoutMs_;                        // epoll_wait 超时时间，单位毫秒
+    thread_local static EventLoop* loopInthisThread;        // 线程局部变量，指向当前线程的 EventLoop 实例（One Loop Per Thread 保证）
+    static const int pollTimeoutMs_;
 
-    std::unique_ptr<EpollPoller> poller_;                   // 拥有 poller，控制其生命期。智能指针，自动析构
-    std::atomic<bool> isLooping_;                           // 标记事件循环状态
-    std::atomic<bool> isQuit_;                              // 标记退出循环
+    std::unique_ptr<EpollPoller> poller_;
+    std::atomic<bool> isLooping_;
+    std::atomic<bool> isQuit_;
+    const std::thread::id threadId_;                        // EventLoop 所属线程 ID，辅助 One Loop Per Thread 和线程安全检查
 
-    const std::thread::id threadId_;                        // 记录所属线程 id，断言线程安全使用
-
-    int wakeupFd_;                                          // 用于唤醒 loop 线程的 fd（wait/notify 机制）
-    std::unique_ptr<Channel> wakeupChannel_;                // 用于唤醒 loop 线程的 Channel
+    int wakeupFd_;
+    std::unique_ptr<Channel> wakeupChannel_;
 
     std::queue<std::function<void()>> pendingFunctors_;     // 存放 loop 线程需要执行的函数列表
-    std::atomic<bool> isCallingPendingFunctors_;            // 标记当前 loop 线程是否正在执行 pending functors
+    std::atomic<bool> isCallingPendingFunctors_;
     std::mutex mtx_;                                        // 保护 pendingFunctors 的互斥锁（多线程只要有写入操作就需要加锁）
 };

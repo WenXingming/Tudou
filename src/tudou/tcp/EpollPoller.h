@@ -1,21 +1,14 @@
 /**
  * @file EpollPoller.h
- * @brief 基于 epoll 的 Poller 实现 — 多路 I/O 事件监听、分发器（Reactor 的 I/O 多路复用层）
+ * @brief 基于 epoll 的 I/O 多路复用器，封装 epoll_create1 / epoll_ctl / epoll_wait。
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
- * @details
  *
- * 说明：
- * - 封装 epoll 系统调用（epoll_create1 / epoll_ctl / epoll_wait），作为 Poller 的 epoll 实现。
+ * 职责：维护 epollFd 和 fd→Channel* 注册表，将内核就绪事件翻译为 Channel 列表并分发回调。
+ * eventList 会根据负载因子自动扩缩。
  *
- * - 维护 epoll fd，用于监听多个文件描述符的 I/O 事件。
- * - 维护 fd -> Channel* 的映射（注册中心），将内核返回的就绪事件翻译为 Channel 列表返回给 EventLoop。
- *
- * 注意：
- * - 非线程安全：所有操作应在所属 EventLoop 所在线程执行（除非上层做了线程同步）。
- * - 内部维护一个可自动扩缩的 eventList（std::vector<epoll_event>），当返回就绪数量达到容量时自动扩容以避免丢事件。
- * - 不拥有 Channel 只访问（仅保存裸指针），Channel 的生存期由上层（Acceptor / TcpConnection 等）管理。
- *
+ * 线程安全：所有操作须在所属 EventLoop 线程执行。
+ * 所有权：不拥有 Channel，仅保存裸指针；Channel 生存期由上层管理。
  */
 
 #pragma once
@@ -37,18 +30,17 @@ public:
     bool has_channel(Channel* channel) const;
 
 private:
-    // 完成 poll 的辅助函数（面向过程设计）
+    // poll() 的四步流程：wait → collect → dispatch → resize
     int get_ready_num(int timeoutMs);
-    auto get_activate_channels(int numReady) -> std::vector<Channel*>;
+    std::vector<Channel*> get_activate_channels(int numReady);
     void dispatch_events(const std::vector<Channel*>& activeChannels);
     void resize_event_list(int numReady);
 
 private:
-    // const static 可以在类内初始化
-    static const size_t initEventListSize_ = 16;        // 初始事件数组大小
+    static const size_t initEventListSize_ = 16;
 
-    EventLoop* loop_;                                   // 依赖注入，所属的 EventLoop 指针
-    int epollFd_;                                       // epoll 文件描述符
-    std::vector<epoll_event> eventList_;                // 存放 epoll_wait 返回的就绪事件列表
-    std::unordered_map<int, Channel*> channels_;        // fd -> Channel* 映射，作为注册中心（不拥有 Channel）
+    EventLoop* loop_;                                    // 依赖注入，所属 EventLoop 指针
+    int epollFd_;                                        // epoll 文件描述符
+    std::vector<epoll_event> eventList_;                 // epoll_wait 就绪事件数组（自动扩缩）
+    std::unordered_map<int, Channel*> channels_;         // fd → Channel* 注册表（不拥有 Channel）
 };

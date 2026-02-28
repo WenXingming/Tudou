@@ -1,27 +1,23 @@
 /**
  * @file Channel.h
- * @brief Channel 用于把 IO 事件与回调绑定起来的抽象，可以理解为 fd + 事件 + 回调 几者的结合体
+ * @brief fd + 事件 + 回调 的封装，负责事件分发与 Poller 注册同步。
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
- * @details
  *
- * 主要职责：
- *  - 表示某个 fd 对应的 “感兴趣事件”（event）和 poller 返回的 “发生事件”（revent）。
- *  - 保存该 fd 在可读/可写/关闭/错误等情况下需要触发的回调函数。
- *  - 在事件发生时（Poller 得到活动 channels 并设置 revent），对活动的 channels 调用 handle_events，按 revent 分发并触发相应的回调。
- *  - 当对感兴趣事件做修改（enable/disable）时，通过 update_in_register 通知 EventLoop / Poller 更新注册信息。
+ * 职责：绑定 fd 的感兴趣事件（events）与回调函数，在 Poller 返回就绪事件后调用 handle_events() 按事件类型分发回调。
+ * enable/disable 系列方法会自动通过 EventLoop 同步到 Poller。
+ *
+ * 线程安全：所有方法须在所属 EventLoop 线程调用。
  */
 
 #pragma once
 #include <functional>
 #include <memory>
 
-class EventLoop; // 前向声明，减少头文件依赖
+class EventLoop;
 class Channel {
-    using ReadEventCallback = std::function<void(Channel&)>;  // or: typedef std::function<void(Channel&)> ReadEventCallback;
-    using WriteEventCallback = std::function<void(Channel&)>;
-    using CloseEventCallback = std::function<void(Channel&)>;
-    using ErrorEventCallback = std::function<void(Channel&)>;
+public:
+    using EventCallback = std::function<void(Channel&)>;
 
 public:
     explicit Channel(EventLoop* loop, int fd);
@@ -30,10 +26,10 @@ public:
     ~Channel();
 
     // 上层注入回调函数的接口
-    void set_read_callback(ReadEventCallback cb);
-    void set_write_callback(WriteEventCallback cb);
-    void set_close_callback(CloseEventCallback cb);
-    void set_error_callback(ErrorEventCallback cb);
+    void set_read_callback(EventCallback cb);
+    void set_write_callback(EventCallback cb);
+    void set_close_callback(EventCallback cb);
+    void set_error_callback(EventCallback cb);
 
     // poller 监听到事件后调用此函数设置 revents
     void set_revents(uint32_t revents);
@@ -41,8 +37,7 @@ public:
     // 核心函数：事件发生后调用回调
     void handle_events();
 
-    // Tie this channel to the owner object managed by shared_ptr
-    // This prevents the owner object being destroyed in handle_event (lengthen its lifetime)
+    // 绑定所有者的 shared_ptr，防止回调执行期间对象被析构（TcpConnection 使用），延长其生命周期
     void tie_to_object(const std::shared_ptr<void>& obj);
 
     EventLoop* get_owner_loop() const;
@@ -58,12 +53,8 @@ public:
     bool is_reading() const;
     uint32_t get_events() const;
 
-    void set_index(int idx);
-    int get_index() const;
-
 private:
-
-    void update_in_register(); // 内部属性改变时，需要在 poller 上更新（epoll）。该方法由 channel 完成（channel 负责和相邻类 Epoller 同步）
+    void update_in_register(); // 同步事件变更到 Poller
     void remove_in_register();
 
     void handle_events_with_guard();
@@ -78,17 +69,17 @@ private:
     static const uint32_t kReadEvent_;
     static const uint32_t kWriteEvent_;
 
-    EventLoop* loop_;                    // 依赖注入
-    int fd_;                             // channel 负责管理的 fd
-    uint32_t events_;                    // interesting events
-    uint32_t revents_;                   // received events
-    int index_;                          // 暂时不知道作用，先保留
+    EventLoop* loop_;                    // 依赖注入，所属 EventLoop 指针（非 owning）
+    int fd_;                             // Channel 绑定的 fd
+    uint32_t events_;                    // 感兴趣事件
+    uint32_t revents_;                   // Poller 返回的就绪事件
 
-    std::weak_ptr<void> tie_;            // 绑定一个弱智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。void 因为下层不需要知道上层类型
-    bool isTied_;                        // Acceptor 不需要 tie，TcpConnection 需要 tie (shared_ptr, shared_from_this)
+    std::weak_ptr<void> tie_;            // 防止回调期间所有者被析构，通过 tie_ 锁定所有者，延长其生命周期
+    bool isTied_;                        // 是否启用 tie 机制（Acceptor 不需要，TcpConnection 需要）
 
-    ReadEventCallback readCallback_;     // 回调函数接口。执行上层逻辑，回调函数的参数（数据流）由下层传入
-    WriteEventCallback writeCallback_;
-    CloseEventCallback closeCallback_;
-    ErrorEventCallback errorCallback_;
+    // 回调函数对象，参数为下层 Channel 对象，回调函数逻辑由上层实现并注入到下层 Channel 对象
+    EventCallback readCallback_;
+    EventCallback writeCallback_;
+    EventCallback closeCallback_;
+    EventCallback errorCallback_;
 };
