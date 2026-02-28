@@ -102,5 +102,5 @@ private:
     // ==================== TLS 相关成员 ====================
     std::unique_ptr<SslContext> sslContext_;                                    // 全局 SSL 上下文（证书/私钥）
     std::unordered_map<int, std::shared_ptr<TlsConnection>> tlsConnections_;   // fd -> TlsConnection 映射
-    // tlsConnections_ 与 httpContexts_ 共享 contextsMutex_
+    // tlsConnections_ 与 httpContexts_ 共享 contextsMutex_。但两个 map 访问模式不同。如果未来性能优化，可考虑分离。
 };
