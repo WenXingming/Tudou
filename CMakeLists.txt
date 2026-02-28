@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.10)
 project(Tudou)
 
+# 设置 CMake 的构建并行级别，默认使用 CPU 核心数的 2/4 来编译，以提高构建速度，同时避免过度占用系统资源导致服务器失去响应
+include(ProcessorCount)
+ProcessorCount(NUM_PROCESSORS)
+if(NUM_PROCESSORS EQUAL 0)
+    set(NUM_PROCESSORS 1)
+endif()
+
+math(EXPR THREE_QUARTERS "(${NUM_PROCESSORS} * 2) / 4")
+if(THREE_QUARTERS EQUAL 0)
+    set(THREE_QUARTERS 1)
+endif()
+set(CMAKE_BUILD_PARALLEL_LEVEL ${THREE_QUARTERS})
+
 # 启用 CTest 支持，允许在子目录中注册和运行测试（CTest 是 CMake 官方自带的测试驱动工具，用于收集和运行测试用例，本身不提供测试框架，只负责执行你注册的测试程序，并收集结果）
 # 用 GTest 编写的单元测试，编译生成可执行文件后，然后用 add_test() 注册到 CTest 框架中运行
 include(CTest)
