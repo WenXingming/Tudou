@@ -46,8 +46,10 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
         spdlog::critical("TcpServer::TcpServer(). mainLoop is nullptr.");
         assert(false);
     }
-    acceptor_.reset(new Acceptor(mainLoop, listenAddr));
-    acceptor_->set_connect_callback(std::bind(&TcpServer::on_connect, this, std::placeholders::_1)); // 传递 Acceptor 引用
+    acceptor_ = std::make_unique<Acceptor>(mainLoop, listenAddr);
+    acceptor_->set_connect_callback([this](int connFd, const InetAddress& peerAddr) {
+        on_connect(connFd, peerAddr);
+        });
 }
 
 TcpServer::~TcpServer() {
@@ -89,13 +91,8 @@ void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _h
     this->highWaterMark_ = _highWaterMark;
 }
 
-void TcpServer::on_connect(Acceptor& acceptor) {
-    // 创建连接时确保在 mainLoop 线程调用 on_connect
+void TcpServer::on_connect(int connFd, const InetAddress& peerAddr) {
     assert_in_main_loop_thread();
-
-    // 通过 Acceptor 接口获取新连接信息
-    int connFd = acceptor.get_accepted_fd();
-    const InetAddress& peerAddr = acceptor.get_accepted_peer_addr();
 
     spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), connFd);
 
@@ -210,41 +207,24 @@ void TcpServer::handle_high_water_mark_callback(const std::shared_ptr<TcpConnect
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     // 在相应的 IO 线程中执行删除操作
     EventLoop* loop = conn->get_loop();
-    if (loop->is_in_loop_thread()) {
-        // 如果已经在对应的线程中，直接删除
-        int fd = conn->get_fd();
-        bool erased = false;
-        {
-            std::lock_guard<std::mutex> lock(connectionsMutex_);
-            auto findIt = connections_.find(fd);
-            if (findIt != connections_.end()) {
-                connections_.erase(findIt);
-                erased = true;
-            }
-        }
+    loop->assert_in_loop_thread(); // 确保在正确的线程中执行删除操作
 
-        if (!erased) {
-            spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+    // 如果已经在对应的线程中，直接删除
+    int fd = conn->get_fd();
+    bool erased = false;
+    {
+        std::lock_guard<std::mutex> lock(connectionsMutex_);
+        auto findIt = connections_.find(fd);
+        if (findIt != connections_.end()) {
+            connections_.erase(findIt);
+            erased = true;
         }
     }
-    else {
-        // 切换到对应的线程中删除
-        loop->run_in_loop([this, conn]() {
-            int fd = conn->get_fd();
-            bool erased = false;
-            {
-                std::lock_guard<std::mutex> lock(connectionsMutex_);
-                auto findIt = connections_.find(fd);
-                if (findIt != connections_.end()) {
-                    connections_.erase(findIt);
-                    erased = true;
-                }
-            }
 
-            if (!erased) {
-                spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
-            }
-            });
+    if (!erased) {
+        spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+    } else {
+        spdlog::info("TcpServer::remove_connection(). connection removed, fd: {}", fd);
     }
 }
 

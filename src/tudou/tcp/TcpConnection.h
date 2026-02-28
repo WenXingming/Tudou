@@ -41,15 +41,12 @@
 
 class EventLoop;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
-    // 参数设计：上层使用下层，所以参数是下层类型，因为一般通过 composition 来使用下层类，参数一般是指针或引用
-    // 通常：using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    // 解释：
-    // 虽然理论上 MessageCallback 参数只使用 string，CloseCallback 参数只使用 fd，但是其实传入 TcpConnection 更方便上层获取更多信息。特别是使用 shared_ptr，避免回调过程中对象被析构
+    // 回调统一传 shared_ptr<TcpConnection>，上层可按需取数据，且保证回调期间对象存活
     using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using ErrorCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;                   // 错误回调，通过 get_last_error() 获取错误码
-    using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;           // 写完成回调，当 writeBuffer 数据全部写入内核后触发
-    using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;           // 高水位回调，当 writeBuffer 积压超过高水位时触发，通过 get_write_buffer_size() 获取当前积压大小
+    using ErrorCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
     // TODO: 添加状态枚举（连接状态管理），如 kConnecting, kConnected, kDisconnecting, kDisconnected 和状态检查
 
@@ -61,37 +58,32 @@ public:
     void send(const std::string& msg);
     std::string receive();  // 从 readBuffer 读取所有数据
 
-    // 设置回调函数的接口，事件触发时调用上层逻辑
     void set_message_callback(MessageCallback cb);
     void set_close_callback(CloseCallback cb);
     void set_error_callback(ErrorCallback cb);
     void set_write_complete_callback(WriteCompleteCallback cb);
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark);
 
-    // void shutdown(); // 暂时服务端不提供主动关闭连接接口
-    void connection_establish(); // 是否在构造函数中调用？还是在 TcpServer 接受连接后调用？
+    void connection_establish();
 
     EventLoop* get_loop() const { return loop_; }
     int get_fd() const { return channel_->get_fd(); }
     const InetAddress& get_local_addr() const { return localAddr_; }
     const InetAddress& get_peer_addr() const { return peerAddr_; }
 
-    // 获取错误信息（高内聚：错误信息封装在 TcpConnection 内部）
     int get_last_error() const { return lastErrorCode_; }
     const std::string& get_last_error_msg() const { return lastErrorMsg_; }
-
-    // 获取 buffer 相关信息（高内聚：buffer 状态封装在 TcpConnection 内部）
     size_t get_write_buffer_size() const { return writeBuffer_->readable_bytes(); }
-    size_t get_high_water_mark() const { return highWaterMark_; }  // 获取高水位设置
+    size_t get_high_water_mark() const { return highWaterMark_; }
 
 private:
-    // 处理 channel 事件的回调函数逻辑
+    // Channel 事件处理
     void on_read(Channel& channel);
     void on_write(Channel& channel);
     void on_close(Channel& channel);
     void on_error(Channel& channel);
 
-    // 触发上层回调
+    // 上层回调分发
     void handle_message_callback();
     void handle_close_callback();
     void handle_error_callback();
@@ -101,9 +93,9 @@ private:
 private:
     EventLoop* loop_;
     std::unique_ptr<Channel> channel_;
-    InetAddress localAddr_;  // 本地地址
-    InetAddress peerAddr_;   // 对端地址
-    size_t highWaterMark_;   // 高水位标记，单位字节
+    InetAddress localAddr_;
+    InetAddress peerAddr_;
+    size_t highWaterMark_;   // 单位字节
     std::unique_ptr<Buffer> readBuffer_;
     std::unique_ptr<Buffer> writeBuffer_;
 
@@ -115,6 +107,6 @@ private:
     HighWaterMarkCallback highWaterMarkCallback_;    // 高水位回调：writeBuffer 积压超过高水位时触发
 
     // 错误信息（遵循高内聚原则，保存在 TcpConnection 内部）
-    int lastErrorCode_;       // 最近一次的错误码（errno）
+    int lastErrorCode_;        // 最近一次的错误码（errno）
     std::string lastErrorMsg_; // 最近一次的错误描述
 };

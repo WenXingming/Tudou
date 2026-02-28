@@ -197,7 +197,7 @@ sequenceDiagram
 - **EventLoop**：事件循环驱动者。持有 EpollPoller，使用 EpollPoller 获取 activeChannels 并驱动 activeChannels 触发回调处理事件
 - **EpollPoller**：多路复用及 channels 管理中心。封装了 epoll_create、epoll_wait、epoll_ctl 等系统调用
 - **Channel**：回调分发器。封装了 fd 及其感兴趣的事件，负责在事件发生时根据相应的事件调用相应的回调函数处理事件
-- **Acceptor**：连接接受器。持有 fd、channel；还持有回调函数 connectCallback 用于执行上层 TcpServer 的连接回调，当建立新连接时触发调用。callback 用于处理 channel 新连接到来事件
+- **Acceptor**：连接接受器。持有 listenFd 及其 Channel；accept 新连接后通过 `NewConnectCallback(int connFd, const InetAddress& peerAddr)` 直接将连接信息传给上层 TcpServer
 - **TcpConnection**：TCP 连接封装器。持有 fd、channel、读写缓冲区 buffer；还持有回调函数 closeCallback、messageCallback 用于执行上层 TcpServer 的连接关闭回调和消息处理回调，当连接关闭、可读时触发回调。callback 用于处理 channel 读写事件和关闭事件
 - **Buffer**：缓冲区类。持有 `vector<char>` 作为底层存储空间，设计参考 Netty 的 ByteBuf，提供向缓冲区写入数据、从缓冲区读取数据等接口供上层使用，也提供了向 fd 读写数据的接口用于 event 触发时 TcpConnection 的回调函数使用
 - **TcpServer**：TCP 服务器。持有 acceptor 和管理 tcpConnections；还持有回调函数 connectionCallback、messageCallback 用于执行上层应用的连接建立、断开回调和消息处理回调，当有新连接建立（断开）、收到消息时触发调用。callback 用于处理 acceptor 的新连接事件和 tcpConnection 的断开、消息处理事件
@@ -274,6 +274,30 @@ functor();
 ```
 
 如果写成 `auto& functor = functors.front()`（引用），`pop()` 之后引用悬空，后续 `functor()` 访问已销毁对象，产生未定义行为。表现为 lambda 捕获的变量值错乱。这是一个容易遗漏的细节 bug。
+
+## Acceptor 设计说明
+
+### NewConnectCallback 参数直传 vs 暂存成员 {#acceptor-callback-refactor}
+
+旧设计中，Acceptor `accept()` 后将 `connFd` 和 `peerAddr` 暂存到成员变量 `acceptedConnFd_` / `acceptedPeerAddr_`，上层 TcpServer 在回调 `on_connect(Acceptor&)` 中通过 `get_accepted_fd()` / `get_accepted_peer_addr()` 取出：
+
+```cpp
+// 旧：回调签名为 void(Acceptor&)，上层通过接口取出暂存数据
+using NewConnectCallback = std::function<void(Acceptor&)>;
+int acceptedConnFd_;
+InetAddress acceptedPeerAddr_;
+```
+
+问题：暂存成员引入了隐式状态依赖（取出后需重置，否则重复使用同一 fd），且上层必须知道 Acceptor 的取数据接口，耦合更紧。
+
+新设计直接将 `connFd` 和 `peerAddr` 作为回调参数传递，Acceptor 变为无状态：
+
+```cpp
+// 新：回调签名直接传递连接信息
+using NewConnectCallback = std::function<void(int connFd, const InetAddress& peerAddr)>;
+```
+
+优点：消除暂存成员和 getter 方法，接口更简洁；回调参数即数据，无隐式状态副作用；上层无需了解 Acceptor 内部接口。
 
 ## Others
 
