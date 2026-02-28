@@ -1,20 +1,27 @@
 cmake_minimum_required(VERSION 3.10)
 project(Tudou)
 
+# ===============================================================================================
 # 设置 CMake 的构建并行级别，默认使用 CPU 核心数的 1/4 来编译，以提高构建速度，同时避免过度占用系统资源（例如爆内存）导致服务器失去响应
 # C++ 编译非常吃内存，每个编译进程（cc1plus）通常消耗 1~2GB 内存。根据系统内存大小和 CPU 核心数，合理设置并行编译线程数可以显著提升构建速度，同时避免过度占用系统资源导致服务器失去响应。
-include(ProcessorCount)
-ProcessorCount(NUM_PROCESSORS)
-if(NUM_PROCESSORS EQUAL 0)
-    set(NUM_PROCESSORS 1)
-endif()
+# 在 4核/4G 服务器上，使用 2/4 的核心数进行编译都会使服务器失去响应
+# 注意：set() 只在 CMake configure 阶段生效，而并行度是在 build 阶段 读取的，两个是不同的进程，所以不能直接在 CMakeLists.txt 中设置 CMAKE_BUILD_PARALLEL_LEVEL 来控制构建并行度
+# include(ProcessorCount)
+# ProcessorCount(NUM_PROCESSORS)
+# if(NUM_PROCESSORS EQUAL 0)
+#     set(NUM_PROCESSORS 1)
+# endif()
 
-math(EXPR THREE_QUARTERS "(${NUM_PROCESSORS} * 1) / 4")
-if(THREE_QUARTERS EQUAL 0)
-    set(THREE_QUARTERS 1)
-endif()
-set(CMAKE_BUILD_PARALLEL_LEVEL ${THREE_QUARTERS})
-message(STATUS "System has ${NUM_PROCESSORS} CPU cores, using ${CMAKE_BUILD_PARALLEL_LEVEL} parallel build threads.")
+# math(EXPR THREE_QUARTERS "(${NUM_PROCESSORS} * 1) / 4")
+# if(THREE_QUARTERS EQUAL 0)
+#     set(THREE_QUARTERS 1)
+# endif()
+# set(CMAKE_BUILD_PARALLEL_LEVEL ${THREE_QUARTERS})
+# message(STATUS "System has ${NUM_PROCESSORS} CPU cores, using ${CMAKE_BUILD_PARALLEL_LEVEL} parallel build threads.")
+
+# 1. 如果使用 VS Code 的 CMake Tools 扩展来构建，设置 VS Code 的 cmake.parallelJobs 配置项来控制构建并行度
+# 2. 如果使用命令行构建，直接在构建命令中指定并行度，例如：cmake --build build -j1（这里的 -j1 表示使用 1 个线程进行并行构建）
+# ===============================================================================================
 
 # 启用 CTest 支持，允许在子目录中注册和运行测试（CTest 是 CMake 官方自带的测试驱动工具，用于收集和运行测试用例，本身不提供测试框架，只负责执行你注册的测试程序，并收集结果）
 # 用 GTest 编写的单元测试，编译生成可执行文件后，然后用 add_test() 注册到 CTest 框架中运行
