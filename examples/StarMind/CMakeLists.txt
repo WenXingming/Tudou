@@ -3,6 +3,7 @@ project(StarMind)
 
 add_executable(StarMind
     main.cpp
+    ConfigLoader.cpp
     StarMindServer.cpp
 )
 

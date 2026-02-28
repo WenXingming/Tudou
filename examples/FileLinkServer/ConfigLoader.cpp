@@ -166,9 +166,9 @@ bool try_parse_server_root_from_args(int argc, char* argv[], std::string& outSer
 
 } // namespace
 
-bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootstrap& out, std::string& outError) {
+bool load_filelink_server_config(int argc, char* argv[], FileLinkServerConfig& out, std::string& outError) {
     outError.clear();
-    out = FileLinkServerBootstrap{};
+    out = FileLinkServerConfig{};
 
     std::string serverRoot;
     std::string argError;
@@ -213,7 +213,7 @@ bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootst
         return false;
     }
 
-    FileLinkServerConfig cfg;
+    FileLinkServerConfig& cfg = out;
     cfg.ip = get_string_or(config, "ip", "0.0.0.0");
     cfg.port = get_u16_or(config, "port", 8080);
     cfg.threadNum = get_int_or(config, "threadNum", 4);
@@ -238,7 +238,11 @@ bool load_filelink_server_bootstrap(int argc, char* argv[], FileLinkServerBootst
     cfg.redisHost = get_string_or(config, "redis.host", "127.0.0.1");
     cfg.redisPort = get_int_or(config, "redis.port", 6379);
 
-    out.cfg = std::move(cfg);
+    // SSL/HTTPS 配置
+    cfg.sslEnabled = parse_bool(config, "ssl.enabled", false);
+    cfg.sslCertFile = resolve_path(serverRoot, get_string_or(config, "ssl.cert", ""));
+    cfg.sslKeyFile = resolve_path(serverRoot, get_string_or(config, "ssl.key", ""));
+
     out.serverRoot = serverRoot;
     out.configPath = configPath;
     out.logPath = serverRoot + "log/server.log";

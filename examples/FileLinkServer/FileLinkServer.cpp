@@ -29,13 +29,29 @@
 
 namespace {
 
+// 将字符串转换为小写
+std::string to_lower(const std::string& s) {
+    std::string result = s;
+    std::transform(result.begin(), result.end(), result.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
+
+// 大小写不敏感地获取 HTTP header 值
 std::string get_header_or_empty(const HttpRequest& req, const std::string& key) {
-    try {
-        return req.get_header(key);
+    // 首先尝试精确匹配
+    const std::string& exactMatch = req.get_header(key);
+    if (!exactMatch.empty()) {
+        return exactMatch;
     }
-    catch (...) {
-        return std::string();
+    // 回退到大小写不敏感的查找
+    const std::string keyLower = to_lower(key);
+    for (const auto& kv : req.get_headers()) {
+        if (to_lower(kv.first) == keyLower) {
+            return kv.second;
+        }
     }
+    return std::string();
 }
 
 void set_keep_alive(HttpResponse& resp, bool keepAlive) {
@@ -171,7 +187,15 @@ FileLinkServer::~FileLinkServer() {
 void FileLinkServer::start() {
     spdlog::info("FileLinkServer listening on {}:{} storageRoot={} threadNum={}",
         cfg_.ip, cfg_.port, cfg_.storageRoot, cfg_.threadNum);
-    httpServer_->enable_ssl("certs/test-cert.pem", "certs/test-key.pem"); // 启用 HTTPS 支持
+    // 根据配置启用 HTTPS 支持
+    if (cfg_.sslEnabled && !cfg_.sslCertFile.empty() && !cfg_.sslKeyFile.empty()) {
+        if (!httpServer_->enable_ssl(cfg_.sslCertFile, cfg_.sslKeyFile)) {
+            spdlog::error("Failed to enable SSL with cert={}, key={}", cfg_.sslCertFile, cfg_.sslKeyFile);
+        }
+        else {
+            spdlog::info("HTTPS enabled with cert={}, key={}", cfg_.sslCertFile, cfg_.sslKeyFile);
+        }
+    }
     httpServer_->start();
 }
 
@@ -413,7 +437,9 @@ void FileLinkServer::handle_upload(const HttpRequest& req, HttpResponse& resp) {
 
     std::string url;
     if (!host.empty()) {
-        url = std::string("http://") + host + r.urlPath;
+        // 根据是否启用 SSL 来选择协议
+        const char* protocol = httpServer_->is_ssl_enabled() ? "https://" : "http://";
+        url = std::string(protocol) + host + r.urlPath;
     }
     else {
         url = r.urlPath;

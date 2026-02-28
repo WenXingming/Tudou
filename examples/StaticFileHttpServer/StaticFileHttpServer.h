@@ -12,18 +12,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "StaticFileServerConfig.h"
+
 class HttpServer;
 class HttpRequest;
 class HttpResponse;
 class Router;
-
-// 配置数据，由 ConfigLoader 填充
-struct StaticFileServerConfig {
-    std::string ip = "0.0.0.0";
-    uint16_t    port = 80;
-    int         threadNum = 0;
-    std::string baseDir = "./assets/";
-};
 
 class StaticFileHttpServer {
 public:

@@ -28,27 +28,26 @@ static void set_logger(const std::string& logPath) {
 }
 
 int main(int argc, char* argv[]) {
-    FileLinkServerBootstrap bootstrap;
+    FileLinkServerConfig cfg;
     std::string error;
-    if (!load_filelink_server_bootstrap(argc, argv, bootstrap, error)) {
+    if (!load_filelink_server_config(argc, argv, cfg, error)) {
         std::cerr << error << "\n";
         return 1;
     }
 
-    set_logger(bootstrap.logPath);
-    FileLinkServerConfig cfg = std::move(bootstrap.cfg);
+    set_logger(cfg.logPath);
 
     if (cfg.authEnabled && (cfg.authUser.empty() || cfg.authPassword.empty())) {
         spdlog::warn("auth.enabled=true but auth.user/auth.password not set; all logins will fail.");
     }
 
-    FileLinkServer server(std::move(cfg));
-
-    std::cout << "FileLinkServer started: http://" << cfg.ip << ":" << cfg.port << std::endl;
+    const char* protocol = cfg.sslEnabled ? "https" : "http";
+    std::cout << "FileLinkServer started: " << protocol << "://" << cfg.ip << ":" << cfg.port << std::endl;
     std::cout << "Homepage:  GET  /" << std::endl;
     std::cout << "Upload:    POST /upload (Header: X-File-Name)" << std::endl;
     std::cout << "Download:  GET  /file/{id}" << std::endl;
 
+    FileLinkServer server(std::move(cfg));
     server.start();
     return 0;
 }

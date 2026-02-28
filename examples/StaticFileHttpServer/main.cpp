@@ -35,27 +35,27 @@ static void set_logger(const std::string& logPath) {
 }
 
 int main(int argc, char* argv[]) {
-    StaticFileServerBootstrap bootstrap;
+    StaticFileServerConfig cfg;
     std::string error;
-    if (!load_static_server_bootstrap(argc, argv, bootstrap, error)) {
+    if (!load_static_server_config(argc, argv, cfg, error)) {
         std::cerr << error << std::endl;
         return 1;
     }
 
     std::cout << "============================================================================================" << std::endl;
-    std::cout << "Server root: " << bootstrap.serverRoot << std::endl;
-    std::cout << "Config:      " << bootstrap.configPath << std::endl;
-    std::cout << "Log:         " << bootstrap.logPath << std::endl;
-    std::cout << "Base dir:    " << bootstrap.cfg.baseDir << std::endl;
+    std::cout << "Server root: " << cfg.serverRoot << std::endl;
+    std::cout << "Config:      " << cfg.configPath << std::endl;
+    std::cout << "Log:         " << cfg.logPath << std::endl;
+    std::cout << "Base dir:    " << cfg.baseDir << std::endl;
     std::cout << "============================================================================================" << std::endl;
 
-    set_logger(bootstrap.logPath);
+    set_logger(cfg.logPath);
 
-    std::cout << "Serving static files from: " << bootstrap.cfg.baseDir << std::endl;
-    std::cout << "Thread number (sub reactor threads): " << bootstrap.cfg.threadNum << std::endl;
-    std::cout << "Server is running at http://" << bootstrap.cfg.ip << ":" << bootstrap.cfg.port << "/" << std::endl;
+    std::cout << "Serving static files from: " << cfg.baseDir << std::endl;
+    std::cout << "Thread number (sub reactor threads): " << cfg.threadNum << std::endl;
+    std::cout << "Server is running at http://" << cfg.ip << ":" << cfg.port << "/" << std::endl;
 
-    StaticFileHttpServer server(std::move(bootstrap.cfg));
+    StaticFileHttpServer server(std::move(cfg));
     server.start();
     return 0;
 }

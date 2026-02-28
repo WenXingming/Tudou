@@ -175,11 +175,11 @@ bool try_parse_server_root_from_args(int argc, char* argv[],
 // Public API
 // ===========================================================================
 
-bool load_static_server_bootstrap(int argc, char* argv[],
-    StaticFileServerBootstrap& out,
+bool load_static_server_config(int argc, char* argv[],
+    StaticFileServerConfig& out,
     std::string& outError) {
     outError.clear();
-    out = StaticFileServerBootstrap{};
+    out = StaticFileServerConfig{};
 
     // 1. 尝试从命令行参数获取 serverRoot
     std::string serverRoot;
@@ -234,13 +234,10 @@ bool load_static_server_bootstrap(int argc, char* argv[],
     }
 
     // 5. 填充输出
-    StaticFileServerConfig cfg;
-    cfg.ip = get_string_or(config, "ip", "0.0.0.0");
-    cfg.port = get_u16_or(config, "port", 80);
-    cfg.threadNum = get_int_or(config, "threadNum", 0);
-    cfg.baseDir = serverRoot + "assets/";
-
-    out.cfg = std::move(cfg);
+    out.ip = get_string_or(config, "ip", "0.0.0.0");
+    out.port = get_u16_or(config, "port", 80);
+    out.threadNum = get_int_or(config, "threadNum", 0);
+    out.baseDir = serverRoot + "assets/";
     out.serverRoot = serverRoot;
     out.configPath = configPath;
     out.logPath = serverRoot + "log/server.log";

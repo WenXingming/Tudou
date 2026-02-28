@@ -17,38 +17,7 @@
 #include "tudou/http/HttpServer.h"
 #include "tudou/router/Router.h"
 #include "FileLinkService.h"
-
- // Date Class for configure file
-struct FileLinkServerConfig {
-    std::string ip = "0.0.0.0";
-    uint16_t port = 8080;
-    int threadNum = 0;
-
-    std::string storageRoot = "./filelink_storage";
-
-    // 用于前后端最小打通：FileLinkServer 直接返回一个静态首页
-    std::string webRoot = ""; // 为空表示不提供静态页面
-    std::string indexFile = "index.html";
-
-    // Auth (simple demo): require login to upload
-    bool authEnabled = false;
-    std::string authUser = "";
-    std::string authPassword = "";
-    int authTokenTtlSeconds = 3600;
-
-    // MySQL meta store
-    bool mysqlEnabled = false;
-    std::string mysqlHost = "127.0.0.1";
-    int mysqlPort = 3306;
-    std::string mysqlUser = "root";
-    std::string mysqlPassword = "";
-    std::string mysqlDatabase = "tudou_db";
-
-    // Redis meta cache
-    bool redisEnabled = false;
-    std::string redisHost = "127.0.0.1";
-    int redisPort = 6379;
-};
+#include "FileLinkServerConfig.h"
 
 class FileLinkServer {
 public:
