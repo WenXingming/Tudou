@@ -154,24 +154,35 @@ Transfer/sec:    163.08MB
 
 ## Requirements 🔍
 
-- 单元测试需要 Google Test 库支持
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y libgtest-dev libssl-dev
-    ```
-- llhttp HTTP 协议解析库（已集成在 Tudou 中，无需额外安装）
-- OpenSSL 库（HTTPS 支持所需的 TLS/SSL 协议实现和加密原语）
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y libssl-dev
+主要依赖项如下：
 
-    # 创建 OpenSSL 证书和私钥（自签名证书，适用于测试环境）
-    cd ${TUDOU_SOURCE_DIR} && mkdir -p certs
-    openssl req -x509 -newkey rsa:2048 -keyout certs/test-key.pem -out certs/test-cert.pem -days 365 -nodes 2>&1
-    ```
-- spdlog 日志库（已集成在 Tudou 中，无需额外安装）
-- C++11 or higher
-- CMake 3.10 or higher
+| **依赖项**      | **最低版本/状态**     | **说明**          | **作用**                                 |
+| --------------- | --------------------- | ----------------- | ---------------------------------------- |
+| **Compiler**    | C++14 或更高          | 现代 C++ 语法支持 | 核心编译工具 (g++)               |
+| **CMake**       | 3.10 或更高           | 项目构建系统      | 生成 Makefile 并管理编译流程             |
+| **Google Test** | 系统库 (libgtest-dev) | **开发环境必备**  | 用于运行单元测试，验证代码逻辑           |
+| **OpenSSL**     | 系统库 (libssl-dev)   | **核心依赖**      | 提供 HTTPS 协议所需的加密算法与 TLS 支持 |
+| **llhttp**      | 项目内置              | 无需额外安装      | 高性能 HTTP 协议解析                     |
+| **spdlog**      | 项目内置              | 无需额外安装      | 异步/同步日志记录库                      |
+
+安装依赖项（Ubuntu）：
+
+```bash
+sudo apt-get update && sudo apt-get install -y \
+    build-essential \
+    cmake \
+    libgtest-dev \
+    libssl-dev \
+    openssl
+
+# 进入项目目录（cd ${TUDOU_SOURCE_DIR}）并初始化 SSL 测试证书（使用 -subj 避免手动输入信息）
+# 假设你在项目根目录下执行 
+mkdir -p certs && openssl req -x509 -newkey rsa:2048 \
+    -keyout certs/test-key.pem \
+    -out certs/test-cert.pem \
+    -days 365 -nodes \
+    -subj "/C=CN/ST=BJ/L=BJ/O=TudouProject/CN=localhost"
+```
 
 ## Usage 🎯
 
