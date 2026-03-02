@@ -57,7 +57,7 @@ include_directories(${CMAKE_SOURCE_DIR}/libs)
 # 编译生成各个库（add_library）
 
 # 编译生成 llhttp 静态库（源码引入方式。所以需要自己使用 add_library 命令编译生成库）
-file(GLOB llhttp_source_files
+file(GLOB llhttp_source_files CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/libs/llhttp/*.c
 )
 add_library(llhttp STATIC ${llhttp_source_files})
@@ -66,7 +66,7 @@ add_library(llhttp STATIC ${llhttp_source_files})
 # 该库为头文件库。所以无需编译生成库，只需包含头文件路径即可使用
 
 # 生成线程池库
-file(GLOB threadpool_source_files
+file(GLOB threadpool_source_files CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/libs/threadpool/*.cpp
 )
 add_library(threadpool STATIC ${threadpool_source_files})

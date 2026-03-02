@@ -12,7 +12,7 @@ endif()
 
 # CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
 set(source_files_dir ${CMAKE_CURRENT_SOURCE_DIR})
-file(GLOB source_files 
+file(GLOB source_files CONFIGURE_DEPENDS
     ${source_files_dir}/*.cpp
 )
 add_executable(static-server ${source_files})
