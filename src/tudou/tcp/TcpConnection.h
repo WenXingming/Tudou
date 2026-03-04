@@ -34,10 +34,12 @@
 #include <memory>
 #include <functional>
 #include <string>
+#include <chrono>
 
 #include "base/InetAddress.h"
 #include "Channel.h"
 #include "Buffer.h"
+#include "Timer.h"
 
 class EventLoop;
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
@@ -69,6 +71,12 @@ public:
     void set_tcp_no_delay(bool on);  // 设置 TCP_NODELAY，ON 代表启用 Nagle 算法，OFF 代表禁用 Nagle 算法（适合低延迟场景）
     void set_tcp_keepalive(bool on); // 设置 TCP keepalive，检测死连接
 
+    // 应用层心跳：按 intervalSeconds 周期发送 pingMessage；若连续 timeoutSeconds 未收到任何入站数据则主动关闭连接
+    // 线程约束：必须在所属 EventLoop 线程调用
+    void enable_app_heartbeat(double intervalSeconds, double timeoutSeconds, const std::string& pingMessage = "PING\r\n");
+    void disable_app_heartbeat(); // 关闭应用层心跳并取消内部定时器
+    bool is_app_heartbeat_enabled() const { return heartbeatEnabled_; }
+
     EventLoop* get_loop() const { return loop_; }
     int get_fd() const { return channel_->get_fd(); }
     const InetAddress& get_local_addr() const { return localAddr_; }
@@ -93,6 +101,10 @@ private:
     void handle_write_complete_callback();
     void handle_high_water_mark_callback();
 
+    void start_app_heartbeat_timer(); // 创建/重建周期定时任务（先停后启，避免重复定时器）
+    void stop_app_heartbeat_timer();  // 取消当前心跳定时器
+    void on_heartbeat_tick();         // 每次心跳 tick：检查超时并按需发送 ping
+
 private:
     EventLoop* loop_;
     std::unique_ptr<Channel> channel_;
@@ -112,4 +124,12 @@ private:
     // 错误信息（遵循高内聚原则，保存在 TcpConnection 内部）
     int lastErrorCode_;        // 最近一次的错误码（errno）
     std::string lastErrorMsg_; // 最近一次的错误描述
+
+    bool isClosed_;                       // 连接是否已进入关闭流程（防重复 close）
+    bool heartbeatEnabled_;               // 应用层心跳是否启用
+    double heartbeatIntervalSeconds_;     // 心跳发送周期（秒）
+    double heartbeatTimeoutSeconds_;      // 判定超时阈值（秒）
+    std::string heartbeatPingMessage_;    // 心跳包内容（默认 "PING\r\n"，可按协议自定义）
+    TimerId heartbeatTimerId_;            // 周期心跳任务 ID，用于取消
+    std::chrono::steady_clock::time_point lastReadTime_; // 最近一次收到数据的时间点（任意入站数据均刷新）
 };

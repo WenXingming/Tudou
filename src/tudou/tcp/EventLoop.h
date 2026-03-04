@@ -17,6 +17,9 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <chrono>
+
+#include "Timer.h"
 
 class EpollPoller; // 前向声明，避免循环依赖
 class Channel;
@@ -40,6 +43,10 @@ public:
     void run_in_loop(const std::function<void()>& cb);      // 如果在 loop 线程，直接执行 cb，否则入队
     void queue_in_loop(const std::function<void()>& cb);    // 将函数入队到 pendingFunctors 中，唤醒 loop 线程在相应线程执行 cb
 
+    TimerId run_after(double delaySeconds, const std::function<void()>& cb);
+    TimerId run_every(double intervalSeconds, const std::function<void()>& cb);
+    void cancel(TimerId timerId);
+
 private:
     int create_wakeup_fd();                                 // 创建 eventfd，用于跨线程唤醒 loop 线程
     void wakeup();                                          // 写 eventfd 打断 poll 阻塞（没有事件时会阻塞），使 loop 线程及时处理 pendingFunctors
@@ -61,4 +68,6 @@ private:
     std::queue<std::function<void()>> pendingFunctors_;     // 存放 loop 线程需要执行的函数列表
     std::atomic<bool> isCallingPendingFunctors_;
     std::mutex mtx_;                                        // 保护 pendingFunctors 的互斥锁（多线程只要有写入操作就需要加锁）
+
+    std::unique_ptr<class TimerQueue> timerQueue_;
 };

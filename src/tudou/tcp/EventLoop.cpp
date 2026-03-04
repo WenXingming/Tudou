@@ -8,6 +8,7 @@
 #include "EventLoop.h"
 #include "EpollPoller.h"
 #include "Channel.h"
+#include "TimerQueue.h"
 #include "spdlog/spdlog.h"
 #include <sys/eventfd.h>
 #include <unistd.h>
@@ -26,7 +27,8 @@ EventLoop::EventLoop() :
     wakeupChannel_(nullptr),
     pendingFunctors_(),
     isCallingPendingFunctors_(false),
-    mtx_() {
+    mtx_(),
+    timerQueue_(nullptr) {
 
     // 创建 wakeupFd 和 wakeupChannel（注意：poller_ 必须先于 wakeupChannel_ 初始化）
     wakeupFd_ = create_wakeup_fd();
@@ -37,6 +39,8 @@ EventLoop::EventLoop() :
     wakeupChannel_ = std::make_unique<Channel>(this, wakeupFd_);
     wakeupChannel_->set_read_callback([this](Channel&) { on_read(); });
     wakeupChannel_->enable_reading();
+
+    timerQueue_ = std::make_unique<TimerQueue>(this);
 
     // one loop per thread 保证
     if (loopInthisThread != nullptr) {
@@ -114,6 +118,31 @@ void EventLoop::queue_in_loop(const std::function<void()>& cb) {
     if (!is_in_loop_thread() || isCallingPendingFunctors_) {
         wakeup();
     }
+}
+
+TimerId EventLoop::run_after(double delaySeconds, const std::function<void()>& cb) {
+    auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(delaySeconds));
+    if (delay.count() < 0) {
+        delay = std::chrono::milliseconds(0);
+    }
+    auto when = std::chrono::steady_clock::now() + delay;
+    return timerQueue_->add_timer(cb, when, std::chrono::milliseconds(0));
+}
+
+TimerId EventLoop::run_every(double intervalSeconds, const std::function<void()>& cb) {
+    auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(intervalSeconds));
+    if (interval.count() <= 0) {
+        interval = std::chrono::milliseconds(1);
+    }
+    auto when = std::chrono::steady_clock::now() + interval;
+    return timerQueue_->add_timer(cb, when, interval);
+}
+
+void EventLoop::cancel(TimerId timerId) {
+    if (!timerId.valid()) {
+        return;
+    }
+    timerQueue_->erase_timer(timerId);
 }
 
 int EventLoop::create_wakeup_fd() {
