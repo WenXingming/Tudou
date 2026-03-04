@@ -11,6 +11,8 @@
 #include <assert.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <netinet/tcp.h>
+#include <netinet/in.h>
 
 #include "spdlog/spdlog.h"
 #include "Buffer.h"
@@ -89,6 +91,38 @@ void TcpConnection::set_high_water_mark_callback(HighWaterMarkCallback cb, size_
 void TcpConnection::connection_establish() {
     auto ptr = shared_from_this();
     channel_->tie_to_object(ptr);
+}
+
+void TcpConnection::set_tcp_no_delay(bool on) {
+    int fd = channel_->get_fd();
+    int kEnable = on ? 1 : 0;
+    if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &kEnable, sizeof(kEnable)) < 0) {
+        spdlog::error("TcpConnection::set_tcp_no_delay() failed, errno={} ({})", errno, strerror(errno));
+    }
+}
+
+void TcpConnection::set_tcp_keepalive(bool on) {
+    // TODO: 这些参数可以通过 Acceptor 的构造函数、TCPServer 的构造函数或者配置文件进行配置，目前先写死
+    int fd = channel_->get_fd();
+    int kEnable = on ? 1 : 0;
+    constexpr int kKeepIdleSec = 60;
+    constexpr int kKeepIntvlSec = 10;
+    constexpr int kKeepCnt = 3;
+
+    if (::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &kEnable, sizeof(kEnable)) < 0) {
+        spdlog::warn("TcpConnection: failed to enable SO_KEEPALIVE on fd {}, errno: {}", fd, errno);
+        return;
+    }
+
+    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &kKeepIdleSec, sizeof(kKeepIdleSec)) < 0) {
+        spdlog::warn("TcpConnection: failed to set TCP_KEEPIDLE on fd {}, errno: {}", fd, errno);
+    }
+    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &kKeepIntvlSec, sizeof(kKeepIntvlSec)) < 0) {
+        spdlog::warn("TcpConnection: failed to set TCP_KEEPINTVL on fd {}, errno: {}", fd, errno);
+    }
+    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &kKeepCnt, sizeof(kKeepCnt)) < 0) {
+        spdlog::warn("TcpConnection: failed to set TCP_KEEPCNT on fd {}, errno: {}", fd, errno);
+    }
 }
 
 void TcpConnection::on_read(Channel& channel) {

@@ -66,6 +66,9 @@ public:
 
     void connection_establish();
 
+    void set_tcp_no_delay(bool on);  // 设置 TCP_NODELAY，ON 代表启用 Nagle 算法，OFF 代表禁用 Nagle 算法（适合低延迟场景）
+    void set_tcp_keepalive(bool on); // 设置 TCP keepalive，检测死连接
+
     EventLoop* get_loop() const { return loop_; }
     int get_fd() const { return channel_->get_fd(); }
     const InetAddress& get_local_addr() const { return localAddr_; }

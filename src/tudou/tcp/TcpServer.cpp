@@ -111,6 +111,12 @@ void TcpServer::on_connect(int connFd, const InetAddress& peerAddr) {
         InetAddress localAddr(localSockAddr);
 
         auto conn = std::make_shared<TcpConnection>(ioLoop, connFd, localAddr, peerAddr);
+
+        // 禁用 Nagle 算法，适合低延迟场景（如在线游戏、即时通信等）。如果应用对延迟敏感且发送的小数据包较多，禁用 Nagle 算法可以减少数据包的发送延迟，提高响应速度
+        // 启用 TCP keepalive，检测死连接，及时释放资源避免占用资源。对于短连接来说可能不太必要，但对于长连接来说非常重要。
+        conn->set_tcp_no_delay(false);
+        conn->set_tcp_keepalive(true);
+
         conn->set_message_callback(
             std::bind(&TcpServer::on_message, this, std::placeholders::_1)
         );
@@ -223,7 +229,8 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
 
     if (!erased) {
         spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
-    } else {
+    }
+    else {
         spdlog::info("TcpServer::remove_connection(). connection removed, fd: {}", fd);
     }
 }
