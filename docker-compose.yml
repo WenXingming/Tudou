@@ -36,7 +36,7 @@ services:
     volumes:
     # 不要使用 ~ 相对路径。当使用 sudo 运行 Docker 命令时，~ 符号（代表用户主目录）会被解析为 root 而不是您的用户目录
     # 因此数据库文件实际上被创建到了 /root/mysql-data 目录下，而不是 /home/wxm/mysql-data
-      - /home/wxm/mysql-data/mysql/data:/var/lib/mysql  # 将主机的目录映射到容器内，确保数据持久化
+      - /home/wxm/mysql-data/mysql/data:/var/lib/mysql  # 将主机的目录映射到容器内，确保数据持久化，/var/lib/mysql 是 MySQL 默认的数据目录
       - /home/wxm/mysql-data/mysql/logs:/var/log/mysql
       - /home/wxm/mysql-data/mysql/conf:/etc/mysql/conf.d
     command: --default-authentication-plugin=mysql_native_password  # 使用 mysql_native_password 认证插件，确保兼容性，解决部分旧版客户端连接问题
