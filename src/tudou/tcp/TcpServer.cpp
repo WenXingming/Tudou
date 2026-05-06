@@ -1,18 +1,17 @@
-/**
- * @file TcpServer.cpp
- * @brief TCP 服务器：管理 Acceptor 与 TcpConnection
- * @author WenXingming
- * @project: https://github.com/WenXingming/Tudou
- *
- */
+// ============================================================================
+// TcpServer.cpp
+// TcpServer 的实现保持单层编排：选择线程、装配连接、注册连接、通知上层。
+// ============================================================================
 
 #include "TcpServer.h"
 
 #include <cassert>
+#include <cerrno>
 #include <functional>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #include "base/InetAddress.h"
 #include "spdlog/spdlog.h"
 #include "Acceptor.h"
@@ -21,8 +20,14 @@
 #include "EventLoopThread.h"
 #include "EventLoopThreadPool.h"
 
+namespace {
+
+constexpr size_t kDefaultHighWaterMark = 64 * 1024 * 1024;
+
+} // namespace
+
 TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
-    loopThreadPool_(nullptr),
+    loopThreadPool_(std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", ioLoopNum)),
     ip_(std::move(ip)),
     port_(port),
     acceptor_(nullptr),
@@ -34,19 +39,11 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     errorCallback_(nullptr),
     writeCompleteCallback_(nullptr),
     highWaterMarkCallback_(nullptr),
-    highWaterMark_(64 * 1024 * 1024) {  // 默认 64MB
-
-    // 创建线程池（创建 mainLoop，ioLoops 在 start() 时创建并启动）
-    loopThreadPool_.reset(new EventLoopThreadPool("TcpServerLoopPool", ioLoopNum));
-
-    // 创建 Acceptor，绑定新连接回调
-    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
+    highWaterMark_(kDefaultHighWaterMark) {
     InetAddress listenAddr(this->ip_, this->port_);
-    if (mainLoop == nullptr) {
-        spdlog::critical("TcpServer::TcpServer(). mainLoop is nullptr.");
-        assert(false);
-    }
-    acceptor_ = std::make_unique<Acceptor>(mainLoop, listenAddr);
+    EventLoop& mainLoop = require_main_loop();
+
+    acceptor_ = std::make_unique<Acceptor>(&mainLoop, listenAddr);
     acceptor_->set_connect_callback([this](int connFd, const InetAddress& peerAddr) {
         on_connect(connFd, peerAddr);
         });
@@ -57,13 +54,12 @@ TcpServer::~TcpServer() {
 
 void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
-    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
-    if (mainLoop == nullptr) {
-        spdlog::critical("TcpServer::start(). mainLoop is nullptr.");
-        assert(false);
-    }
+
+    EventLoop& mainLoop = require_main_loop();
+
+    // 先启动 IO 线程池，再进入主循环，保证 accept 之后可以立刻把连接分发出去。
     loopThreadPool_->start();
-    mainLoop->loop(); // 启动监听事件循环，开启服务器
+    mainLoop.loop();
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -91,131 +87,135 @@ void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _h
     this->highWaterMark_ = _highWaterMark;
 }
 
+EventLoop& TcpServer::require_main_loop() const {
+    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
+    if (mainLoop == nullptr) {
+        spdlog::critical("TcpServer::require_main_loop(). mainLoop is nullptr.");
+        assert(false);
+    }
+    return *mainLoop;
+}
+
+void TcpServer::assert_in_main_loop_thread() const {
+    require_main_loop().assert_in_loop_thread();
+}
+
+EventLoop& TcpServer::select_loop() const {
+    EventLoop* ioLoop = loopThreadPool_->get_next_loop();
+    if (ioLoop == nullptr) {
+        spdlog::critical("TcpServer::select_loop(). ioLoop is nullptr.");
+        assert(false);
+    }
+    return *ioLoop;
+}
+
 void TcpServer::on_connect(int connFd, const InetAddress& peerAddr) {
     assert_in_main_loop_thread();
 
     spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), connFd);
 
-    // 选择一个 EventLoop 来管理该连接，轮询选择（通常是 ioLoop，除非只有一个 mainLoop）
-    EventLoop* ioLoop = select_loop();
+    EventLoop* ioLoop = &select_loop();
 
-    // 切换到目标线程执行初始化。Fixme: 必须让初始化在目标线程执行，否则可能会有执行顺序问题，还没初始化好就触发事件回调了（此时可能 callback 还未设置）
-    // 在对应的 IO 线程中执行 TcpConnection 的初始化操作
+    // 连接必须在目标 IO 线程内一次性完成装配，避免回调早于初始化生效。
     ioLoop->run_in_loop([this, connFd, ioLoop, peerAddr]() {
-        // 获取本地地址信息
-        sockaddr_in localSockAddr;
-        socklen_t addrLen = sizeof(localSockAddr);
-        if (::getsockname(connFd, (sockaddr*)&localSockAddr, &addrLen) < 0) {
-            spdlog::error("TcpServer::on_connect(). getsockname error, errno: {}", errno);
-        }
-        InetAddress localAddr(localSockAddr);
+        const InetAddress localAddr = resolve_local_address(connFd);
+        const auto conn = create_connection(*ioLoop, connFd, localAddr, peerAddr);
 
-        auto conn = std::make_shared<TcpConnection>(ioLoop, connFd, localAddr, peerAddr);
-
-        // 禁用 Nagle 算法，适合低延迟场景（如在线游戏、即时通信等）。如果应用对延迟敏感且发送的小数据包较多，禁用 Nagle 算法可以减少数据包的发送延迟，提高响应速度
-        // 启用 TCP keepalive，检测死连接，及时释放资源避免占用资源。对于短连接来说可能不太必要，但对于长连接来说非常重要。
-        conn->set_tcp_no_delay(false);
-        conn->set_tcp_keepalive(true);
-
-        conn->set_message_callback(
-            std::bind(&TcpServer::on_message, this, std::placeholders::_1)
-        );
-        conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
-            this->on_close(_conn);
-            });
-        // 设置错误回调（如果用户设置了）
-        if (errorCallback_) {
-            conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
-                handle_error_callback(_conn);
-                });
-        }
-        // 设置写完成回调（如果用户设置了）
-        if (writeCompleteCallback_) {
-            conn->set_write_complete_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
-                handle_write_complete_callback(_conn);
-                });
-        }
-        // 设置高水位回调（如果用户设置了）
-        if (highWaterMarkCallback_) {
-            conn->set_high_water_mark_callback([this](const std::shared_ptr<TcpConnection>& _conn) {
-                handle_high_water_mark_callback(_conn);
-                }, highWaterMark_);
-        }
-        {
-            std::lock_guard<std::mutex> lock(connectionsMutex_);
-            connections_[connFd] = conn;
-        }
-        conn->connection_establish(); // 绑定 shared_from_this，设置 tie，防止回调过程中 TcpConnection 对象被析构
-
-        // 触发上层回调。上层可以设置连接建立时的逻辑
-        handle_connection_callback(conn);
+        configure_connection_socket(conn);
+        bind_connection_callbacks(conn);
+        store_connection(connFd, conn);
+        establish_connection(conn);
+        notify_connection_callback(conn);
         });
 }
 
-void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 转发消息给上层业务逻辑，直接传递 conn 对象
-    // 业务层通过 conn->receive() 主动获取数据
-    handle_message_callback(conn);
+InetAddress TcpServer::resolve_local_address(int connFd) const {
+    sockaddr_in localSockAddr{};
+    socklen_t addrLen = sizeof(localSockAddr);
+    if (::getsockname(connFd, reinterpret_cast<sockaddr*>(&localSockAddr), &addrLen) < 0) {
+        spdlog::error("TcpServer::resolve_local_address(). getsockname error, errno: {}", errno);
+    }
+    return InetAddress(localSockAddr);
 }
 
-void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
-    remove_connection(conn);
-
-    // 触发上层回调。上层可以设置连接关闭时的逻辑
-    handle_close_callback(conn);
+std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
+    int connFd,
+    const InetAddress& localAddr,
+    const InetAddress& peerAddr) const {
+    return std::make_shared<TcpConnection>(&ioLoop, connFd, localAddr, peerAddr);
 }
 
-void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::configure_connection_socket(const std::shared_ptr<TcpConnection>& conn) const {
+    // 低延迟连接统一关闭 Nagle，同时启用 keepalive 及时回收死连接。
+    conn->set_tcp_no_delay(true);
+    conn->set_tcp_keepalive(true);
+}
+
+void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn) {
+    conn->set_message_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
+        on_message(activeConn);
+        });
+    conn->set_close_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
+        on_close(activeConn);
+        });
+
+    if (errorCallback_) {
+        conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
+            notify_error_callback(activeConn);
+            });
+    }
+
+    if (writeCompleteCallback_) {
+        conn->set_write_complete_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
+            notify_write_complete_callback(activeConn);
+            });
+    }
+
+    if (highWaterMarkCallback_) {
+        conn->set_high_water_mark_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
+            notify_high_water_mark_callback(activeConn);
+            }, highWaterMark_);
+    }
+}
+
+void TcpServer::store_connection(int connFd, const std::shared_ptr<TcpConnection>& conn) {
+    std::lock_guard<std::mutex> lock(connectionsMutex_);
+    connections_[connFd] = conn;
+}
+
+void TcpServer::establish_connection(const std::shared_ptr<TcpConnection>& conn) const {
+    conn->connection_establish();
+}
+
+void TcpServer::notify_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
     if (this->connectionCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
+        spdlog::warn("TcpServer::notify_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
         return;
     }
     this->connectionCallback_(conn);
 }
 
-void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
+    // TcpServer 只做事件转发，消息内容仍由业务层通过 conn->receive() 拉取。
+    notify_message_callback(conn);
+}
+
+void TcpServer::notify_message_callback(const std::shared_ptr<TcpConnection>& conn) {
     assert(this->messageCallback_ != nullptr);
     this->messageCallback_(conn);
 }
 
-void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->closeCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->closeCallback_(conn);
-}
+void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
+    remove_connection(conn);
 
-void TcpServer::handle_error_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->errorCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_error_callback(). errorCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->errorCallback_(conn);
-}
-
-void TcpServer::handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->writeCompleteCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->writeCompleteCallback_(conn);
-}
-
-void TcpServer::handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->highWaterMarkCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->highWaterMarkCallback_(conn);
+    // 先移除连接，再把关闭事件交给上层，避免回调期间看到陈旧连接表。
+    notify_close_callback(conn);
 }
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
-    // 在相应的 IO 线程中执行删除操作
     EventLoop* loop = conn->get_loop();
-    loop->assert_in_loop_thread(); // 确保在正确的线程中执行删除操作
+    loop->assert_in_loop_thread();
 
-    // 如果已经在对应的线程中，直接删除
     int fd = conn->get_fd();
     bool erased = false;
     {
@@ -235,21 +235,34 @@ void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     }
 }
 
-void TcpServer::assert_in_main_loop_thread() const {
-    // 创建连接时确保在 mainLoop 线程调用 on_connect
-    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
-    if (mainLoop == nullptr) { // 不太可能发生，只是防御性编程。为了提高效率可以注释掉
-        spdlog::critical("TcpServer::on_connect(). mainLoop is nullptr.");
-        assert(false);
+void TcpServer::notify_close_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->closeCallback_ == nullptr) {
+        spdlog::warn("TcpServer::notify_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
+        return;
     }
-    mainLoop->assert_in_loop_thread();
+    this->closeCallback_(conn);
 }
 
-EventLoop* TcpServer::select_loop() const {
-    EventLoop* ioLoop = loopThreadPool_->get_next_loop();
-    if (ioLoop == nullptr) {
-        spdlog::critical("TcpServer::on_connect(). ioLoop is nullptr.");
-        assert(false);
+void TcpServer::notify_error_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->errorCallback_ == nullptr) {
+        spdlog::warn("TcpServer::notify_error_callback(). errorCallback is nullptr, fd: {}", conn->get_fd());
+        return;
     }
-    return ioLoop;
+    this->errorCallback_(conn);
+}
+
+void TcpServer::notify_write_complete_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->writeCompleteCallback_ == nullptr) {
+        spdlog::warn("TcpServer::notify_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", conn->get_fd());
+        return;
+    }
+    this->writeCompleteCallback_(conn);
+}
+
+void TcpServer::notify_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn) {
+    if (this->highWaterMarkCallback_ == nullptr) {
+        spdlog::warn("TcpServer::notify_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", conn->get_fd());
+        return;
+    }
+    this->highWaterMarkCallback_(conn);
 }

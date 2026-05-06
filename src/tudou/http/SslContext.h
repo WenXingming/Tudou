@@ -1,21 +1,14 @@
-/**
- * @file SslContext.h
- * @brief SSL/TLS 上下文封装类，管理全局 SSL_CTX 以及证书/私钥加载
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- *
- * SslContext 封装 OpenSSL 的 SSL_CTX，提供：
- *   - 初始化 SSL 库
- *   - 加载服务器证书文件和私钥文件
- *   - 为每个新连接创建 SSL 对象（配合 Memory BIO 使用）
- *
- * 整个 HttpServer 共享一个 SslContext 实例。
- */
+// ============================================== //
+// SslContext.h
+// TLS 服务端上下文门面，负责加载证书、校验私钥并按需创建连接级 SSL。
+// ============================================== //
 
 #pragma once
 #include <string>
 
- // 前向声明 OpenSSL 类型，避免头文件污染
+// SslContext 把 SSL_CTX 的初始化收敛成单向步骤，避免调用方散落处理证书和失败清理。
+
+// 前向声明 OpenSSL 类型，避免头文件污染
 typedef struct ssl_ctx_st SSL_CTX;
 typedef struct ssl_st SSL;
 
@@ -41,8 +34,49 @@ public:
      */
     SSL* create_ssl() const;
 
+    /**
+     * @brief 判断当前上下文是否已经完成初始化。
+     * @return true 表示证书、私钥和协议策略都已就绪。
+     */
     bool is_initialized() const { return ctx_ != nullptr; }
 
 private:
-    SSL_CTX* ctx_;
+    /**
+     * @brief 释放当前 SSL_CTX 并回到未初始化状态。
+     */
+    void reset_context();
+
+    /**
+     * @brief 创建服务端 SSL_CTX。
+     * @return 成功返回 true，失败返回 false。
+     */
+    bool create_server_context();
+
+    /**
+     * @brief 配置服务端最小 TLS 版本等基础协议策略。
+     */
+    void configure_protocol_policy();
+
+    /**
+     * @brief 加载服务端证书。
+     * @param certFile PEM 格式证书路径。
+     * @return 成功返回 true，失败返回 false。
+     */
+    bool load_certificate(const std::string& certFile);
+
+    /**
+     * @brief 加载服务端私钥。
+     * @param keyFile PEM 格式私钥路径。
+     * @return 成功返回 true，失败返回 false。
+     */
+    bool load_private_key(const std::string& keyFile);
+
+    /**
+     * @brief 校验证书与私钥是否匹配。
+     * @return 成功返回 true，失败返回 false。
+     */
+    bool validate_private_key();
+
+private:
+    SSL_CTX* ctx_;  // 全局 TLS 服务端上下文，由 HttpServer 共享使用。
 };

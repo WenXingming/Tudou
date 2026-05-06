@@ -1,43 +1,84 @@
-/**
- * @file EventLoopThread.h
- * @brief 将 EventLoop 和 线程绑定的封装类
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- * @details
- *
- * - 没有按照 muduo 那样将 pthread 封装成类（也没有对 std::thread 进行二次封装），而是直接使用 std::thread
- * - 锁、条件变量什么的都是使用 C++11 标准库提供的 std::mutex、std::condition_variable 等
- */
+// ============================================================================
+// EventLoopThread.h
+// EventLoop 与工作线程绑定器，负责在线程内创建、发布并驱动单个 EventLoop。
+// ============================================================================
 
 #pragma once
-#include <memory>
-#include <functional>
-#include <thread>
-#include <mutex>
+
 #include <condition_variable>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <thread>
 
 class EventLoop;
+
+// EventLoopThread 负责把一个 EventLoop 严格绑定到一个后台线程上。
 class EventLoopThread {
+public:
     using ThreadInitCallback = std::function<void(EventLoop*)>;
 
-public:
-    EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback()); // 默认初始化回调为空，static_cast<bool>(ThreadInitCallback()) == false
+    EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback());
     EventLoopThread(const EventLoopThread&) = delete;
     EventLoopThread& operator=(const EventLoopThread&) = delete;
     ~EventLoopThread();
 
+    /**
+     * @brief 启动后台线程并等待 EventLoop 准备完成。
+     */
     void start();
+
+    /**
+     * @brief 获取后台线程中的 EventLoop。
+     * @return EventLoop* 后台线程中的 EventLoop；未启动时可能为空。
+     */
     EventLoop* get_loop() const { return loop_.get(); }
 
 private:
-    void thread_func(); // 线程执行的函数
+    /**
+     * @brief 创建后台线程对象。
+     */
+    void launch_thread();
+
+    /**
+     * @brief 阻塞等待后台线程中的 EventLoop 完成发布。
+     */
+    void wait_until_loop_ready();
+
+    /**
+     * @brief 后台线程的主函数，是线程侧启动流程的唯一编排入口。
+     */
+    void thread_func();
+
+    /**
+     * @brief 创建线程私有的 EventLoop。
+     * @return 后台线程持有的 EventLoop 对象。
+     */
+    std::unique_ptr<EventLoop> create_loop() const;
+
+    /**
+     * @brief 执行线程初始化回调。
+     * @param loop 后台线程中的 EventLoop。
+     */
+    void initialize_loop(EventLoop* loop) const;
+
+    /**
+     * @brief 把后台线程中的 EventLoop 发布给外部调用方。
+     * @param loop 后台线程中刚创建好的 EventLoop。
+     */
+    void publish_loop(std::unique_ptr<EventLoop> loop);
+
+    /**
+     * @brief 清空已经退出的 EventLoop 指针。
+     */
+    void clear_loop();
 
 private:
-    std::unique_ptr<EventLoop> loop_;     // 所属线程内的 EventLoop 对象指针
-    std::unique_ptr<std::thread> thread_; // 不直接使用 std::thread，而是使用智能指针进行管理，方便控制线程的启动时机（和销毁）
+    std::unique_ptr<EventLoop> loop_; // 后台线程内创建并发布的 EventLoop。
+    std::unique_ptr<std::thread> thread_; // 执行 EventLoop 的后台线程。
 
-    std::mutex mtx_;
-    std::condition_variable condition_;
-    ThreadInitCallback initCallback_; // 线程初始化回调函数
-    bool started_;
+    std::mutex mtx_; // 保护 loop_ 发布与清理的互斥锁。
+    std::condition_variable condition_; // 等待 loop_ 准备完成的条件变量。
+    ThreadInitCallback initCallback_; // EventLoop 创建后、进入 loop 前执行的初始化回调。
+    bool started_; // 是否已经启动过后台线程。
 };

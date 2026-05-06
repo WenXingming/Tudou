@@ -1,118 +1,220 @@
-/**
- * @file Router.h
- * @brief Minimal HTTP router: method + path -> handler 分发
- * @author wenxingming
- * @date 2026-01-31
- * @project: https://github.com/WenXingming/Tudou
- * @details Router 提供了一个简单的 HTTP 路由功能，可以根据请求的 HTTP 方法和 URL 路径将请求分发到不同的处理函数（handler）。
- * - 路由的 key 是 (Method, Path) 对，应对同一路径不同方法的处理需求，或同一方法不同路径的处理需求。
- * - 支持精确匹配和前缀匹配两种路由方式，并且可以自定义 404 和 405 响应。
- *
- * 用法概览：
- *   Router r;
- *   r.add_get_route("/health", handler);
- *   r.add_prefix_route("/static/", staticHandler);
- *   r.dispatch(req, resp); // 未命中会自动给 404/405
- */
+// ============================================================================ //
+// Router.h
+// HTTP 路由器对外契约，负责精确路由、方法约束与前缀兜底分发。
+// ============================================================================ //
 
 #pragma once
+
 #include <functional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 
+/**
+ * @brief 描述一次请求分发最终落入的路由分支。
+ */
 enum class DispatchResult {
-    // 不想把这些工具类嵌套放在 Router 类里，避免冗长的名字
-    Matched,            // 命中并已执行 handler
-    NotFound,           // 路径未注册
-    MethodNotAllowed    // 路径存在但不支持该方法
+    Matched,
+    NotFound,
+    MethodNotAllowed
 };
 
+/**
+ * @brief 精确路由索引键，使用 method + path 唯一标识一个处理器。
+ */
 struct RouteKey {
-    // RouteKey：精确路由的 key。
-    // 为什么要同时用 method + path？
-    //  - 同一路径可以对应不同 HTTP 方法，例如：
-    //    GET /file   -> 下载
-    //    POST /file  -> 上传（/path 主要是做路由键，映射到相应的 handler 处理逻辑）
     std::string method;
     std::string path;
-    bool operator==(const RouteKey& other) const {
-        return method == other.method && path == other.path;
-    }
+
+    /**
+     * @brief 判断两个精确路由键是否完全相同。
+     * @param other 待比较的路由键契约。
+     * @return bool method 与 path 都一致时返回 true。
+     */
+    bool operator==(const RouteKey& other) const;
 };
 
+/**
+ * @brief 为精确路由键提供 unordered_map 所需的哈希策略。
+ */
 struct RouteKeyHash {
-    // 另一种方式是把 method + '\n' + path 拼接成一个字符串再 hash，其中 '\n' 是一个不太可能出现在 method/path 里的分隔符。
-    std::size_t operator()(const RouteKey& key) const {
-        // 组合 hash，避免构造临时字符串。
-        const std::size_t h1 = std::hash<std::string>{}(key.method);
-        const std::size_t h2 = std::hash<std::string>{}(key.path);
-        // hash_combine (boost 风格)
-        return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
-    }
+    /**
+     * @brief 计算复合路由键的哈希值。
+     * @param key 待计算哈希的精确路由键。
+     * @return std::size_t 可用于哈希桶分配的哈希值。
+     */
+    std::size_t operator()(const RouteKey& key) const;
 };
 
+// Router 负责将 HTTP 请求按精确匹配、405 判定、前缀兜底、404 回退的固定流程线性分发。
 class Router {
-    // Handler：真正处理请求的“函数对象”。
-    // 约定：handler 读取 req，并把 resp 填好（状态码/头/body）。和 HttpServer 的回调风格一致。
-    using Handler = std::function<void(const HttpRequest&, HttpResponse&)>;
-
 public:
-    // 注册路由；请在服务启动前完成注册，当前实现未做并发防护。
-    // 这里的“路由”可以理解为：
-    //   (HTTP 方法, URL path) -> 处理函数 handler
-    // 例如：
-    //   ("GET", "/health") -> health_handler
-    void add_route(const std::string& method, const std::string& path, Handler handler);
-    void add_get_route(const std::string& path, Handler handler);
-    void add_post_route(const std::string& path, Handler handler);
-    void add_head_route(const std::string& path, Handler handler);
+    using Handler = std::function<void(const HttpRequest&, HttpResponse&)>;
+    using AllowedMethods = std::unordered_set<std::string>;
 
-    // 按前缀兜底（常用于静态文件服务）：匹配 req.path 以 prefix 开头的请求。
-    // 例如：prefix 为 "/static/"，那么 "/static/a.png"、"/static/app.js" 都会命中。
-    // 注意：前缀路由不区分 method；它的目标是“兜底处理某一类 path”。
-    void add_prefix_route(const std::string& prefix, Handler handler);
+    Router();
+    ~Router();
 
-    // 最核心的分发函数：根据 req 的 method + path 找到对应的 handler 并执行，填充 resp。
-    // 返回值表示分发结果（命中/未命中/方法不允许）。
+    /**
+     * @brief 执行单次请求分发，是 Router 唯一的业务流程入口。
+     * @param req 外部传入的只读 HTTP 请求契约。
+     * @param resp 由路由器或命中处理器填充的 HTTP 响应契约。
+     * @return DispatchResult 本次分发最终落入的结果分支。
+     */
     DispatchResult dispatch(const HttpRequest& req, HttpResponse& resp) const;
 
-    // 自定义 404/405 响应（可选）
+    /**
+     * @brief 注册一个精确 method + path 路由。
+     * @param method 路由允许的 HTTP 方法。
+     * @param path 路由匹配的精确路径。
+     * @param handler 命中后执行的处理器契约。
+     */
+    void add_route(const std::string& method, const std::string& path, Handler handler);
+
+    /**
+     * @brief 注册一个 GET 精确路由。
+     * @param path 路由匹配的精确路径。
+     * @param handler 命中后执行的处理器契约。
+     */
+    void add_get_route(const std::string& path, Handler handler);
+
+    /**
+     * @brief 注册一个 POST 精确路由。
+     * @param path 路由匹配的精确路径。
+     * @param handler 命中后执行的处理器契约。
+     */
+    void add_post_route(const std::string& path, Handler handler);
+
+    /**
+     * @brief 注册一个 HEAD 精确路由。
+     * @param path 路由匹配的精确路径。
+     * @param handler 命中后执行的处理器契约。
+     */
+    void add_head_route(const std::string& path, Handler handler);
+
+    /**
+     * @brief 注册一个按前缀匹配的兜底路由。
+     * @param prefix 路径前缀契约。
+     * @param handler 命中前缀后执行的处理器契约。
+     */
+    void add_prefix_route(const std::string& prefix, Handler handler);
+
+    /**
+     * @brief 注入自定义 404 处理器。
+     * @param handler 当请求未命中任何路由时执行的处理器契约。
+     */
     void set_not_found_handler(Handler handler);
+
+    /**
+     * @brief 注入自定义 405 处理器。
+     * @param handler 当路径存在但方法不被允许时执行的处理器契约。
+     */
     void set_method_not_allowed_handler(Handler handler);
 
 private:
-    static bool starts_with(const std::string& text, const std::string& prefix); // 私有工具函数，判断 text 是否以 prefix 开头
+    struct PrefixRoute {
+        std::string prefix;
+        Handler handler;
+    };
 
-    void fill_default_not_found(HttpResponse& resp) const;
-    void fill_default_method_not_allowed(const std::string& path, HttpResponse& resp) const;
-    std::string build_allow_header(const std::string& path) const;
+    /**
+     * @brief 按请求的 method 与 path 查询精确路由处理器。
+     * @param req 外部传入的只读 HTTP 请求契约。
+     * @return const Handler* 命中时返回处理器地址，否则返回 nullptr。
+     */
+    const Handler* find_exact_handler(const HttpRequest& req) const;
+
+    /**
+     * @brief 执行一个已经选定的处理器。
+     * @param handler 需要被调用的处理器契约。
+     * @param req 外部传入的只读 HTTP 请求契约。
+     * @param resp 由处理器填充的 HTTP 响应契约。
+     */
+    void execute_handler(const Handler& handler, const HttpRequest& req, HttpResponse& resp) const;
+
+    /**
+     * @brief 查询指定路径已注册的方法集合，用于区分 404 与 405。
+     * @param path 当前请求路径。
+     * @return const AllowedMethods* 路径存在时返回方法集合地址，否则返回 nullptr。
+     */
+    const AllowedMethods* find_allowed_methods(const std::string& path) const;
+
+    /**
+     * @brief 写入 405 响应契约。
+     * @param req 外部传入的只读 HTTP 请求契约。
+     * @param allowedMethods 当前路径允许的方法集合。
+     * @param resp 待填充的 HTTP 响应契约。
+     */
+    void write_method_not_allowed_response(
+        const HttpRequest& req,
+        const AllowedMethods& allowedMethods,
+        HttpResponse& resp) const;
+
+    /**
+     * @brief 使用路由器内建策略填充默认 405 响应。
+     * @param allowedMethods 当前路径允许的方法集合。
+     * @param resp 待填充的 HTTP 响应契约。
+     */
+    void fill_default_method_not_allowed_response(
+        const AllowedMethods& allowedMethods,
+        HttpResponse& resp) const;
+
+    /**
+     * @brief 用统一的纯文本模板填充标准响应。
+     * @param statusCode HTTP 状态码。
+     * @param reasonPhrase HTTP 原因短语。
+     * @param body 需要写入的响应体文本。
+     * @param resp 待填充的 HTTP 响应契约。
+     */
+    static void fill_plain_text_response(
+        int statusCode,
+        const std::string& reasonPhrase,
+        const std::string& body,
+        HttpResponse& resp);
+
+    /**
+     * @brief 将允许的方法集合格式化为 Allow 头值。
+     * @param allowedMethods 当前路径允许的方法集合。
+     * @return std::string 逗号分隔并排序后的 Allow 头内容。
+     */
+    std::string format_allow_header(const AllowedMethods& allowedMethods) const;
+
+    /**
+     * @brief 按注册顺序查找首个命中的前缀处理器。
+     * @param path 当前请求路径。
+     * @return const Handler* 命中时返回处理器地址，否则返回 nullptr。
+     */
+    const Handler* find_prefix_handler(const std::string& path) const;
+
+    /**
+     * @brief 判断一个字符串是否以前缀字符串开头。
+     * @param text 待判断的完整文本。
+     * @param prefix 需要匹配的前缀文本。
+     * @return bool 以前缀开头时返回 true。
+     */
+    static bool starts_with(const std::string& text, const std::string& prefix);
+
+    /**
+     * @brief 写入 404 响应契约。
+     * @param req 外部传入的只读 HTTP 请求契约。
+     * @param resp 待填充的 HTTP 响应契约。
+     */
+    void write_not_found_response(const HttpRequest& req, HttpResponse& resp) const;
+
+    /**
+     * @brief 使用路由器内建策略填充默认 404 响应。
+     * @param resp 待填充的 HTTP 响应契约。
+     */
+    void fill_default_not_found_response(HttpResponse& resp) const;
 
 private:
-    // routes_：精确匹配路由表。
-    // key = (method, path)，value = handler 相应的处理逻辑
-    // 例如：routes_[{"GET", "/health"}] = health_handler
-    std::unordered_map<RouteKey, Handler, RouteKeyHash> routes_;
-
-    // allowed_methods_by_path_：辅助表，用来生成 405 Method Not Allowed。
-    // 例如注册了：GET /health、POST /health
-    // 那 allowedMethodsByPath_["/health"] = {"GET", "POST"}
-    // 当收到 PUT /health 时：
-    //  - 精确匹配找不到
-    //  - 但是 path 存在（allowed_methods_by_path_ 有）
-    //  - 应返回 405，并在 Allow 头里告诉客户端支持哪些方法
-    std::unordered_map<std::string, std::unordered_set<std::string>> allowedMethodsByPath_;
-
-    // prefix_routes_：前缀兜底路由。
-    // 存储顺序 = 注册顺序，dispatch 时会按顺序依次尝试。pair: {prefix, handler}
-    // 建议：把更“具体”的前缀先注册，把更“宽泛”的前缀（如 "/"）最后注册。
-    std::vector<std::pair<std::string, Handler>> prefixRoutes_;
-
-    // 自定义 404/405 的 handler 接口（可选）。
-    // 不设置则走默认实现（纯文本 404/405）。
-    Handler notFoundHandler_;
-    Handler methodNotAllowedHandler_;
+    std::unordered_map<RouteKey, Handler, RouteKeyHash> exactRoutes_; // 精确路由表，使用 method + path 锁定唯一处理器。
+    std::unordered_map<std::string, AllowedMethods> allowedMethodsByPath_; // 路径到允许方法集合的索引，用于严格区分 404 与 405。
+    std::vector<PrefixRoute> prefixRoutes_; // 前缀兜底路由表，保持注册顺序来表达匹配优先级。
+    Handler notFoundHandler_; // 可选的 404 覆盖处理器，用于接管未命中响应内容。
+    Handler methodNotAllowedHandler_; // 可选的 405 覆盖处理器，用于接管方法不允许响应内容。
 };

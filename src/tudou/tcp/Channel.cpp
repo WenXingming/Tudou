@@ -1,9 +1,7 @@
-/**
- * @file Channel.cpp
- * @brief fd + 事件 + 回调 的封装
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================================================
+// Channel.cpp
+// fd 事件通道实现，保持“同步兴趣 -> 分发就绪事件”的单层职责。
+// ============================================================================
 
 #include "Channel.h"
 #include "EventLoop.h"
@@ -61,7 +59,7 @@ void Channel::set_revents(uint32_t revents) {
 }
 
 void Channel::handle_events() {
-    // 通过 tie_ 锁定所有者，防止回调过程中对象被析构 (see docs/Document.md#tie-mechanism)
+    // 若启用了 tie 机制，必须先保活所有者对象，再进入事件分发。
     if (isTied_) {
         std::shared_ptr<void> guard = tie_.lock();
         if (guard) {
@@ -136,7 +134,7 @@ void Channel::remove_in_register() {
 }
 
 void Channel::handle_events_with_guard() {
-    // 事件优先级：HUP(无可读) > ERR > IN/PRI > OUT
+    // 事件分发顺序遵循“关闭/错误优先于正常读写”，避免已失效 fd 继续走业务回调。
     if ((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN)) {
         handle_close_callback();
         return;

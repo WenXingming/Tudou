@@ -1,32 +1,14 @@
-/**
- * @file TlsConnection.h
- * @brief 每连接的 TLS 状态封装，基于 OpenSSL Memory BIO 实现
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- *
- * TlsConnection 利用 OpenSSL 的 Memory BIO 机制，在不修改 TCP 层的前提下实现 TLS 加解密。
- *
- * 原理：
- *   普通 SSL 直接操作 socket fd，需要改动 TcpConnection。
- *   Memory BIO 模式下，SSL 读写的是内存缓冲区而非 fd，数据搬运由上层（HttpServer）控制：
- *
- *   接收方向：conn->receive() → 密文 → feed_data() → decrypt() → 明文 → HttpContext 解析
- *   发送方向：明文 → encrypt() → 密文 → get_output() → conn->send()
- *
- * 生命周期：
- *   每个 HTTPS 连接持有一个 TlsConnection，与 HttpContext 一一对应。
- *   由 HttpServer 在 on_connect 时创建，on_close 时销毁。
- *
- * TLS 握手：
- *   新连接建立时处于 HANDSHAKING 状态。HttpServer 收到数据后调用 do_handshake()，
- *   握手产生的响应数据通过 get_output() 取出并发回客户端。
- *   握手完成后进入 ESTABLISHED 状态，后续使用 decrypt()/encrypt() 处理数据。
- */
+// ============================================== //
+// TlsConnection.h
+// 单连接 TLS 会话门面，把握手、解密、加密压平成独立原子步骤。
+// ============================================== //
 
 #pragma once
 #include <string>
 
- // 前向声明
+// TlsConnection 只负责单连接 TLS 状态机，不参与任何 HTTP 业务编排。
+
+// 前向声明
 typedef struct ssl_st SSL;
 typedef struct bio_st BIO;
 
@@ -93,14 +75,71 @@ public:
      */
     std::string get_output();
 
+    /**
+     * @brief 获取当前 TLS 状态。
+     * @return 当前连接的 TLS 状态枚举值。
+     */
     State get_state() const { return state_; }
+
+    /**
+     * @brief 判断 TLS 是否仍在握手阶段。
+     * @return true 表示需要继续交换握手数据。
+     */
     bool is_handshaking() const { return state_ == State::HANDSHAKING; }
+
+    /**
+     * @brief 判断 TLS 是否已建立完成。
+     * @return true 表示可以进行应用数据收发。
+     */
     bool is_established() const { return state_ == State::ESTABLISHED; }
+
+    /**
+     * @brief 判断 TLS 是否已进入错误态。
+     * @return true 表示当前连接已经不可恢复。
+     */
     bool is_error() const { return state_ == State::ERROR; }
 
 private:
-    SSL* ssl_;      // SSL 对象，拥有所有权
-    BIO* rbio_;     // 读 BIO（接收方向：网络密文 → rbio → SSL_read → 明文）
-    BIO* wbio_;     // 写 BIO（发送方向：明文 → SSL_write → wbio → 网络密文）
-    State state_;
+    /**
+     * @brief 初始化当前 TLS 会话需要的 Memory BIO 与服务端模式。
+     */
+    void initialize_tls_session();
+
+    /**
+     * @brief 创建当前会话的读写 Memory BIO。
+     * @return 成功返回 true，失败返回 false。
+     */
+    bool create_memory_bio_pair();
+
+    /**
+     * @brief 把 Memory BIO 绑定到 SSL 会话。
+     */
+    void attach_memory_bio_pair();
+
+    /**
+     * @brief 检查当前 TLS 会话是否满足执行某个动作的前置条件。
+     * @param action 当前准备执行的动作名称。
+     * @return true 表示会话可继续执行。
+     */
+    bool ensure_tls_session(const char* action) const;
+
+    /**
+     * @brief 记录一个不可恢复的 TLS 错误并切换到 ERROR 状态。
+     * @param message 错误描述。
+     */
+    void mark_error(const char* message);
+
+    /**
+     * @brief 根据 SSL_get_error 的返回值处理非阻塞握手结果。
+     * @param action 当前动作名称。
+     * @param result OpenSSL 原始返回值。
+     * @return true 表示仍可继续推进，false 表示已进入错误态。
+     */
+    bool handle_tls_progress(const char* action, int result);
+
+private:
+    SSL* ssl_;      // SSL 对象，拥有所有权。
+    BIO* rbio_;     // 读 BIO，承接来自网络的 TLS 密文。
+    BIO* wbio_;     // 写 BIO，输出待发送的 TLS 密文。
+    State state_;   // 当前 TLS 生命周期状态。
 };

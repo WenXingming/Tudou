@@ -1,25 +1,25 @@
-/**
- * @file EventLoop.cpp
- * @brief 事件循环（Reactor）核心类的实现
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================================================
+// EventLoop.cpp
+// Reactor 核心循环实现，显式展开 poll、唤醒和任务执行的控制路径。
+// ============================================================================
 
 #include "EventLoop.h"
+
 #include "EpollPoller.h"
 #include "Channel.h"
 #include "TimerQueue.h"
 #include "spdlog/spdlog.h"
+
+#include <cassert>
 #include <sys/eventfd.h>
 #include <unistd.h>
 #include <thread>
-#include <functional>
 
-thread_local EventLoop* EventLoop::loopInthisThread = nullptr; // one loop per thread。防止一个线程创建多个 EventLoop 实例，实现方式是使用 thread_local 关键字作为线程局部存储的标记即可
+thread_local EventLoop* EventLoop::loopInthisThread = nullptr;
 const int EventLoop::pollTimeoutMs_ = 10000;
 
 EventLoop::EventLoop() :
-    poller_(std::make_unique<EpollPoller>(this)), // C++14
+    poller_(std::make_unique<EpollPoller>(this)),
     isLooping_(false),
     isQuit_(false),
     threadId_(std::this_thread::get_id()),
@@ -30,7 +30,7 @@ EventLoop::EventLoop() :
     mtx_(),
     timerQueue_(nullptr) {
 
-    // 创建 wakeupFd 和 wakeupChannel（注意：poller_ 必须先于 wakeupChannel_ 初始化）
+    // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
     wakeupFd_ = create_wakeup_fd();
     if (wakeupFd_ < 0) {
         spdlog::critical("EventLoop: Failed to create wakeupFd");
@@ -42,7 +42,6 @@ EventLoop::EventLoop() :
 
     timerQueue_ = std::make_unique<TimerQueue>(this);
 
-    // one loop per thread 保证
     if (loopInthisThread != nullptr) {
         spdlog::critical("Cannot create more than one EventLoop per thread");
         assert(false);
@@ -64,6 +63,7 @@ void EventLoop::loop(int timeoutMs) {
     isLooping_ = true;
 
     while (!isQuit_) {
+        // 每轮循环只做两件事：处理内核事件，然后处理本轮排队任务。
         poller_->poll(timeoutMs);
         do_pending_functors();
     }
@@ -101,7 +101,7 @@ void EventLoop::assert_in_loop_thread() const {
     assert(is_in_loop_thread());
 }
 
-void EventLoop::run_in_loop(const std::function<void()>& cb) {
+void EventLoop::run_in_loop(const Functor& cb) {
     if (is_in_loop_thread()) {
         cb();
         return;
@@ -109,18 +109,19 @@ void EventLoop::run_in_loop(const std::function<void()>& cb) {
     queue_in_loop(cb);
 }
 
-void EventLoop::queue_in_loop(const std::function<void()>& cb) {
+void EventLoop::queue_in_loop(const Functor& cb) {
     {
         std::unique_lock<std::mutex> lock(mtx_);
         pendingFunctors_.push(cb);
     }
-    // 非 loop 线程或正在执行 pendingFunctors 时唤醒，避免新 functor 被延迟到下轮 poll
+
+    // 跨线程投递和“执行队列期间再投递”都必须立即唤醒，避免任务拖到下一轮 poll。
     if (!is_in_loop_thread() || isCallingPendingFunctors_) {
         wakeup();
     }
 }
 
-TimerId EventLoop::run_after(double delaySeconds, const std::function<void()>& cb) {
+TimerId EventLoop::run_after(double delaySeconds, const Functor& cb) {
     auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(delaySeconds));
     if (delay.count() < 0) {
         delay = std::chrono::milliseconds(0);
@@ -129,7 +130,7 @@ TimerId EventLoop::run_after(double delaySeconds, const std::function<void()>& c
     return timerQueue_->add_timer(cb, when, std::chrono::milliseconds(0));
 }
 
-TimerId EventLoop::run_every(double intervalSeconds, const std::function<void()>& cb) {
+TimerId EventLoop::run_every(double intervalSeconds, const Functor& cb) {
     auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(intervalSeconds));
     if (interval.count() <= 0) {
         interval = std::chrono::milliseconds(1);
@@ -146,7 +147,6 @@ void EventLoop::cancel(TimerId timerId) {
 }
 
 int EventLoop::create_wakeup_fd() {
-    // eventfd 是 Linux 提供的一个轻量级的事件通知机制，适合用于线程间通知
     int eventFd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
     if (eventFd < 0) {
         spdlog::error("Failed to create eventfd");
@@ -156,8 +156,8 @@ int EventLoop::create_wakeup_fd() {
 }
 
 void EventLoop::wakeup() {
-    uint64_t one = 1;
-    ssize_t n = ::write(wakeupFd_, &one, sizeof(one));
+    const uint64_t one = 1;
+    const ssize_t n = ::write(wakeupFd_, &one, sizeof(one));
     if (n != sizeof(one)) {
         spdlog::error("EventLoop::wakeup() writes {} bytes instead of 8", n);
     }
@@ -165,22 +165,32 @@ void EventLoop::wakeup() {
 
 void EventLoop::on_read() {
     uint64_t one = 1;
-    ssize_t n = ::read(wakeupFd_, &one, sizeof(one));
+    const ssize_t n = ::read(wakeupFd_, &one, sizeof(one));
     if (n != sizeof(one)) {
         spdlog::error("EventLoop::on_read() reads {} bytes instead of 8", n);
     }
 }
 
 void EventLoop::do_pending_functors() {
-    // 将待执行的函数交换到本地局部变量，减少锁的持有时间（不能把执行回调的过程放在锁内）
-    std::queue<std::function<void()>> functors;
+    // 任务执行路径固定为“摘队列 -> 顺序执行”，避免锁与回调逻辑交织。
+    FunctorQueue functors = take_pending_functors();
+    execute_pending_functors(functors);
+}
+
+EventLoop::FunctorQueue EventLoop::take_pending_functors() {
+    FunctorQueue functors;
     isCallingPendingFunctors_ = true;
     {
         std::unique_lock<std::mutex> lock(mtx_);
         functors.swap(pendingFunctors_);
     }
+    return functors;
+}
+
+void EventLoop::execute_pending_functors(FunctorQueue& functors) {
     while (!functors.empty()) {
-        auto functor = functors.front(); // 必须值拷贝，不能用引用！pop 后引用悬空 (see docs/Document.md#pending-functors-bug)
+        // 这里必须做值拷贝；front() 返回的引用在 pop() 后会立即悬空。
+        Functor functor = functors.front();
         functors.pop();
         functor();
     }

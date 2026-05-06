@@ -1,57 +1,39 @@
-/**
- * @file SslContext.cpp
- * @brief SSL/TLS 上下文封装实现
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================== //
+// SslContext.cpp
+// TLS 服务端上下文实现，线性执行“创建 -> 配置 -> 加载证书 -> 加载私钥 -> 校验契约”。
+// ============================================== //
 
 #include "SslContext.h"
 #include "spdlog/spdlog.h"
 
 #include <openssl/ssl.h>
-#include <openssl/err.h>
 
 SslContext::SslContext() : ctx_(nullptr) {}
 
 SslContext::~SslContext() {
-    if (ctx_) {
-        SSL_CTX_free(ctx_);
-        ctx_ = nullptr;
-    }
+    reset_context();
 }
 
 bool SslContext::init(const std::string& certFile, const std::string& keyFile) {
-    // 创建 SSL 上下文（使用 TLS 服务端方法，自动协商最高版本）
-    ctx_ = SSL_CTX_new(TLS_server_method());
-    if (!ctx_) {
-        spdlog::critical("SslContext: Failed to create SSL_CTX");
+    // init 是唯一编排入口；每次重建都先清空旧上下文，避免失败重试时遗留旧状态。
+    reset_context();
+    if (!create_server_context()) {
         return false;
     }
 
-    // 设置最低 TLS 版本为 1.2（禁用已知不安全的 TLS 1.0/1.1）
-    SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
-
-    // 加载服务器证书
-    if (SSL_CTX_use_certificate_file(ctx_, certFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        spdlog::critical("SslContext: Failed to load certificate file: {}", certFile);
-        SSL_CTX_free(ctx_);
-        ctx_ = nullptr;
+    configure_protocol_policy();
+    if (!load_certificate(certFile)) {
+        reset_context();
         return false;
     }
 
-    // 加载服务器私钥
-    if (SSL_CTX_use_PrivateKey_file(ctx_, keyFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
-        spdlog::critical("SslContext: Failed to load private key file: {}", keyFile);
-        SSL_CTX_free(ctx_);
-        ctx_ = nullptr;
+    if (!load_private_key(keyFile)) {
+        reset_context();
         return false;
     }
 
-    // 验证私钥与证书匹配
-    if (!SSL_CTX_check_private_key(ctx_)) {
-        spdlog::critical("SslContext: Private key does not match certificate");
-        SSL_CTX_free(ctx_);
-        ctx_ = nullptr;
+    if (!validate_private_key()) {
+        reset_context();
         return false;
     }
 
@@ -64,9 +46,61 @@ SSL* SslContext::create_ssl() const {
         spdlog::error("SslContext: Cannot create SSL, context not initialized");
         return nullptr;
     }
+
     SSL* ssl = SSL_new(ctx_);
     if (!ssl) {
         spdlog::error("SslContext: Failed to create SSL object");
     }
     return ssl;
+}
+
+void SslContext::reset_context() {
+    if (!ctx_) {
+        return;
+    }
+
+    SSL_CTX_free(ctx_);
+    ctx_ = nullptr;
+}
+
+bool SslContext::create_server_context() {
+    ctx_ = SSL_CTX_new(TLS_server_method());
+    if (!ctx_) {
+        spdlog::critical("SslContext: Failed to create SSL_CTX");
+        return false;
+    }
+
+    return true;
+}
+
+void SslContext::configure_protocol_policy() {
+    // TLS 1.2 是当前服务端的最低安全线，统一在上下文层收口而不是分散到连接层。
+    SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
+}
+
+bool SslContext::load_certificate(const std::string& certFile) {
+    if (SSL_CTX_use_certificate_file(ctx_, certFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
+        spdlog::critical("SslContext: Failed to load certificate file: {}", certFile);
+        return false;
+    }
+
+    return true;
+}
+
+bool SslContext::load_private_key(const std::string& keyFile) {
+    if (SSL_CTX_use_PrivateKey_file(ctx_, keyFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
+        spdlog::critical("SslContext: Failed to load private key file: {}", keyFile);
+        return false;
+    }
+
+    return true;
+}
+
+bool SslContext::validate_private_key() {
+    if (!SSL_CTX_check_private_key(ctx_)) {
+        spdlog::critical("SslContext: Private key does not match certificate");
+        return false;
+    }
+
+    return true;
 }

@@ -11,9 +11,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-# CMake 不会自动解析通配符，因此必须先通过 file(GLOB ...) 获取文件列表
+# CMake 不会自动解析通配符，因此必须先通过递归 GLOB 获取与 src 对齐的测试文件列表
 set(source_files_dir ${CMAKE_CURRENT_SOURCE_DIR})
-file(GLOB source_files CONFIGURE_DEPENDS
+file(GLOB_RECURSE source_files CONFIGURE_DEPENDS
     ${source_files_dir}/*.cpp
 )
 add_executable(TudouUnitTest ${source_files})

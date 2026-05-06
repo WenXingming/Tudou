@@ -1,12 +1,3 @@
-/**
- * @file HttpContext.cpp
- * @brief HTTP 报文解析上下文封装类
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- *
- */
-
-#include <iostream>
 #include "HttpContext.h"
 
 
@@ -15,6 +6,7 @@ HttpContext::HttpContext() :
     settings_(),
     request_(),
     messageComplete_(false),
+    currentUrl_(),
     currentHeaderField_(),
     currentHeaderValue_(),
     lastWasValue_(false) {
@@ -31,9 +23,10 @@ HttpContext::HttpContext() :
 }
 
 bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
-    // llhttp_execute 消费的是全部 len，如果中途错误会返回错误码
-    auto err = llhttp_execute(&parser_, data, len);
-    // 只要无错误即视为消费了全部输入数据即 len 字节（未完成的消息会保留在 llhttp 内部状态中，等待下一次 execute 调用继续解析）
+    // 解析门面只负责执行状态机并返回契约结果，不在这里混入请求组装细节。
+    const llhttp_errno_t err = llhttp_execute(&parser_, data, len);
+
+    // llhttp 无错误时表示本批输入已经被当前状态机接收；是否完整由 messageComplete_ 单独表达。
     if (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) {
         nparsed = len;
         return true;
@@ -44,11 +37,7 @@ bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
 }
 
 void HttpContext::reset() {
-    request_.clear();
-    messageComplete_ = false;
-    currentHeaderField_.clear();
-    currentHeaderValue_.clear();
-    lastWasValue_ = false;
+    reset_message_state();
     llhttp_reset(&parser_);
 }
 
@@ -89,67 +78,91 @@ int HttpContext::on_message_complete(llhttp_t* parser) {
 }
 
 void HttpContext::on_message_begin_impl() {
-    request_.clear();
-    messageComplete_ = false;
-    currentHeaderField_.clear();
-    currentHeaderValue_.clear();
-    lastWasValue_ = false;
+    // 每条新消息都必须在干净状态下构建，避免上一个请求的片段泄漏到当前请求。
+    reset_message_state();
 }
 
 void HttpContext::on_url_impl(const char* at, size_t length) {
-    // 解析 method、url、path、query、version
-    // Method
-    const char* method_str = llhttp_method_name(static_cast<llhttp_method>(parser_.method));
-    if (method_str) {
-        request_.set_method(method_str);
-    }
-
-    // URL
-    std::string url(at, length);
-    request_.set_url(url);
-
-    // 简单拆分 URL 的 path 和 query
-    auto pos = url.find('?');
-    if (pos == std::string::npos) {
-        request_.set_path(url);
-    }
-    else {
-        request_.set_path(url.substr(0, pos));
-        request_.set_query(url.substr(pos + 1));
-    }
-
-    // version 统一用 HTTP/1.1
-    request_.set_version("HTTP/1.1");
+    // 请求行可能跨多次 parse 调用切分，先累计 target，再在 message complete 时一次性落盘。
+    append_request_target_fragment(at, length);
+    capture_request_method();
 }
 
 void HttpContext::on_header_field_impl(const char* at, size_t length) {
-    // 上一个是 value，说明一个完整的 header field-value 对已经结束
-    if (lastWasValue_) {
-        if (!currentHeaderField_.empty()) {
-            request_.add_header(currentHeaderField_, currentHeaderValue_);
-        }
-        currentHeaderField_.clear();
-        currentHeaderValue_.clear();
-        lastWasValue_ = false;
-    }
+    // llhttp 允许头字段被分片回调，因此进入新 field 前必须先提交上一组已闭合的键值。
+    flush_pending_header();
     currentHeaderField_.append(at, length);
 }
 
 void HttpContext::on_header_value_impl(const char* at, size_t length) {
-    // 并非每次调用都是新的 value，可能是分块传输。不知道 value 是否会被分块传输，所以每次都 append。
-    // 因为不知道 value 的结尾，所以只能等到下一个 header field 或消息结束时再保存。
+    // Header Value 可能被多次回调拼接，必须保持 append 语义直到明确闭合。
     currentHeaderValue_.append(at, length);
     lastWasValue_ = true;
 }
 
 void HttpContext::on_body_impl(const char* at, size_t length) {
+    // Body 可以被分块送达，因此请求体需要按序追加而不是覆盖。
     request_.append_body(at, length);
 }
 
 void HttpContext::on_message_complete_impl() {
+    // 报文结束时统一提交尾 header 和请求行，确保请求对象只暴露完整状态。
+    flush_pending_header();
+    apply_request_target();
+    capture_http_version();
+    messageComplete_ = true;
+}
+
+void HttpContext::reset_message_state() {
+    request_.clear();
+    messageComplete_ = false;
+    currentUrl_.clear();
+    currentHeaderField_.clear();
+    currentHeaderValue_.clear();
+    lastWasValue_ = false;
+}
+
+void HttpContext::append_request_target_fragment(const char* at, size_t length) {
+    currentUrl_.append(at, length);
+}
+
+void HttpContext::capture_request_method() {
+    const char* method = llhttp_method_name(static_cast<llhttp_method>(parser_.method));
+    if (method != nullptr) {
+        request_.set_method(method);
+    }
+}
+
+void HttpContext::apply_request_target() {
+    request_.set_url(currentUrl_);
+
+    const std::string::size_type querySeparator = currentUrl_.find('?');
+    if (querySeparator == std::string::npos) {
+        request_.set_path(currentUrl_);
+        request_.set_query("");
+        return;
+    }
+
+    request_.set_path(currentUrl_.substr(0, querySeparator));
+    request_.set_query(currentUrl_.substr(querySeparator + 1));
+}
+
+void HttpContext::capture_http_version() {
+    // HTTP 版本来自解析器最终状态，避免把所有请求都错误归一成 HTTP/1.1。
+    request_.set_version("HTTP/" + std::to_string(parser_.http_major) + "." + std::to_string(parser_.http_minor));
+}
+
+void HttpContext::flush_pending_header() {
+    if (!lastWasValue_) {
+        return;
+    }
+
     if (!currentHeaderField_.empty()) {
         request_.add_header(currentHeaderField_, currentHeaderValue_);
     }
-    messageComplete_ = true;
+
+    currentHeaderField_.clear();
+    currentHeaderValue_.clear();
+    lastWasValue_ = false;
 }
 

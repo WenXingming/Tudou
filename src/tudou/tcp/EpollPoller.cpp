@@ -1,9 +1,7 @@
-/**
- * @file EpollPoller.cpp
- * @brief 基于 epoll 的 I/O 多路复用器
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================================================
+// EpollPoller.cpp
+// epoll 封装实现，保持“等待 -> 翻译 -> 分发 -> 调整容量”的单层流程。
+// ============================================================================
 
 #include "EpollPoller.h"
 #include "EventLoop.h"
@@ -30,10 +28,10 @@ EpollPoller::~EpollPoller() {
 }
 
 void EpollPoller::poll(int timeoutMs) {
-    int numReady = get_ready_num(timeoutMs);
-    auto activeChannels = get_activate_channels(numReady);
+    const int numReady = get_ready_num(timeoutMs);
+    const auto activeChannels = get_activate_channels(numReady);
     dispatch_events(activeChannels);
-    resize_event_list(numReady); // dispatch 完成后再扩缩，避免遍历期间 eventList_ 重分配
+    resize_event_list(numReady);
 }
 
 void EpollPoller::update_channel(Channel* channel) {
@@ -124,7 +122,7 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
 }
 
 void EpollPoller::dispatch_events(const std::vector<Channel*>& activeChannels) {
-    for (auto channel : activeChannels) {
+    for (Channel* channel : activeChannels) {
         channel->handle_events();
     }
 }

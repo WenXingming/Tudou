@@ -1,3 +1,8 @@
+// ============================================================================
+// TimerQueue.cpp
+// TimerQueue 把 timerfd 事件拍平成“读事件、收集到期、执行回调、同步下次唤醒”。
+// ============================================================================
+
 #include "TimerQueue.h"
 
 #include <cassert>
@@ -71,13 +76,8 @@ void TimerQueue::add_timer_in_loop(const std::shared_ptr<Timer>& timer) {
     timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
     timersById_[timer->id()] = timer;
 
-    // 如果新添加的定时器是：1. 第一个定时器；2. 所有定时器中最早到期的一个
-    // 重置 timerfd 的到期时间为这个新定时器的到期时间，确保定时器能够及时触发
-    bool earliestChanged = timersByExpire_.empty()
-        || timer->expiration() < timersByExpire_.begin()->first.first;
-    if (earliestChanged) {
-        reset_timerfd(timer->expiration());
-    }
+    // 注册后统一同步 timerfd，确保首个定时器也会立即接管下一次唤醒时间。
+    sync_timerfd();
 }
 
 void TimerQueue::erase_timer_in_loop(TimerId timerId) {
@@ -88,73 +88,85 @@ void TimerQueue::erase_timer_in_loop(TimerId timerId) {
         spdlog::warn("TimerQueue::erase_timer_in_loop(): timerId {} not found", timerId.value());
         return;
     }
-    auto timer = it->second;
+    const auto timer = it->second;
     timersByExpire_.erase({ timer->expiration(), timer->id() });
     timersById_.erase(it);
 
-    // 如果被删除的定时器是所有定时器中最早到期的一个，重置 timerfd 的到期时间为下一个即将到期的定时器的到期时间，确保定时器能够及时触发
-    // 这里没有判断删除的定时器是否是最早到期的一个，直接重置 timerfd 的到期时间为下一个即将到期的定时器的到期时间，虽然可能会冗余地调用 reset_timerfd()，但代码更简单
-    // 否则用一个变量记录被删除的定时器的到期时间，然后和 timersByExpire_.begin()->first.first 比较即可（<=）
-    if (!timersByExpire_.empty()) {
-        reset_timerfd(timersByExpire_.begin()->first.first);
-    }
+    sync_timerfd();
 }
 
 void TimerQueue::on_timerfd_read(Channel&) {
     loop_->assert_in_loop_thread();
 
-    // 读取 timerfd 数据，重置 timerfd 的可读状态，准备下一次触发
+    // 处理路径固定为“消费事件 -> 抽取到期定时器 -> 执行/重启 -> 同步下次唤醒”。
     read_timerfd(timerFd_);
+    const Timestamp now = std::chrono::steady_clock::now();
+    const TimerList expiredTimers = collect_expired_timers(now);
+    execute_expired_timers(expiredTimers, now);
+    sync_timerfd();
+}
 
-    // 找到所有到期的定时器 ID，执行它们的回调函数，并根据是否重复决定是否重启定时器或删除定时器
-    auto now = std::chrono::steady_clock::now();
-    std::vector<uint64_t> expiredIds;
-    for (auto it = timersByExpire_.begin(); it != timersByExpire_.end() && it->first.first <= now;) {
-        expiredIds.push_back(it->first.second);
+TimerQueue::TimerList TimerQueue::collect_expired_timers(Timestamp now) {
+    TimerList expiredTimers;
+
+    auto it = timersByExpire_.begin();
+    while (it != timersByExpire_.end() && it->first.first <= now) {
+        expiredTimers.push_back(it->second);
         it = timersByExpire_.erase(it);
     }
 
-    for (auto id : expiredIds) {
-        auto it = timersById_.find(id);
-        if (it == timersById_.end()) {
-            spdlog::warn("TimerQueue::on_timerfd_read(): timerId {} not found in timersById_", id);
-            continue;
-        }
-        auto timer = it->second;
+    return expiredTimers;
+}
+
+void TimerQueue::execute_expired_timers(const TimerList& expiredTimers, Timestamp now) {
+    for (const auto& timer : expiredTimers) {
         timer->run();
 
-        // 二次检查：执行回调函数后，检查定时器是否被取消（可能在回调函数中被取消了）
-        auto stillExists = timersById_.find(id);
+        // 回调里可能主动取消定时器，所以执行后必须重新检查注册表。
+        const auto stillExists = timersById_.find(timer->id());
         if (stillExists == timersById_.end()) {
             continue;
         }
 
-        // 如果没有被取消且是重复定时器，则重启定时器；否则删除定时器
-        if (timer->is_repeat()) {
-            now = std::chrono::steady_clock::now();
-            timer->restart(now);
-            timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
+        if (!timer->is_repeat()) {
+            timersById_.erase(timer->id());
+            continue;
         }
-        else {
-            timersById_.erase(id);
-        }
-    }
 
-    // 重置 timerfd 的到期时间为下一个即将到期的定时器的到期时间，确保定时器能够及时触发
-    // 没有判断下一个即将到期的定时器的到期时间是否改变，直接重置，可能有冗余调用 reset_timerfd()，但代码更简单
-    if (!timersByExpire_.empty()) {
-        reset_timerfd(timersByExpire_.begin()->first.first);
+        timer->restart(now);
+        reschedule_timer(timer);
     }
 }
 
+void TimerQueue::reschedule_timer(const std::shared_ptr<Timer>& timer) {
+    timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
+}
+
+void TimerQueue::sync_timerfd() {
+    if (timersByExpire_.empty()) {
+        disarm_timerfd();
+        return;
+    }
+
+    reset_timerfd(timersByExpire_.begin()->first.first);
+}
+
 void TimerQueue::reset_timerfd(Timestamp expiration) {
-    // 更新底层 Linux timerfd 的下一次超时时间点，以便事件循环能在正确的时间醒来处理定时任务
     itimerspec newValue;
     memset(&newValue, 0, sizeof(newValue));
     newValue.it_value = to_timespec(expiration);
 
     if (::timerfd_settime(timerFd_, 0, &newValue, nullptr) < 0) {
         spdlog::error("TimerQueue::reset_timerfd() failed, errno={} ({})", errno, strerror(errno));
+    }
+}
+
+void TimerQueue::disarm_timerfd() {
+    itimerspec newValue;
+    memset(&newValue, 0, sizeof(newValue));
+
+    if (::timerfd_settime(timerFd_, 0, &newValue, nullptr) < 0) {
+        spdlog::error("TimerQueue::disarm_timerfd() failed, errno={} ({})", errno, strerror(errno));
     }
 }
 

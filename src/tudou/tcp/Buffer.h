@@ -1,65 +1,110 @@
-/**
- * @file Buffer.h
- * @brief 高效字节缓冲区，管理可读/可写/预留区域，并支持与 fd 的非阻塞读写。
- * @author WenXingming
- * @project: https://github.com/WenXingming/Tudou
- * @reference: https://www.bilibili.com/video/BV1PS4y1D74z/?spm_id_from=333.337.search-card.all.click&vd_source=5f255b90a5964db3d7f44633d085b6e4
- * @details
- *
- * 内部模型：
- *   A buffer class modeled after org.jboss.netty.buffer.ChannelBuffer
- *   设计参考 Netty 的 ChannelBuffer
- *   @code
- *   +-------------------+------------------+------------------+
- *   | prependable bytes |  readable bytes  |  writable bytes  |
- *   |                   |     (CONTENT)    |                  |
- *   +-------------------+------------------+------------------+
- *   |                   |                  |                  |
- *   0      <=      readerIndex   <=   writerIndex     <=     size
- *   @endcode
- *
- * - 共有两个数据流向（缓冲区设计的精巧之处在于读、写空间的自动转换）：
- *   1. 从 fd 读取数据写入 InputBuffer 的 writable bytes 区域（read_from_fd），自动变成可读区域，供上层从缓冲区读取使用（read_from_buffer）
- *   2. 上层写入数据到 OutputBuffer 的 writable bytes 区域（write_to_buffer），自动变成可读区域，供写入 fd 使用（write_to_fd）
- * - 总之：上层通过 read_from_buffer()/write_to_buffer() 与缓冲区进行数据搬运，缓冲区通过 read_from_fd()/write_to_fd() 与 fd 进行数据搬运。
- *
- */
+// ============================================================================
+// Buffer.h
+// Buffer 是 TCP 子系统的纯工具层，负责把 fd 读写和应用层字符串搬运统一成稳定的缓冲区契约。
+// ============================================================================
 
 #pragma once
+
+#include <sys/types.h>
+
 #include <vector>
 #include <string>
 
+// Buffer 只负责字节搬运与空间管理，不参与任何业务编排。
 class Buffer {
 public:
     explicit Buffer(size_t initialSize = kInitialSize_);
     ~Buffer();
 
-    std::string read_from_buffer(size_t len);              // 读走 len 个字节
+    /**
+     * @brief 从缓冲区中读走指定长度的数据。
+     * @param len 期望读取的字节数；超过可读长度时会安全截断。
+     * @return 读取出的字节串。
+     */
+    std::string read_from_buffer(size_t len);
+
+    /**
+     * @brief 读走当前缓冲区中的全部可读数据。
+     * @return 当前全部可读数据。
+     */
     std::string read_from_buffer();
+
+    /**
+     * @brief 把一段原始内存写入缓冲区。
+     * @param data 数据起始地址。
+     * @param len 数据长度。
+     */
     void write_to_buffer(const char* data, size_t len);
+
+    /**
+     * @brief 把字符串写入缓冲区。
+     * @param str 待写入的字符串。
+     */
     void write_to_buffer(const std::string& str);
 
-    ssize_t read_from_fd(int fd, int* savedErrno); // fd ==> buffer: 从 fd 读数据写入 buffer 的 writable 区域（写入 buffer）
-    ssize_t write_to_fd(int fd, int* savedErrno);  // buffer ==> fd: 把 buffer 的 readable 区域写入 fd（从 buffer 读出）
+    /**
+     * @brief 从 fd 读取数据并追加到缓冲区。
+     * @param fd 数据来源 fd。
+     * @param savedErrno 输出参数，返回系统错误码。
+     * @return 本次读取的字节数；负值表示读取失败。
+     */
+    ssize_t read_from_fd(int fd, int* savedErrno);
 
+    /**
+     * @brief 把缓冲区可读数据写入 fd。
+     * @param fd 数据目标 fd。
+     * @param savedErrno 输出参数，返回系统错误码。
+     * @return 本次写出的字节数；负值表示写入失败。
+     */
+    ssize_t write_to_fd(int fd, int* savedErrno);
+
+    /**
+     * @brief 获取可读字节数。
+     * @return 当前可读字节数。
+     */
     size_t readable_bytes() const;
+
+    /**
+     * @brief 获取可写字节数。
+     * @return 当前可写字节数。
+     */
     size_t writable_bytes() const;
 
 private:
+    /**
+     * @brief 获取预留头部空间的字节数。
+     * @return 当前 prepend 区域字节数。
+     */
     size_t prependable_bytes() const;
 
+    /**
+     * @brief 获取当前可读区域的起始指针。
+     * @return 可读区域首地址。
+     */
     const char* readable_start_ptr() const;
 
-    void maintain_read_index(size_t len);   // 读走 len 个字节，维护 index
-    void maintain_all_index();  // 读走所有字节，维护 index
+    /**
+     * @brief 消费指定数量的可读字节并维护索引。
+     * @param len 已消费字节数。
+     */
+    void maintain_read_index(size_t len);
 
+    /**
+     * @brief 重置读写索引到初始位置。
+     */
+    void maintain_all_index();
+
+    /**
+     * @brief 确保缓冲区至少还能写入指定字节数。
+     * @param len 需要补齐的可写空间。
+     */
     void make_space(size_t len);
 
 private:
     static const size_t kCheapPrepend_;
     static const size_t kInitialSize_;
 
-    std::vector<char> buffer_;
-    size_t readIndex_;
-    size_t writeIndex_;
+    std::vector<char> buffer_; // 底层连续字节数组，统一承载 prepend/readable/writable 三个区域。
+    size_t readIndex_; // 当前可读区域起点。
+    size_t writeIndex_; // 当前可读区域终点，也是可写区域起点。
 };

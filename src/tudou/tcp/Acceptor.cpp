@@ -1,14 +1,12 @@
-/**
- * @file Acceptor.cpp
- * @brief 监听新连接的接入器
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================================================
+// Acceptor.cpp
+// 监听接入器实现，显式展开“监听、accept、发布新连接”的控制路径。
+// ============================================================================
 
 #include "Acceptor.h"
 
-#include <arpa/inet.h>
 #include <cassert>
+#include <cerrno>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -29,11 +27,7 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
     start_listen(listenFd_);
 
     channel_ = std::make_unique<Channel>(loop_, listenFd_);
-    channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
-    channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
-    channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
-    channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
-    channel_->enable_reading();
+    bind_channel_callbacks();
 }
 
 Acceptor::~Acceptor() {
@@ -48,12 +42,12 @@ int Acceptor::get_listen_fd() const {
 }
 
 int Acceptor::create_fd() {
-    listenFd_ = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
-    if (listenFd_ < 0) {
+    const int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
+    if (listenFd < 0) {
         spdlog::error("Acceptor::create_fd(): socket error, errno: {}", errno);
         assert(false);
     }
-    return listenFd_;
+    return listenFd;
 }
 
 void Acceptor::bind_address(int listenFd) {
@@ -71,6 +65,14 @@ void Acceptor::start_listen(int listenFd) {
     }
 }
 
+void Acceptor::bind_channel_callbacks() {
+    channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
+    channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
+    channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
+    channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
+    channel_->enable_reading();
+}
+
 void Acceptor::on_error(Channel& channel) {
     spdlog::error("Acceptor: listenFd {} error", channel.get_fd());
 }
@@ -85,18 +87,31 @@ void Acceptor::on_write(Channel& channel) {
 }
 
 void Acceptor::on_read(Channel& channel) {
-    // LT 模式下每次 accept 一个连接即可，fd 仍可读时 epoll 会再次触发
-    sockaddr_in clientAddr;
-    socklen_t len = sizeof(clientAddr);
-    int connFd = ::accept(listenFd_, (sockaddr*)&clientAddr, &len);
+    // LT 模式下每次只接一个连接即可；若 backlog 仍有数据，epoll 会再次唤醒。
+    sockaddr_in clientAddr{};
+    const int connFd = accept_connection(&clientAddr);
     if (connFd < 0) {
-        spdlog::error("Acceptor::on_read(): accept error, errno: {}", errno);
+        if (!is_transient_accept_error(errno)) {
+            spdlog::error("Acceptor::on_read(): accept error, errno: {}", errno);
+        }
         return;
     }
-    InetAddress peerAddr(clientAddr);
-    spdlog::debug("Acceptor: connFd {} accepted from {}", connFd, peerAddr.get_ip_port());
 
-    // 嵌套调用回调函数。触发上层回调，上层进行逻辑处理
+    publish_connection(connFd, clientAddr);
+}
+
+int Acceptor::accept_connection(sockaddr_in* clientAddr) const {
+    socklen_t length = sizeof(*clientAddr);
+    return ::accept4(listenFd_, reinterpret_cast<sockaddr*>(clientAddr), &length, SOCK_NONBLOCK | SOCK_CLOEXEC);
+}
+
+bool Acceptor::is_transient_accept_error(int errorCode) const {
+    return errorCode == EAGAIN || errorCode == EWOULDBLOCK || errorCode == EINTR;
+}
+
+void Acceptor::publish_connection(int connFd, const sockaddr_in& clientAddr) {
+    const InetAddress peerAddr(clientAddr);
+    spdlog::debug("Acceptor: connFd {} accepted from {}", connFd, peerAddr.get_ip_port());
     handle_connect_callback(connFd, peerAddr);
 }
 
