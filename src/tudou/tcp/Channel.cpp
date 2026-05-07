@@ -35,7 +35,7 @@ Channel::~Channel() {
     loop_->assert_in_loop_thread();
     disable_all();
     remove_in_register();
-    ::close(fd_); // TODO: 引入 Socket/Fd RAII 负责 close。这里 fd 由上层创建，当前销毁
+    ::close(fd_); // 当前由 Channel 兜底关闭 fd；后续可再抽成独立 RAII 封装。
 }
 
 void Channel::set_read_callback(EventCallback cb) {

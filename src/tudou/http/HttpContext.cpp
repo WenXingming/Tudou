@@ -1,5 +1,9 @@
 #include "HttpContext.h"
 
+// ============================================================================
+// HttpContext.cpp
+// HTTP 请求解析上下文实现，把 llhttp 回调流收敛成稳定的 HttpRequest。
+// ============================================================================
 
 HttpContext::HttpContext() :
     parser_(),
@@ -11,6 +15,7 @@ HttpContext::HttpContext() :
     currentHeaderValue_(),
     lastWasValue_(false) {
 
+    // llhttp 的静态回调全部桥接回当前对象，保证解析器状态和请求构建状态始终同源。
     llhttp_settings_init(&settings_);
     settings_.on_message_begin = &HttpContext::on_message_begin;
     settings_.on_url = &HttpContext::on_url;
@@ -37,6 +42,7 @@ bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
 }
 
 void HttpContext::reset() {
+    // reset 同时清空 DTO 状态和 llhttp 内部状态机，确保下一条报文从干净边界开始。
     reset_message_state();
     llhttp_reset(&parser_);
 }
@@ -123,6 +129,7 @@ void HttpContext::reset_message_state() {
 }
 
 void HttpContext::append_request_target_fragment(const char* at, size_t length) {
+    // URL 可能跨多次回调送达，因此这里必须保持 append，而不是简单覆盖。
     currentUrl_.append(at, length);
 }
 
@@ -134,6 +141,7 @@ void HttpContext::capture_request_method() {
 }
 
 void HttpContext::apply_request_target() {
+    // 原始 request target 只在这里集中拆分，避免 path/query 逻辑散落在多个回调里。
     request_.set_url(currentUrl_);
 
     const std::string::size_type querySeparator = currentUrl_.find('?');
@@ -157,6 +165,7 @@ void HttpContext::flush_pending_header() {
         return;
     }
 
+    // 只有 field 和 value 都完成闭合后才真正落盘，避免分片 header 过早进入 DTO。
     if (!currentHeaderField_.empty()) {
         request_.add_header(currentHeaderField_, currentHeaderValue_);
     }

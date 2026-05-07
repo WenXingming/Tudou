@@ -1,7 +1,7 @@
-// ============================================== //
+// ============================================================================
 // HttpServer.cpp
 // HTTP/HTTPS 服务门面，把连接事件拍平成读取、解析、执行业务、发送响应。
-// ============================================== //
+// ============================================================================
 
 #include "HttpServer.h"
 #include "HttpContext.h"
@@ -200,7 +200,7 @@ std::string HttpServer::receive_data(const std::shared_ptr<TcpConnection>& conn)
 }
 
 HttpServer::TransportPayload HttpServer::normalize_transport_payload(const std::shared_ptr<TcpConnection>& conn,
-                                                                    std::string receivedData) {
+    std::string receivedData) {
     if (!is_ssl_enabled()) {
         return normalize_plaintext_payload(std::move(receivedData));
     }
@@ -216,7 +216,7 @@ HttpServer::TransportPayload HttpServer::normalize_plaintext_payload(std::string
 }
 
 HttpServer::TransportPayload HttpServer::normalize_tls_payload(const std::shared_ptr<TcpConnection>& conn,
-                                                              const std::string& encryptedData) {
+    const std::string& encryptedData) {
     TransportPayload payload;
     if (!conn) {
         return payload;
@@ -231,6 +231,7 @@ HttpServer::TransportPayload HttpServer::normalize_tls_payload(const std::shared
         return payload;
     }
 
+    // TLS 输入先尽可能完成握手，再把握手阶段产出的密文统一刷回连接。
     if (tls->is_handshaking() && !advance_tls_handshake(*tls, conn->get_fd())) {
         return payload;
     }
@@ -248,6 +249,7 @@ HttpServer::TransportPayload HttpServer::normalize_tls_payload(const std::shared
         return payload;
     }
 
+    // 只有握手建立完成后，当前批次输入才可能产出 HTTP 明文给上层解析器。
     return decrypt_tls_payload(*tls, conn->get_fd());
 }
 
@@ -325,6 +327,7 @@ HttpServer::ParseState HttpServer::parse_http_request(HttpContext& ctx, const st
         return ParseState::Rejected;
     }
 
+    // llhttp 接受了数据但消息未闭合时，需要保持上下文继续累计后续片段。
     if (!ctx.is_complete()) {
         return ParseState::NeedMoreData;
     }
@@ -367,8 +370,8 @@ HttpResponse HttpServer::build_not_found_response() const {
 }
 
 HttpResponse HttpServer::build_plain_text_response(int statusCode,
-                                                   const std::string& statusMessage,
-                                                   const std::string& body) const {
+    const std::string& statusMessage,
+    const std::string& body) const {
     HttpResponse resp;
     resp.set_http_version(kHttpVersion);
     resp.set_status(statusCode, statusMessage);
@@ -391,6 +394,7 @@ std::string HttpServer::serialize_response(const HttpResponse& resp) const {
 }
 
 void HttpServer::send_http_response(const std::shared_ptr<TcpConnection>& conn, HttpResponse resp) {
+    // 响应在发送前统一补齐协议默认头，避免业务回调遗漏网络层必需字段。
     finalize_http_response(resp);
     send_response(conn, serialize_response(resp));
 }
@@ -443,6 +447,7 @@ std::string HttpServer::encrypt_response(int fd, const std::string& plainData) {
         return "";
     }
 
+    // 应用明文写入 SSL 后，真正可发送的密文统一从写 BIO 提取。
     return tls->get_output();
 }
 

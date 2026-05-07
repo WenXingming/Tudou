@@ -1,7 +1,7 @@
-// ============================================== //
+// ============================================================================
 // HttpResponse.cpp
 // HTTP 响应 DTO 实现，线性执行“状态行 -> 头部 -> 空行 -> body”序列化。
-// ============================================== //
+// ============================================================================
 
 #include "HttpResponse.h"
 
@@ -23,6 +23,7 @@ HttpResponse::HttpResponse() :
 }
 
 void HttpResponse::set_header(const std::string& field, const std::string& value) {
+    // 同名响应头以后写入值为准，保持 DTO 的覆盖语义稳定。
     headers_[field] = value;
 }
 
@@ -42,6 +43,7 @@ std::string HttpResponse::package_to_string() const {
 }
 
 void HttpResponse::append_status_line(std::string& output) const {
+    // 状态行必须位于报文最前面，后续头部和 body 都依赖这一行建立协议语境。
     output.append(httpVersion_);
     output.push_back(' ');
     output.append(std::to_string(statusCode_));
@@ -69,6 +71,7 @@ void HttpResponse::append_headers(std::string& output) const {
 }
 
 void HttpResponse::append_body(std::string& output) const {
+    // 头部区和 body 之间的空行是 HTTP 报文边界的一部分，不能省略。
     output.append("\r\n");
     output.append(body_);
 }

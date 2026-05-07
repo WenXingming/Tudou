@@ -1,7 +1,7 @@
-// ============================================== //
+// ============================================================================
 // HttpRequest.cpp
 // HTTP 请求 DTO 实现，只处理字段读写与状态清空。
-// ============================================== //
+// ============================================================================
 
 #include "HttpRequest.h"
 
@@ -22,6 +22,7 @@ HttpRequest::HttpRequest() :
 }
 
 void HttpRequest::add_header(const std::string& field, const std::string& value) {
+    // DTO 语义下同名头字段以后写值覆盖前值，不在这里维护多值头聚合逻辑。
     headers_[field] = value;
 }
 
@@ -31,6 +32,7 @@ const std::string& HttpRequest::get_header(const std::string& field) const {
         return it->second;
     }
 
+    // 缺失头字段统一返回稳定的空字符串引用，避免暴露悬空临时对象。
     return kEmptyHeaderValue;
 }
 

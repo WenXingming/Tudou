@@ -59,15 +59,13 @@ EventLoop::~EventLoop() {
 
 void EventLoop::loop(int timeoutMs) {
     assert_in_loop_thread();
-    isQuit_ = false;
-    isLooping_ = true;
 
+    isLooping_ = true;
     while (!isQuit_) {
         // 每轮循环只做两件事：处理内核事件，然后处理本轮排队任务。
         poller_->poll(timeoutMs);
         do_pending_functors();
     }
-
     isLooping_ = false;
 }
 

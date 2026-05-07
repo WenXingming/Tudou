@@ -23,10 +23,10 @@ EventLoopThread::~EventLoopThread() {
     {
         std::lock_guard<std::mutex> lock(mtx_);
         if (loop_) {
+            // 先请求 loop 退出，再由 join 等待线程把资源完整收口。
             loop_->quit();
         }
     }
-    // 退出 loop 和线程（保持同步）
     if (thread_ && thread_->joinable()) {
         thread_->join();
     }
@@ -53,8 +53,12 @@ void EventLoopThread::wait_until_loop_ready() {
 void EventLoopThread::thread_func() {
     std::unique_ptr<EventLoop> eventLoop = create_loop();
     initialize_loop(eventLoop.get());
+
+    // 先对外发布 loop_，再进入 loop()，这样启动方拿到的一定是可用对象。
     publish_loop(std::move(eventLoop));
     loop_->loop();
+
+    // loop 退出后再清空对外可见指针，避免其他线程读到悬空对象。
     clear_loop();
 }
 

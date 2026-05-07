@@ -1,6 +1,36 @@
 // ============================================================================
 // EventLoop.h
 // Reactor 核心事件循环，负责 poll、唤醒、任务投递和定时任务编排。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// EventLoop.h
+// └── EventLoop
+//     ├── EventLoop()                              # [公有] 构造：创建 Poller、wakeup Channel 和 TimerQueue
+//     │   ├── create_wakeup_fd()                   # [私有] 创建 eventfd 作为跨线程唤醒源
+//     │   └── on_read()                            # [私有] 绑定为 wakeupChannel_ 读回调，负责消费唤醒事件
+//     ├── ~EventLoop()                             # [公有] 析构：校验线程归属并清理线程局部指针
+//     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
+//     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
+//     ├── loop(timeoutMs)                          # [公有] Reactor 主循环：poll 后执行本轮待处理任务
+//     │   └── do_pending_functors()                # [私有] 固定走“摘队列 -> 顺序执行”路径
+//     │       ├── take_pending_functors()          # [私有] 摘出当前批次待执行任务
+//     │       └── execute_pending_functors(...)    # [私有] 顺序执行本轮 functor
+//     ├── run_in_loop(cb)                          # [公有] 同线程直执，异线程转为异步投递
+//     │   └── queue_in_loop(cb)                    # [公有] 入队并按需唤醒所属 loop 线程
+//     │       └── wakeup()                         # [私有] 跨线程投递或重入投递时打断阻塞 poll
+//     ├── queue_in_loop(cb)                        # [公有] 把任务放入 pendingFunctors_ 并按需唤醒
+//     │   └── wakeup()                             # [私有] 保证任务不会拖到下一轮 poll
+//     ├── quit()                                   # [公有] 请求退出事件循环
+//     │   └── wakeup()                             # [私有] 非所属线程调用时强制唤醒 loop
+//     ├── run_after(delaySeconds, cb)              # [公有] 注册一次性定时任务，底层委托 TimerQueue
+//     ├── run_every(intervalSeconds, cb)           # [公有] 注册周期定时任务，底层委托 TimerQueue
+//     ├── cancel(timerId)                          # [公有] 取消指定定时器，底层委托 TimerQueue
+//     ├── update_channel(channel) const            # [公有] 把 Channel 事件兴趣同步到 Poller
+//     ├── remove_channel(channel) const            # [公有] 从 Poller 中注销 Channel
+//     ├── has_channel(channel) const               # [公有] 查询 Poller 是否已经持有该 Channel
+//     ├── is_in_loop_thread() const                # [公有] 判断当前线程是否就是所属 loop 线程
+//     └── assert_in_loop_thread() const            # [公有] 对线程归属做强校验
 // ============================================================================
 
 #pragma once
@@ -27,115 +57,28 @@ public:
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    /**
-     * @brief 启动事件循环并持续处理 I/O、唤醒事件和待执行任务。
-     * @param timeoutMs 单次 poll 的超时时间，单位毫秒。
-     */
-    void loop(int timeoutMs = pollTimeoutMs_);
-
-    /**
-     * @brief 将 Channel 的关注事件同步到 Poller。
-     * @param channel 需要注册或更新的 Channel。
-     */
+    void loop(int timeoutMs = pollTimeoutMs_); // EventLoop 主入口：poll 并执行本轮任务。
     void update_channel(Channel* channel) const;
-
-    /**
-     * @brief 将 Channel 从 Poller 中移除。
-     * @param channel 需要移除的 Channel。
-     */
     void remove_channel(Channel* channel) const;
-
-    /**
-     * @brief 判断当前 Poller 是否已经持有该 Channel。
-     * @param channel 需要检查的 Channel。
-     * @return true 表示当前 EventLoop 已注册该 Channel。
-     */
     bool has_channel(Channel* channel) const;
-
-    /**
-     * @brief 请求退出事件循环。
-     */
     void quit();
-
-    /**
-     * @brief 判断调用方是否位于当前 EventLoop 线程。
-     * @return true 表示当前线程就是所属线程。
-     */
     bool is_in_loop_thread() const;
-
-    /**
-     * @brief 断言调用方位于当前 EventLoop 线程。
-     */
     void assert_in_loop_thread() const;
+    void run_in_loop(const Functor& cb); // 同线程直执，跨线程转入 pending queue。
+    void queue_in_loop(const Functor& cb); // 异步投递任务，必要时唤醒阻塞中的 poll。
 
-    /**
-     * @brief 在当前 EventLoop 线程执行任务；若来自其他线程则转为异步投递。
-     * @param cb 待执行任务。
-     */
-    void run_in_loop(const Functor& cb);
-
-    /**
-     * @brief 将任务投递到 EventLoop 所属线程异步执行。
-     * @param cb 待执行任务。
-     */
-    void queue_in_loop(const Functor& cb);
-
-    /**
-     * @brief 在指定延迟后执行一次任务。
-     * @param delaySeconds 延迟秒数。
-     * @param cb 到期后执行的任务。
-     * @return TimerId 新创建的定时器标识。
-     */
-    TimerId run_after(double delaySeconds, const Functor& cb);
-
-    /**
-     * @brief 按固定周期重复执行任务。
-     * @param intervalSeconds 周期间隔，单位秒。
-     * @param cb 每次到期后执行的任务。
-     * @return TimerId 新创建的重复定时器标识。
-     */
-    TimerId run_every(double intervalSeconds, const Functor& cb);
-
-    /**
-     * @brief 取消一个定时器。
-     * @param timerId 需要取消的定时器标识。
-     */
+    TimerId run_after(double delaySeconds, const Functor& cb); // 注册一次性定时任务。
+    TimerId run_every(double intervalSeconds, const Functor& cb); // 注册周期定时任务。
     void cancel(TimerId timerId);
 
 private:
     using FunctorQueue = std::queue<Functor>;
 
-    /**
-     * @brief 创建用于跨线程唤醒的 eventfd。
-     * @return eventfd 文件描述符。
-     */
     int create_wakeup_fd();
-
-    /**
-     * @brief 通过 eventfd 唤醒阻塞中的 poll。
-     */
-    void wakeup();
-
-    /**
-     * @brief 消费 eventfd 上的唤醒信号。
-     */
-    void on_read();
-
-    /**
-     * @brief 执行当前批次的待处理任务。
-     */
-    void do_pending_functors();
-
-    /**
-     * @brief 将当前待处理任务队列交换到局部变量中。
-     * @return 一批待执行任务。
-     */
+    void wakeup(); // 通过 eventfd 打断阻塞中的 poll。
+    void on_read(); // 消费 wakeupFd_ 事件，避免重复通知。
+    void do_pending_functors(); // 执行当前批次待处理任务。
     FunctorQueue take_pending_functors();
-
-    /**
-     * @brief 顺序执行一批待处理任务。
-     * @param functors 本轮需要执行的任务队列。
-     */
     void execute_pending_functors(FunctorQueue& functors);
 
 private:

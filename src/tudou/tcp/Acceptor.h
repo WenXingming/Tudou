@@ -1,6 +1,29 @@
 // ============================================================================
 // Acceptor.h
 // 监听接入器，负责创建监听 socket、接收新连接，并把结果直接发布给上层。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// Acceptor.h
+// └── Acceptor
+//     ├── Acceptor(loop, listenAddr)              # [公有] 启动监听链路并绑定 listen Channel 回调
+//     │   ├── create_fd()                         # [私有] 创建 non-blocking + cloexec 监听 socket
+//     │   ├── bind_address(listenFd)              # [私有] 绑定监听地址
+//     │   ├── start_listen(listenFd)              # [私有] 进入 listen 状态
+//     │   └── bind_channel_callbacks()            # [私有] 把 read/error/close/write 事件接到成员函数
+//     │       ├── on_read(channel)                # [私有] 监听 socket 可读时的唯一接入入口
+//     │       │   ├── accept_connection(&clientAddr)      # [私有] accept4 取出一个新连接
+//     │       │   ├── is_transient_accept_error(errno)    # [私有] 忽略 EAGAIN/EINTR 等瞬时错误
+//     │       │   └── publish_connection(connFd, addr)    # [私有] 把新连接包装后继续向上发布
+//     │       │       └── handle_connect_callback(...)    # [私有] 触发上层 newConnectCallback_
+//     │       ├── on_error(channel)               # [私有] 监听 fd 错误分支，只做诊断
+//     │       ├── on_close(channel)               # [私有] 监听 fd 异常关闭分支
+//     │       └── on_write(channel)               # [私有] 监听 fd 异常写事件分支
+//     ├── Acceptor(copy)                          # [公有] 删除拷贝构造，保持监听 fd 唯一归属
+//     ├── operator=(copy)                         # [公有] 删除拷贝赋值，禁止复制监听通道状态
+//     ├── ~Acceptor()                             # [公有] 析构：资源由 Channel/fd 生命周期兜底清理
+//     ├── set_connect_callback(cb)                # [公有] 注册 accept 成功后的上行发布回调
+//     └── get_listen_fd() const                   # [公有] 返回监听 fd
 // ============================================================================
 
 #pragma once
@@ -23,92 +46,21 @@ public:
     Acceptor& operator=(const Acceptor&) = delete;
     ~Acceptor();
 
-    /**
-     * @brief 设置新连接回调。
-     * @param cb accept 成功后触发的回调。
-     */
-    void set_connect_callback(NewConnectCallback cb);
-
-    /**
-     * @brief 获取监听 socket fd。
-     * @return 当前监听 fd。
-     */
+    void set_connect_callback(NewConnectCallback cb); // 注册 accept 成功后的上行回调。
     int get_listen_fd() const;
 
 private:
-    /**
-     * @brief 创建监听 socket。
-     * @return 处于 non-blocking 和 close-on-exec 模式的监听 fd。
-     */
     int create_fd();
-
-    /**
-     * @brief 将监听地址绑定到 socket。
-     * @param listenFd 监听 socket fd。
-     */
     void bind_address(int listenFd);
-
-    /**
-     * @brief 启动监听状态。
-     * @param listenFd 监听 socket fd。
-     */
     void start_listen(int listenFd);
-
-    /**
-     * @brief 绑定监听 Channel 的事件回调。
-     */
     void bind_channel_callbacks();
-
-    /**
-     * @brief 处理监听 socket 的错误事件。
-     * @param channel 触发事件的监听 Channel。
-     */
     void on_error(Channel& channel);
-
-    /**
-     * @brief 处理监听 socket 的关闭事件。
-     * @param channel 触发事件的监听 Channel。
-     */
     void on_close(Channel& channel);
-
-    /**
-     * @brief 处理监听 socket 的异常写事件。
-     * @param channel 触发事件的监听 Channel。
-     */
     void on_write(Channel& channel);
-
-    /**
-     * @brief 处理监听 socket 的可读事件，是接入流程的唯一编排入口。
-     * @param channel 触发事件的监听 Channel。
-     */
-    void on_read(Channel& channel);
-
-    /**
-     * @brief 接收一个新连接。
-     * @param clientAddr 输出参数，返回对端地址。
-     * @return 成功时返回连接 fd，失败时返回 -1。
-     */
-    int accept_connection(sockaddr_in* clientAddr) const;
-
-    /**
-     * @brief 判断 accept 失败是否属于可恢复的瞬时错误。
-     * @param errorCode 本次 accept 失败的 errno。
-     * @return true 表示当前错误可以等待下一次可读事件后重试。
-     */
+    void on_read(Channel& channel); // 监听 fd 可读后的统一接入入口。
+    int accept_connection(sockaddr_in* clientAddr) const; // accept4 取出一个新连接。
     bool is_transient_accept_error(int errorCode) const;
-
-    /**
-     * @brief 将接收到的新连接发布给上层。
-     * @param connFd 新连接 fd。
-     * @param clientAddr 对端地址。
-     */
-    void publish_connection(int connFd, const sockaddr_in& clientAddr);
-
-    /**
-     * @brief 触发上层新连接回调。
-     * @param connFd 新连接 fd。
-     * @param peerAddr 对端地址。
-     */
+    void publish_connection(int connFd, const sockaddr_in& clientAddr); // 包装对端地址并向上发布。
     void handle_connect_callback(int connFd, const InetAddress& peerAddr);
 
 private:

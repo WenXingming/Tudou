@@ -152,6 +152,7 @@ void TcpServer::configure_connection_socket(const std::shared_ptr<TcpConnection>
 }
 
 void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn) {
+    // message/close 是连接生命周期的主干事件，因此总是绑定回 TcpServer。
     conn->set_message_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
         on_message(activeConn);
         });
@@ -159,6 +160,7 @@ void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& 
         on_close(activeConn);
         });
 
+    // 其余回调按需接通，避免未配置时多一层空转转发。
     if (errorCallback_) {
         conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
             notify_error_callback(activeConn);
@@ -180,6 +182,8 @@ void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& 
 
 void TcpServer::store_connection(int connFd, const std::shared_ptr<TcpConnection>& conn) {
     std::lock_guard<std::mutex> lock(connectionsMutex_);
+
+    // 连接表持有 shared_ptr，确保异步回调期间连接对象不会提前析构。
     connections_[connFd] = conn;
 }
 

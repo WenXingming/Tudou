@@ -1,6 +1,23 @@
 // ============================================================================
 // Timer.h
 // 定时器值对象与 TimerId 契约，负责描述到期时间、周期和回调本身。
+//
+// 成员函数调用树（[公有] 标注对外接口）：
+//
+// Timer.h
+// ├── TimerId
+// │   ├── TimerId()                             # [公有] 构造无效定时器 ID（0 表示 invalid）
+// │   ├── TimerId(value)                        # [公有] 用显式数值包装一个定时器标识
+// │   ├── valid() const                         # [公有] 判断当前 TimerId 是否有效
+// │   ├── value() const                         # [公有] 读取裸整数 ID
+// │   └── operator<(other) const                # [公有] 允许 TimerId 作为有序容器 key
+// └── Timer
+//     ├── Timer(id, callback, expiration, interval)  # [公有] 保存回调契约、到期时间与重复周期
+//     ├── id() const                            # [公有] 返回定时器 ID
+//     ├── expiration() const                    # [公有] 返回当前到期时间
+//     ├── is_repeat() const                     # [公有] 判断是否为周期定时器
+//     ├── run() const                           # [公有] 执行已注入回调
+//     └── restart(now)                          # [公有] 重复定时器按当前时刻推进下一次到期时间
 // ============================================================================
 
 #pragma once
@@ -15,21 +32,15 @@ public:
     TimerId() : value_(0) {}
     explicit TimerId(uint64_t value) : value_(value) {}
 
-    /**
-     * @brief 判断当前标识是否指向一个真实定时器。
-     * @return true 表示该标识有效。
-     */
     bool valid() const { return value_ != 0; }
-
-    /**
-     * @brief 读取底层整数标识。
-     * @return uint64_t 当前定时器标识值。
-     */
     uint64_t value() const { return value_; }
 
+    bool operator<(const TimerId& other) const { return value_ < other.value_; }
+
 private:
-    uint64_t value_; // 底层定时器标识值，0 表示无效。
+    uint64_t value_; // 0 表示无效。
 };
+
 
 // Timer 负责保存单个定时器的执行契约，不参与队列调度与编排。
 class Timer {
@@ -37,40 +48,17 @@ public:
     using Callback = std::function<void()>;
     using Timestamp = std::chrono::steady_clock::time_point;
 
-    Timer(uint64_t id, Callback callback, Timestamp expiration, std::chrono::milliseconds interval);
+    Timer(TimerId id, Callback callback, Timestamp expiration, std::chrono::milliseconds interval);
 
-    /**
-     * @brief 获取当前定时器的唯一标识。
-     * @return uint64_t 定时器 ID。
-     */
-    uint64_t id() const { return id_; }
-
-    /**
-     * @brief 获取当前定时器的下次到期时间。
-     * @return Timestamp 下次到期时间点。
-     */
+    TimerId id() const { return id_; }
     Timestamp expiration() const { return expiration_; }
-
-    /**
-     * @brief 判断当前定时器是否为重复定时器。
-     * @return true 表示 interval 大于 0。
-     */
     bool is_repeat() const { return interval_.count() > 0; }
-
-    /**
-     * @brief 执行定时器回调。
-     */
-    void run() const;
-
-    /**
-     * @brief 以当前时间为基准重启重复定时器。
-     * @param now 当前时间点。
-     */
-    void restart(Timestamp now);
+    void run() const; // 执行一次定时器回调。
+    void restart(Timestamp now); // 重复定时器推进下一次到期时间。
 
 private:
-    uint64_t id_; // 定时器唯一标识。
-    Callback callback_; // 到期后执行的回调。
-    Timestamp expiration_; // 当前记录的下次到期时间。
-    std::chrono::milliseconds interval_; // 重复定时器的周期；0 表示只执行一次。
+    TimerId id_;
+    Callback callback_;
+    Timestamp expiration_;
+    std::chrono::milliseconds interval_; // 0 表示一次性定时器。
 };

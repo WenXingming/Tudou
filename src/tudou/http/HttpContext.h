@@ -1,7 +1,48 @@
-// ============================================== //
+// ============================================================================
 // HttpContext.h
 // HTTP 请求解析上下文，负责把 llhttp 的回调流收敛成稳定的 HttpRequest。
-// ============================================== //
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// HttpContext.h
+// └── HttpContext
+//     ├── HttpContext()                          # [公有] 初始化 llhttp 配置并绑定静态回调桥
+//     ├── HttpContext(copy)                      # [公有] 删除拷贝构造，保持 parser_.data 指针稳定
+//     ├── operator=(copy)                        # [公有] 删除拷贝赋值，避免复制解析状态机
+//     ├── HttpContext(move)                      # [公有] 删除移动构造，避免 llhttp 持有悬空指针
+//     ├── operator=(move)                        # [公有] 删除移动赋值，保持上下文地址稳定
+//     ├── ~HttpContext()                         # [公有] 默认析构
+//     ├── parse(data, len, nparsed)              # [公有] 解析总入口，驱动 llhttp 状态机
+//     │   ├── on_message_begin(parser)           # [私有] 静态桥：消息开始回调
+//     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │   │   └── on_message_begin_impl()        # [私有] 重置本条消息的构建状态
+//     │   │       └── reset_message_state()      # [私有] 清空当前消息的全部中间状态
+//     │   ├── on_url(parser, at, length)         # [私有] 静态桥：URL 片段回调
+//     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │   │   └── on_url_impl(at, length)        # [私有] 累计 request target 并记录 method
+//     │   │       ├── append_request_target_fragment(...)  # [私有] 追加 URL 片段
+//     │   │       └── capture_request_method()   # [私有] 从 llhttp 状态提取 method
+//     │   ├── on_header_field(parser, at, length)  # [私有] 静态桥：Header Field 回调
+//     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │   │   └── on_header_field_impl(at, length)  # [私有] 必要时先提交上一个 header，再累计 field
+//     │   │       └── flush_pending_header()     # [私有] 提交已闭合的 header 键值
+//     │   ├── on_header_value(parser, at, length)  # [私有] 静态桥：Header Value 回调
+//     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │   │   └── on_header_value_impl(at, length)  # [私有] 累计 value 片段
+//     │   ├── on_body(parser, at, length)        # [私有] 静态桥：Body 片段回调
+//     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │   │   └── on_body_impl(at, length)       # [私有] 把 body 片段追加到请求体
+//     │   └── on_message_complete(parser)        # [私有] 静态桥：消息结束回调
+//     │       ├── get_context(parser)            # [私有] 恢复当前 HttpContext
+//     │       └── on_message_complete_impl()     # [私有] 提交尾 header、补齐 target/version，并标记完成
+//     │           ├── flush_pending_header()     # [私有] 提交最后一个 header
+//     │           ├── apply_request_target()     # [私有] 拆分 path 与 query
+//     │           └── capture_http_version()     # [私有] 根据解析器状态写入 HTTP 版本
+//     ├── is_complete() const                    # [公有] 判断当前请求是否已完整
+//     ├── get_request() const                    # [公有] 读取当前解析出的 HttpRequest
+//     └── reset()                                # [公有] 重置请求状态和 llhttp 解析器
+//         └── reset_message_state()              # [私有] 清空当前消息的全部中间状态
+// ============================================================================
 
 #pragma once
 #include <string>
@@ -19,161 +60,35 @@ public:
     HttpContext(HttpContext&&) = delete;
     HttpContext& operator=(HttpContext&&) = delete;
 
-    /**
-     * @brief 执行一次 HTTP 请求解析。
-     * @param data 输入缓冲区。
-     * @param len 输入缓冲区长度。
-     * @param nparsed 输出本次被解析器接受的字节数。
-     * @return true 表示 llhttp 接受了本批输入；false 表示出现协议解析错误。
-     */
-    bool parse(const char* data, size_t len, size_t& nparsed);
+    bool parse(const char* data, size_t len, size_t& nparsed); // 执行一次 llhttp 解析。
 
-    /**
-     * @brief 判断当前请求是否已经完整结束。
-     * @return true 表示已经收到完整 HTTP 请求。
-     */
     bool is_complete() const { return messageComplete_; }
-
-    /**
-     * @brief 获取当前已解析出的请求对象。
-     * @return 当前上下文持有的 HttpRequest 只读引用。
-     */
     const HttpRequest& get_request() const { return request_; }
-
-    /**
-     * @brief 清空请求与解析状态，为下一条报文做准备。
-     */
     void reset();
 
 private:
-    /**
-     * @brief 处理 llhttp 的 message begin 事件。
-     * @param parser llhttp 解析器实例。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_message_begin(llhttp_t* parser);
-
-    /**
-     * @brief 处理 llhttp 的 URL 片段回调。
-     * @param parser llhttp 解析器实例。
-     * @param at URL 数据起始地址。
-     * @param length URL 数据长度。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_url(llhttp_t* parser, const char* at, size_t length);
-
-    /**
-     * @brief 处理 llhttp 的 Header Field 片段回调。
-     * @param parser llhttp 解析器实例。
-     * @param at Header Field 数据起始地址。
-     * @param length Header Field 数据长度。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_header_field(llhttp_t* parser, const char* at, size_t length);
-
-    /**
-     * @brief 处理 llhttp 的 Header Value 片段回调。
-     * @param parser llhttp 解析器实例。
-     * @param at Header Value 数据起始地址。
-     * @param length Header Value 数据长度。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_header_value(llhttp_t* parser, const char* at, size_t length);
-
-    /**
-     * @brief 处理 llhttp 的 Body 片段回调。
-     * @param parser llhttp 解析器实例。
-     * @param at Body 数据起始地址。
-     * @param length Body 数据长度。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_body(llhttp_t* parser, const char* at, size_t length);
-
-    /**
-     * @brief 处理 llhttp 的 message complete 事件。
-     * @param parser llhttp 解析器实例。
-     * @return 总是返回 0，表示继续解析。
-     */
     static int on_message_complete(llhttp_t* parser);
-
-    /**
-     * @brief 把 llhttp 的用户数据恢复成当前上下文实例。
-     * @param parser llhttp 解析器实例。
-     * @return 当前 HttpContext 指针。
-     */
     static HttpContext* get_context(llhttp_t* parser) {
         return static_cast<HttpContext*>(parser->data);
     }
 
-    /**
-     * @brief 处理一条新消息的开始事件。
-     */
     void on_message_begin_impl();
-
-    /**
-     * @brief 处理 URL 片段并同步 method、path、query、version。
-     * @param at URL 数据起始地址。
-     * @param length URL 数据长度。
-     */
     void on_url_impl(const char* at, size_t length);
-
-    /**
-     * @brief 处理 Header Field 片段。
-     * @param at Header Field 数据起始地址。
-     * @param length Header Field 数据长度。
-     */
     void on_header_field_impl(const char* at, size_t length);
-
-    /**
-     * @brief 处理 Header Value 片段。
-     * @param at Header Value 数据起始地址。
-     * @param length Header Value 数据长度。
-     */
     void on_header_value_impl(const char* at, size_t length);
-
-    /**
-     * @brief 处理 Body 片段并追加到请求体。
-     * @param at Body 数据起始地址。
-     * @param length Body 数据长度。
-     */
     void on_body_impl(const char* at, size_t length);
-
-    /**
-     * @brief 收尾并标记当前消息解析完成。
-     */
     void on_message_complete_impl();
-
-    /**
-     * @brief 清空请求构建阶段的所有中间状态。
-     */
     void reset_message_state();
-
-    /**
-     * @brief 追加一段 URL 片段缓存，等待请求行完整后再统一落到 HttpRequest。
-     * @param at URL 数据起始地址。
-     * @param length URL 数据长度。
-     */
     void append_request_target_fragment(const char* at, size_t length);
-
-    /**
-     * @brief 从 llhttp 解析器中提取当前 HTTP Method。
-     */
     void capture_request_method();
-
-    /**
-     * @brief 应用完整 URL，并拆分 path 与 query。
-     */
-    void apply_request_target();
-
-    /**
-     * @brief 根据当前解析器状态设置 HTTP 版本。
-     */
-    void capture_http_version();
-
-    /**
-     * @brief 如果上一个头字段已经闭合，则将其提交到请求对象。
-     */
-    void flush_pending_header();
+    void apply_request_target(); // 将原始 URL 拆成 path 和 query。
+    void capture_http_version(); // 从 llhttp 当前状态提取 HTTP 版本。
+    void flush_pending_header(); // 提交已经闭合的一组 header 键值。
 
 private:
     llhttp_t parser_;                       // llhttp 解析器实例，持有当前协议状态机。

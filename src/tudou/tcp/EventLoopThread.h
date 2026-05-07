@@ -1,6 +1,24 @@
 // ============================================================================
 // EventLoopThread.h
 // EventLoop 与工作线程绑定器，负责在线程内创建、发布并驱动单个 EventLoop。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// EventLoopThread.h
+// └── EventLoopThread
+//     ├── EventLoopThread(cb)                    # [公有] 保存线程初始化回调，尚不启动线程
+//     ├── EventLoopThread(copy)                  # [公有] 删除拷贝构造，避免后台线程对象被复制
+//     ├── operator=(copy)                        # [公有] 删除拷贝赋值，保持线程与 loop 唯一绑定
+//     ├── ~EventLoopThread()                     # [公有] 析构：请求 loop 退出并 join 后台线程
+//     ├── start()                                # [公有] 启动线程并阻塞等待 EventLoop 准备完成
+//     │   ├── launch_thread()                    # [私有] 创建后台 std::thread
+//     │   │   └── thread_func()                  # [私有] 后台线程主干：创建、发布、运行并清理 EventLoop
+//     │   │       ├── create_loop() const        # [私有] 在线程内构建 EventLoop 实例
+//     │   │       ├── initialize_loop(loop) const  # [私有] 执行 ThreadInitCallback
+//     │   │       ├── publish_loop(loop)         # [私有] 把 loop_ 发布给外部并唤醒等待方
+//     │   │       └── clear_loop()               # [私有] loop 退出后回收已发布指针
+//     │   └── wait_until_loop_ready()            # [私有] 等待 loop_ 发布成功
+//     └── get_loop() const                       # [公有] 返回后台线程中的 EventLoop 指针
 // ============================================================================
 
 #pragma once
@@ -23,54 +41,16 @@ public:
     EventLoopThread& operator=(const EventLoopThread&) = delete;
     ~EventLoopThread();
 
-    /**
-     * @brief 启动后台线程并等待 EventLoop 准备完成。
-     */
-    void start();
-
-    /**
-     * @brief 获取后台线程中的 EventLoop。
-     * @return EventLoop* 后台线程中的 EventLoop；未启动时可能为空。
-     */
+    void start(); // 启动后台线程并等待 EventLoop 就绪。
     EventLoop* get_loop() const { return loop_.get(); }
 
 private:
-    /**
-     * @brief 创建后台线程对象。
-     */
     void launch_thread();
-
-    /**
-     * @brief 阻塞等待后台线程中的 EventLoop 完成发布。
-     */
     void wait_until_loop_ready();
-
-    /**
-     * @brief 后台线程的主函数，是线程侧启动流程的唯一编排入口。
-     */
-    void thread_func();
-
-    /**
-     * @brief 创建线程私有的 EventLoop。
-     * @return 后台线程持有的 EventLoop 对象。
-     */
+    void thread_func(); // 创建、发布并驱动该线程专属的 EventLoop。
     std::unique_ptr<EventLoop> create_loop() const;
-
-    /**
-     * @brief 执行线程初始化回调。
-     * @param loop 后台线程中的 EventLoop。
-     */
     void initialize_loop(EventLoop* loop) const;
-
-    /**
-     * @brief 把后台线程中的 EventLoop 发布给外部调用方。
-     * @param loop 后台线程中刚创建好的 EventLoop。
-     */
-    void publish_loop(std::unique_ptr<EventLoop> loop);
-
-    /**
-     * @brief 清空已经退出的 EventLoop 指针。
-     */
+    void publish_loop(std::unique_ptr<EventLoop> loop); // 对外发布已经准备好的 EventLoop。
     void clear_loop();
 
 private:

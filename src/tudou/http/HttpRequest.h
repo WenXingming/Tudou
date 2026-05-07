@@ -1,7 +1,31 @@
-// ============================================== //
+// ============================================================================
 // HttpRequest.h
 // HTTP 请求 DTO，负责承载解析后的协议字段，不参与业务编排。
-// ============================================== //
+//
+// 成员函数调用树（[公有] 标注接口层级）：
+//
+// HttpRequest.h
+// └── HttpRequest
+//     ├── HttpRequest()                          # [公有] 构造一个空请求 DTO
+//     ├── ~HttpRequest()                         # [公有] 默认析构
+//     ├── set_method(m)                          # [公有] 写入请求方法
+//     ├── get_method() const                     # [公有] 读取请求方法
+//     ├── set_url(u)                             # [公有] 写入原始请求目标
+//     ├── get_url() const                        # [公有] 读取原始请求目标
+//     ├── set_path(p)                            # [公有] 写入解析后的 path
+//     ├── get_path() const                       # [公有] 读取 path
+//     ├── set_query(q)                           # [公有] 写入解析后的 query
+//     ├── get_query() const                      # [公有] 读取 query
+//     ├── set_version(v)                         # [公有] 写入 HTTP 版本
+//     ├── get_version() const                    # [公有] 读取 HTTP 版本
+//     ├── add_header(field, value)               # [公有] 写入或覆盖一个请求头
+//     ├── get_headers() const                    # [公有] 读取全部请求头
+//     ├── get_header(field) const                # [公有] 按名称读取请求头
+//     ├── append_body(data, len)                 # [公有] 追加请求体分片
+//     ├── set_body(b)                            # [公有] 直接设置完整请求体
+//     ├── get_body() const                       # [公有] 读取请求体
+//     └── clear()                                # [公有] 清空全部协议字段
+// ============================================================================
 
 #pragma once
 #include <string>
@@ -15,108 +39,23 @@ public:
     HttpRequest();
     ~HttpRequest() = default;
 
-    /**
-     * @brief 设置请求方法。
-     * @param m HTTP Method。
-     */
     void set_method(const std::string& m) { method_ = m; }
-
-    /**
-     * @brief 获取请求方法。
-     * @return 当前请求方法。
-     */
     const std::string& get_method() const { return method_; }
-
-    /**
-     * @brief 设置原始请求目标。
-     * @param u 原始 URL。
-     */
     void set_url(const std::string& u) { url_ = u; }
-
-    /**
-     * @brief 获取原始请求目标。
-     * @return 当前请求 URL。
-     */
     const std::string& get_url() const { return url_; }
-
-    /**
-     * @brief 设置请求路径。
-     * @param p 解析后的 path。
-     */
     void set_path(const std::string& p) { path_ = p; }
-
-    /**
-     * @brief 获取请求路径。
-     * @return 当前请求 path。
-     */
     const std::string& get_path() const { return path_; }
-
-    /**
-     * @brief 设置查询字符串。
-     * @param q 解析后的 query。
-     */
     void set_query(const std::string& q) { query_ = q; }
-
-    /**
-     * @brief 获取查询字符串。
-     * @return 当前请求 query。
-     */
     const std::string& get_query() const { return query_; }
-
-    /**
-     * @brief 设置协议版本。
-     * @param v HTTP 版本字符串。
-     */
     void set_version(const std::string& v) { version_ = v; }
-
-    /**
-     * @brief 获取协议版本。
-     * @return 当前请求 HTTP 版本。
-     */
     const std::string& get_version() const { return version_; }
+    void add_header(const std::string& field, const std::string& value); // 写入或覆盖一个请求头。
 
-    /**
-     * @brief 写入或覆盖一个请求头。
-     * @param field 请求头名称。
-     * @param value 请求头值。
-     */
-    void add_header(const std::string& field, const std::string& value);
-
-    /**
-     * @brief 获取全部请求头。
-     * @return 当前请求头映射的只读引用。
-     */
     const Headers& get_headers() const { return headers_; }
-
-    /**
-     * @brief 按名称获取请求头。
-     * @param field 请求头名称。
-     * @return 若存在则返回对应值，否则返回空字符串引用。
-     */
     const std::string& get_header(const std::string& field) const;
-
-    /**
-     * @brief 追加请求体分片。
-     * @param data 请求体片段起始地址。
-     * @param len 请求体片段长度。
-     */
     void append_body(const char* data, size_t len) { body_.append(data, len); }
-
-    /**
-     * @brief 直接设置完整请求体。
-     * @param b 完整请求体。
-     */
     void set_body(const std::string& b) { body_ = b; }
-
-    /**
-     * @brief 获取请求体。
-     * @return 当前请求体内容。
-     */
     const std::string& get_body() const { return body_; }
-
-    /**
-     * @brief 清空所有协议字段，回到初始状态。
-     */
     void clear();
 
 private:

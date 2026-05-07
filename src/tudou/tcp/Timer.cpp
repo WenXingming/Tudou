@@ -5,7 +5,9 @@
 
 #include "Timer.h"
 
-Timer::Timer(uint64_t id, Callback callback, Timestamp expiration, std::chrono::milliseconds interval)
+#include <spdlog/spdlog.h>
+
+Timer::Timer(TimerId id, Callback callback, Timestamp expiration, std::chrono::milliseconds interval)
     : id_(id)
     , callback_(std::move(callback))
     , expiration_(expiration)
@@ -14,6 +16,10 @@ Timer::Timer(uint64_t id, Callback callback, Timestamp expiration, std::chrono::
 
 void Timer::run() const {
     // Timer 自身只负责执行已注入回调，不判断调度时机。
+    if (!callback_) {
+        spdlog::error("Timer {} has no callback to run", id_.value());
+        return;
+    }
     callback_();
 }
 

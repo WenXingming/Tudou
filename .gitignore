@@ -7,3 +7,6 @@ configs/file-link-server/storage/*
 *.log
 configs/static-file-http-server/assets/Homepage
 configs/
+
+# Claude
+.claude/

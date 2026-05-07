@@ -1,7 +1,7 @@
-// ============================================== //
+// ============================================================================
 // TlsConnection.cpp
 // 单连接 TLS 状态机实现，统一处理握手、加解密与错误态收敛。
-// ============================================== //
+// ============================================================================
 
 #include "TlsConnection.h"
 #include "spdlog/spdlog.h"
@@ -20,6 +20,7 @@ TlsConnection::TlsConnection(SSL* ssl)
     , wbio_(nullptr)
     , state_(State::HANDSHAKING) {
 
+    // 连接级 TLS 资源在构造时一次性装配完成，后续所有动作都围绕同一组 SSL/BIO 展开。
     initialize_tls_session();
 }
 
@@ -139,6 +140,7 @@ std::string TlsConnection::get_output() {
         return output;
     }
 
+    // OpenSSL 把待发送密文积压在写 BIO 里，网络层统一从这里拉取后再 send。
     const int pending = BIO_ctrl_pending(wbio_);
     if (pending <= 0) {
         return output;

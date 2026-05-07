@@ -1,6 +1,43 @@
 // ============================================================================
 // TcpServer.h
 // TCP 服务器连接编排器，负责接收新连接、装配 TcpConnection，并向上转发会话事件。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// TcpServer.h
+// └── TcpServer
+//     ├── TcpServer(ip, port, ioLoopNum)         # [公有] 构造：创建线程池、主 loop 和 Acceptor
+//     │   ├── require_main_loop() const          # [私有] 取出主 EventLoop 作为监听线程
+//     │   └── on_connect(connFd, peerAddr)       # [私有] 绑定为 Acceptor 的新连接回调
+//     │       ├── assert_in_main_loop_thread() const  # [私有] 确保 accept 回调在主 loop 线程执行
+//     │       ├── select_loop() const                 # [私有] 轮询选出负责该连接的 IO loop
+//     │       ├── resolve_local_address(connFd) const # [私有] 读取本地地址快照
+//     │       ├── create_connection(...) const        # [私有] 构造 TcpConnection
+//     │       ├── configure_connection_socket(conn) const  # [私有] 统一配置 no-delay/keepalive
+//     │       ├── bind_connection_callbacks(conn)     # [私有] 绑定消息、关闭、错误、背压等回调
+//     │       │   ├── on_message(conn)                # [私有] TcpServer 只转发消息事件
+//     │       │   │   └── notify_message_callback(conn) # [私有] 触发上层 messageCallback_
+//     │       │   ├── on_close(conn)                  # [私有] 关闭主干：先删连接，再通知业务层
+//     │       │   │   ├── remove_connection(conn)     # [私有] 从 connections_ 中移除 fd
+//     │       │   │   └── notify_close_callback(conn) # [私有] 转发连接关闭事件
+//     │       │   ├── notify_error_callback(conn)     # [私有] 向上分发错误事件
+//     │       │   ├── notify_write_complete_callback(conn)  # [私有] 向上分发写完成事件
+//     │       │   └── notify_high_water_mark_callback(conn) # [私有] 向上分发高水位事件
+//     │       ├── store_connection(connFd, conn)      # [私有] 放入活动连接表
+//     │       ├── establish_connection(conn) const    # [私有] 触发 tie/self-keepalive 初始化
+//     │       └── notify_connection_callback(conn)    # [私有] 把“连接已建立”事件抛给业务层
+//     ├── ~TcpServer()                            # [公有] 析构：资源由成员对象统一回收
+//     ├── start()                                 # [公有] 启动 IO 线程池并进入主事件循环
+//     │   └── require_main_loop() const           # [私有] 获取主 loop
+//     ├── set_connection_callback(cb)             # [公有] 注册建连回调
+//     ├── set_message_callback(cb)                # [公有] 注册消息回调
+//     ├── set_close_callback(cb)                  # [公有] 注册关闭回调
+//     ├── set_error_callback(cb)                  # [公有] 注册错误回调
+//     ├── set_write_complete_callback(cb)         # [公有] 注册写完成回调
+//     ├── set_high_water_mark_callback(cb, mark)  # [公有] 注册高水位回调并设置阈值
+//     ├── get_ip() const                          # [公有] 返回监听 IP
+//     ├── get_port() const                        # [公有] 返回监听端口
+//     └── get_num_threads() const                 # [公有] 返回线程池 loop 总数
 // ============================================================================
 
 #pragma once
@@ -33,189 +70,40 @@ public:
     TcpServer(std::string ip, uint16_t port, size_t ioLoopNum = 0);
     ~TcpServer();
 
-    /**
-     * @brief 启动 IO 线程池并进入主事件循环。
-     * @post 主线程开始监听并接收新的 TCP 连接。
-     */
-    void start();
+    void start(); // 启动 IO 线程池，并让主 loop 开始接收连接。
 
-    /**
-     * @brief 设置连接建立后的业务回调。
-     * @param cb 连接建立时触发的回调。
-     */
     void set_connection_callback(ConnectionCallback cb);
-
-    /**
-     * @brief 设置收到消息后的业务回调。
-     * @param cb 消息到达时触发的回调。
-     */
     void set_message_callback(MessageCallback cb);
-
-    /**
-     * @brief 设置连接关闭后的业务回调。
-     * @param cb 连接关闭时触发的回调。
-     */
     void set_close_callback(CloseCallback cb);
-
-    /**
-     * @brief 设置连接错误后的业务回调。
-     * @param cb 连接发生错误时触发的回调。
-     */
     void set_error_callback(ErrorCallback cb);
-
-    /**
-     * @brief 设置写缓冲完全刷入内核后的回调。
-     * @param cb 写完成时触发的回调。
-     */
     void set_write_complete_callback(WriteCompleteCallback cb);
-
-    /**
-     * @brief 设置高水位回调与阈值。
-     * @param cb 积压超过阈值时触发的回调。
-     * @param highWaterMark 高水位阈值，单位字节。
-     */
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark = 64 * 1024 * 1024);
-
-    /**
-     * @brief 获取监听 IP。
-     * @return 服务监听 IP。
-     */
     const std::string& get_ip() const { return ip_; }
-
-    /**
-     * @brief 获取监听端口。
-     * @return 服务监听端口。
-     */
     uint16_t get_port() const { return port_; }
-
-    /**
-     * @brief 获取线程池中的 IO 线程数量。
-     * @return IO 线程数量。
-     */
     int get_num_threads() const { return loopThreadPool_ ? loopThreadPool_->get_num_threads() : 0; }
 
 private:
-    /**
-     * @brief 获取主事件循环；若主循环缺失则终止程序。
-     * @return 主事件循环引用。
-     */
     EventLoop& require_main_loop() const;
-
-    /**
-     * @brief 校验当前线程就是主事件循环线程。
-     */
     void assert_in_main_loop_thread() const;
-
-    /**
-     * @brief 选择一个负责该连接的 IO 事件循环。
-     * @return 被选中的 IO 事件循环引用。
-     */
     EventLoop& select_loop() const;
-
-    /**
-     * @brief 处理 acceptor 上报的新连接，并在目标线程中完成装配。
-     * @param connFd 新连接 fd。
-     * @param peerAddr 对端地址。
-     */
-    void on_connect(int connFd, const InetAddress& peerAddr);
-
-    /**
-     * @brief 读取刚建立连接的本地地址。
-     * @param connFd 新连接 fd。
-     * @return 本地地址；失败时返回零值地址。
-     */
+    void on_connect(int connFd, const InetAddress& peerAddr); // 新连接装配总入口。
     InetAddress resolve_local_address(int connFd) const;
-
-    /**
-     * @brief 创建一个 TcpConnection 对象并绑定所属 IO 线程。
-     * @param ioLoop 负责该连接的 IO 事件循环。
-     * @param connFd 新连接 fd。
-     * @param localAddr 本地地址。
-     * @param peerAddr 对端地址。
-     * @return 新建的连接对象。
-     */
     std::shared_ptr<TcpConnection> create_connection(EventLoop& ioLoop,
         int connFd,
         const InetAddress& localAddr,
         const InetAddress& peerAddr) const;
-
-    /**
-     * @brief 配置连接的传输层选项。
-     * @param conn 待配置的连接对象。
-     */
     void configure_connection_socket(const std::shared_ptr<TcpConnection>& conn) const;
-
-    /**
-     * @brief 为新连接绑定 TcpServer 侧的事件回调。
-     * @param conn 待绑定回调的连接对象。
-     */
-    void bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 将连接注册到 fd->connection 映射中。
-     * @param connFd 新连接 fd。
-     * @param conn 待注册的连接对象。
-     */
+    void bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn); // 接回消息、关闭、错误等事件。
     void store_connection(int connFd, const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 完成连接自保活与 Channel 绑定。
-     * @param conn 已装配完成的连接对象。
-     */
     void establish_connection(const std::shared_ptr<TcpConnection>& conn) const;
-
-    /**
-     * @brief 向上分发连接建立事件。
-     * @param conn 已建立的连接对象。
-     */
     void notify_connection_callback(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 转发连接上的消息事件。
-     * @param conn 触发消息事件的连接对象。
-     */
     void on_message(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 向上分发消息事件。
-     * @param conn 触发消息事件的连接对象。
-     */
     void notify_message_callback(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 处理连接关闭事件。
-     * @param conn 已关闭的连接对象。
-     */
     void on_close(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 从连接表中移除一个连接。
-     * @param conn 待移除的连接对象。
-     */
-    void remove_connection(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 向上分发连接关闭事件。
-     * @param conn 已关闭的连接对象。
-     */
+    void remove_connection(const std::shared_ptr<TcpConnection>& conn); // 从活动连接表中删除 fd。
     void notify_close_callback(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 向上分发连接错误事件。
-     * @param conn 发生错误的连接对象。
-     */
     void notify_error_callback(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 向上分发写完成事件。
-     * @param conn 写缓冲已刷空的连接对象。
-     */
     void notify_write_complete_callback(const std::shared_ptr<TcpConnection>& conn);
-
-    /**
-     * @brief 向上分发高水位事件。
-     * @param conn 写缓冲超过阈值的连接对象。
-     */
     void notify_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn);
 
 private:

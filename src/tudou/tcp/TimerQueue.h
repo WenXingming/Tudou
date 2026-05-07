@@ -1,6 +1,29 @@
 // ============================================================================
 // TimerQueue.h
-// TimerQueue 负责把多个 Timer 编排到 timerfd 上，并以 EventLoop 线程为唯一执行入口。
+// 基于 Linux timerfd 的定时器队列：将到期时间映射为 epoll 可读事件，在 EventLoop
+// 线程内单线程执行所有定时任务。双索引（按到期时间 + 按 ID）支持 O(log n) 增删。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// TimerQueue.h
+// └── TimerQueue
+//     ├── TimerQueue(loop)                         # [公有] 构造：创建 timerfd + Channel，并绑定读回调
+//     │   ├── create_timerfd()                     # [私有] 创建 MONOTONIC timerfd 作为定时事件源
+//     │   └── on_timerfd_read()                    # [私有] 绑定为 timerfd 可读时的唯一调度入口
+//     │       ├── read_timerfd(timerFd_)           # [私有] 消费 timerfd 读事件，避免 epoll 反复通知
+//     │       ├── collect_expired_timers(now)      # [私有] 收集所有已到期定时器
+//     │       ├── execute_expired_timers(expired, now) # [私有] 执行回调并处理 repeat/erase 逻辑
+//     │       └── sync_timerfd()                   # [私有] 以新的最早到期时间重置 timerfd
+//     ├── TimerQueue(copy)                         # [公有] 删除拷贝构造，避免复制 timerfd 与双索引状态
+//     ├── operator=(copy)                          # [公有] 删除拷贝赋值，保持队列归属唯一
+//     ├── ~TimerQueue()                            # [公有] 析构：资源由 Channel/timerfd 生命周期托管
+//     ├── add_timer(callback, when, interval)      # [公有] 统一注册入口：生成 ID 后投递到 EventLoop 线程
+//     │   └── sync_timerfd()                       # [私有] 若最早到期时间变化则重武装 timerfd
+//     │       ├── reset_timerfd(expiration)        # [私有] 设置下次唤醒时刻
+//     │       └── disarm_timerfd()                 # [私有] 队列为空时解除武装
+//     ├── erase_timer(timerId)                     # [公有] 统一删除入口：按 ID 从双索引中移除
+//     │   └── sync_timerfd()                       # [私有] 删除后重新同步最早到期时间
+//
 // ============================================================================
 
 #pragma once
@@ -16,11 +39,11 @@
 class Channel;
 class EventLoop;
 
-// TimerQueue 负责维护 timerfd 与定时器索引，保证定时任务在 EventLoop 线程内线性执行。
+// TimerQueue 负责在 EventLoop 线程内维护 timerfd 与双索引定时器集合。
 class TimerQueue {
 public:
     using Timestamp = std::chrono::steady_clock::time_point;
-    using TimerKey = std::pair<Timestamp, uint64_t>;
+    using TimerKey = std::pair<Timestamp, TimerId>;
     using TimerMap = std::map<TimerKey, std::shared_ptr<Timer>>;
     using TimerList = std::vector<std::shared_ptr<Timer>>;
 
@@ -30,94 +53,32 @@ public:
     TimerQueue(const TimerQueue&) = delete;
     TimerQueue& operator=(const TimerQueue&) = delete;
 
-    /**
-     * @brief 新增一个定时器。
-     * @param callback 到期后执行的任务。
-     * @param when 首次到期时间。
-     * @param interval 重复定时器的周期；0 表示一次性定时器。
-     * @return TimerId 新创建的定时器标识。
-     */
+    // 线程安全：索引修改统一投递到 EventLoop 线程执行。
     TimerId add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval);
 
-    /**
-     * @brief 按标识移除一个定时器。
-     * @param timerId 需要移除的定时器标识。
-     */
+    // 线程安全：索引修改统一投递到 EventLoop 线程执行。
     void erase_timer(TimerId timerId);
 
 private:
-    /**
-     * @brief 在 EventLoop 线程内注册一个定时器。
-     * @param timer 待注册的定时器对象。
-     */
-    void add_timer_in_loop(const std::shared_ptr<Timer>& timer);
+    void on_timerfd_read(); // timerfd 可读后的统一处理入口。
+    TimerList collect_expired_timers(Timestamp now); // 从时间索引中摘出所有到期定时器。
+    void execute_expired_timers(const TimerList& expiredTimers, Timestamp now); // 执行回调并处理重插或删除。
 
-    /**
-     * @brief 在 EventLoop 线程内移除一个定时器。
-     * @param timerId 需要移除的定时器标识。
-     */
-    void erase_timer_in_loop(TimerId timerId);
-
-    /**
-     * @brief 处理 timerfd 可读事件，是定时器执行的唯一编排入口。
-     * @param channel 触发事件的 timerfd Channel。
-     */
-    void on_timerfd_read(Channel& channel);
-
-    /**
-     * @brief 收集所有已经到期的定时器。
-     * @param now 当前时间点。
-     * @return TimerList 当前批次到期的定时器集合。
-     */
-    TimerList collect_expired_timers(Timestamp now);
-
-    /**
-     * @brief 执行本批次到期的定时器，并按需重启重复定时器。
-     * @param expiredTimers 本批次到期的定时器集合。
-     * @param now 当前时间点。
-     */
-    void execute_expired_timers(const TimerList& expiredTimers, Timestamp now);
-
-    /**
-     * @brief 将一个重复定时器重新加入索引。
-     * @param timer 需要重启的定时器对象。
-     */
-    void reschedule_timer(const std::shared_ptr<Timer>& timer);
-
-    /**
-     * @brief 根据当前最早到期定时器同步 timerfd。
-     */
+    // 根据最早到期时间同步 timerfd 状态。
     void sync_timerfd();
-
-    /**
-     * @brief 将 timerfd 重置到指定到期时间。
-     * @param expiration 下一个需要唤醒 EventLoop 的时间点。
-     */
     void reset_timerfd(Timestamp expiration);
-
-    /**
-     * @brief 取消 timerfd 当前的到期设置。
-     */
     void disarm_timerfd();
 
-    /**
-     * @brief 创建底层 timerfd。
-     * @return timerfd 文件描述符。
-     */
     static int create_timerfd();
-
-    /**
-     * @brief 读取 timerfd 计数，消费本次可读事件。
-     * @param timerFd 需要读取的 timerfd。
-     */
     static void read_timerfd(int timerFd);
 
 private:
-    EventLoop* loop_; // 所属 EventLoop，限定所有调度操作的线程边界。
-    int timerFd_; // Linux timerfd，用来把下次到期时间映射成 epoll 可读事件。
-    std::unique_ptr<Channel> timerChannel_; // 监听 timerFd_ 的 Channel。
+    EventLoop* loop_; // 所属 EventLoop，限定所有索引操作的线程边界。
+    int timerFd_; // timerfd 负责把最早到期时间映射成可读事件。
+    std::unique_ptr<Channel> timerChannel_; // 监听 timerfd 可读事件的 Channel。
 
-    uint64_t nextTimerId_; // 递增生成的定时器 ID。
-    TimerMap timersByExpire_; // 以到期时间排序的主索引，用于快速找到下一次唤醒时间。
-    std::map<uint64_t, std::shared_ptr<Timer>> timersById_; // 以 TimerId 索引的辅助表，用于 O(log n) 取消定时器。
+    uint64_t nextTimerId_; // 单调递增的定时器 ID 生成器。
+
+    TimerMap timersByExpire_; // 按到期时间排序，驱动 collect_expired 和 sync_timerfd。
+    std::map<TimerId, std::shared_ptr<Timer>> timersById_; // 按 ID 索引，支持删除和回调后存活检查。
 };

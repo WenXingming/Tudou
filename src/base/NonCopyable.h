@@ -1,7 +1,18 @@
-// ============================================== //
+// ============================================================================
 // NonCopyable.h
 // 不可拷贝也不可移动的 mixin 基类，用于把所有权语义固定在类型边界。
-// ============================================== //
+//
+// 成员函数调用树（[公有]/[受保护] 标注接口层级）：
+//
+// NonCopyable.h
+// └── NonCopyable
+//     ├── NonCopyable(copy)                      # [公有] 删除拷贝构造
+//     │   ├── NonCopyable()                      # [受保护] 派生类继承链使用的默认构造
+//     │   └── ~NonCopyable()                     # [受保护] 派生类继承链使用的默认析构
+//     ├── operator=(copy)                        # [公有] 删除拷贝赋值
+//     ├── NonCopyable(move)                      # [公有] 删除移动构造
+//     └── operator=(move)                        # [公有] 删除移动赋值
+// ============================================================================
 
 #pragma once
 
@@ -9,21 +20,9 @@
 class NonCopyable {
 public:
     NonCopyable(const NonCopyable&) = delete;
-
-    /**
-     * @brief 禁止拷贝赋值。
-     * @param other 试图被赋值的源对象。
-     * @return NonCopyable& 该操作被删除，不可用。
-     */
     NonCopyable& operator=(const NonCopyable&) = delete;
 
     NonCopyable(NonCopyable&&) = delete;
-
-    /**
-     * @brief 禁止移动赋值。
-     * @param other 试图被移动赋值的源对象。
-     * @return NonCopyable& 该操作被删除，不可用。
-     */
     NonCopyable& operator=(NonCopyable&&) = delete;
 
 protected:

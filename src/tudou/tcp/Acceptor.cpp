@@ -26,6 +26,7 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
     bind_address(listenFd_);
     start_listen(listenFd_);
 
+    // 监听 socket 就绪后再挂接 Channel，保证回调只面对可用的 listen fd。
     channel_ = std::make_unique<Channel>(loop_, listenFd_);
     bind_channel_callbacks();
 }
@@ -66,6 +67,7 @@ void Acceptor::start_listen(int listenFd) {
 }
 
 void Acceptor::bind_channel_callbacks() {
+    // Acceptor 自己只做 accept 和上抛，连接对象由更上层的 TcpServer 接管。
     channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
@@ -117,5 +119,5 @@ void Acceptor::publish_connection(int connFd, const sockaddr_in& clientAddr) {
 
 void Acceptor::handle_connect_callback(int connFd, const InetAddress& peerAddr) {
     assert(this->newConnectCallback_ != nullptr);
-    newConnectCallback_(connFd, peerAddr); // 传递 connFd 和 peerAddr
+    newConnectCallback_(connFd, peerAddr);
 }

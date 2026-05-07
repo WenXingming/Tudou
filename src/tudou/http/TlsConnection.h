@@ -1,7 +1,36 @@
-// ============================================== //
+// ============================================================================
 // TlsConnection.h
 // 单连接 TLS 会话门面，把握手、解密、加密压平成独立原子步骤。
-// ============================================== //
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// TlsConnection.h
+// └── TlsConnection
+//     ├── TlsConnection(ssl)                     # [公有] 接管 SSL 并初始化 Memory BIO + 服务端模式
+//     │   └── initialize_tls_session()           # [私有] 建立单连接 TLS 会话基础设施
+//     │       ├── create_memory_bio_pair()       # [私有] 创建读写 Memory BIO
+//     │       └── attach_memory_bio_pair()       # [私有] 将 BIO 绑定到 SSL
+//     ├── TlsConnection(copy)                    # [公有] 删除拷贝构造，避免复制连接级 TLS 状态
+//     ├── operator=(copy)                        # [公有] 删除拷贝赋值，保持 SSL/BIO 唯一所有权
+//     ├── ~TlsConnection()                       # [公有] 释放 SSL，对应 BIO 由 SSL 一并回收
+//     ├── feed_data(data, len)                   # [公有] 把网络密文喂入读 BIO
+//     │   ├── ensure_tls_session(action) const   # [私有] 校验会话是否可继续执行
+//     │   └── mark_error(message)                # [私有] BIO_write 失败时切换 ERROR 状态
+//     ├── do_handshake()                         # [公有] 推进一次 TLS 握手
+//     │   ├── ensure_tls_session(action) const   # [私有] 校验会话状态
+//     │   └── handle_tls_progress(action, result) # [私有] 处理 WANT_READ/WANT_WRITE 或错误态
+//     ├── decrypt(plaintext)                     # [公有] 从 SSL 会话中持续读出明文
+//     │   ├── ensure_tls_session(action) const   # [私有] 校验会话状态
+//     │   └── mark_error(message)                # [私有] SSL_read 致命失败时切 ERROR
+//     ├── encrypt(data, len)                     # [公有] 把明文写入 SSL 并在 wbio 产出密文
+//     │   ├── ensure_tls_session(action) const   # [私有] 校验会话状态
+//     │   └── mark_error(message)                # [私有] SSL_write 致命失败时切 ERROR
+//     ├── get_output()                           # [公有] 从写 BIO 取出待发送密文
+//     ├── get_state() const                      # [公有] 读取 TLS 生命周期状态
+//     ├── is_handshaking() const                 # [公有] 判断是否仍在握手阶段
+//     ├── is_established() const                 # [公有] 判断是否已建立完成
+//     └── is_error() const                       # [公有] 判断是否已进入错误态
+// ============================================================================
 
 #pragma once
 #include <string>
@@ -20,121 +49,29 @@ public:
         ERROR           // 发生错误
     };
 
-    /**
-     * @brief 构造函数，接管 SSL 对象的所有权，创建 Memory BIO 对
-     * @param ssl 由 SslContext::create_ssl() 创建的 SSL 对象，构造后由本对象负责释放
-     */
     explicit TlsConnection(SSL* ssl);
     ~TlsConnection();
 
     TlsConnection(const TlsConnection&) = delete;
     TlsConnection& operator=(const TlsConnection&) = delete;
 
-    /**
-     * @brief 将从网络收到的密文数据喂入 SSL 的读 BIO
-     * @param data 密文数据
-     * @param len 数据长度
-     * @return 实际写入的字节数，-1 表示错误
-     */
-    int feed_data(const char* data, size_t len);
+    int feed_data(const char* data, size_t len); // 把网络密文写入读 BIO。
+    bool do_handshake(); // 推进一次 TLS 握手。
+    int decrypt(std::string& plaintext); // 从 TLS 会话解密出明文数据。
+    int encrypt(const char* data, size_t len); // 把明文写入 SSL 并产出密文。
+    std::string get_output(); // 从写 BIO 取出待发送密文。
 
-    /**
-     * @brief 执行 TLS 握手（在 HANDSHAKING 状态下调用）
-     *
-     * 调用前应先通过 feed_data() 喂入客户端发来的握手数据。
-     * 握手产生的响应数据需通过 get_output() 取出并发回客户端。
-     *
-     * @return true 握手完成或仍在进行中（需要更多数据），false 握手失败
-     */
-    bool do_handshake();
-
-    /**
-     * @brief 解密数据（在 ESTABLISHED 状态下调用）
-     *
-     * 调用前应先通过 feed_data() 喂入密文数据。
-     *
-     * @param plaintext 输出参数，解密后的明文数据会追加到此字符串
-     * @return 解密得到的字节数，0 表示无数据可读，-1 表示错误
-     */
-    int decrypt(std::string& plaintext);
-
-    /**
-     * @brief 加密明文数据（在 ESTABLISHED 状态下调用）
-     * @param data 明文数据
-     * @param len 数据长度
-     * @return 实际加密的字节数，-1 表示错误
-     */
-    int encrypt(const char* data, size_t len);
-
-    /**
-     * @brief 从 SSL 的写 BIO 中读取待发送的密文数据
-     *
-     * 握手响应和加密后的数据都通过此方法取出，然后由调用方通过 conn->send() 发送。
-     *
-     * @return 待发送的密文数据（可能为空）
-     */
-    std::string get_output();
-
-    /**
-     * @brief 获取当前 TLS 状态。
-     * @return 当前连接的 TLS 状态枚举值。
-     */
     State get_state() const { return state_; }
-
-    /**
-     * @brief 判断 TLS 是否仍在握手阶段。
-     * @return true 表示需要继续交换握手数据。
-     */
     bool is_handshaking() const { return state_ == State::HANDSHAKING; }
-
-    /**
-     * @brief 判断 TLS 是否已建立完成。
-     * @return true 表示可以进行应用数据收发。
-     */
     bool is_established() const { return state_ == State::ESTABLISHED; }
-
-    /**
-     * @brief 判断 TLS 是否已进入错误态。
-     * @return true 表示当前连接已经不可恢复。
-     */
     bool is_error() const { return state_ == State::ERROR; }
 
 private:
-    /**
-     * @brief 初始化当前 TLS 会话需要的 Memory BIO 与服务端模式。
-     */
     void initialize_tls_session();
-
-    /**
-     * @brief 创建当前会话的读写 Memory BIO。
-     * @return 成功返回 true，失败返回 false。
-     */
     bool create_memory_bio_pair();
-
-    /**
-     * @brief 把 Memory BIO 绑定到 SSL 会话。
-     */
     void attach_memory_bio_pair();
-
-    /**
-     * @brief 检查当前 TLS 会话是否满足执行某个动作的前置条件。
-     * @param action 当前准备执行的动作名称。
-     * @return true 表示会话可继续执行。
-     */
-    bool ensure_tls_session(const char* action) const;
-
-    /**
-     * @brief 记录一个不可恢复的 TLS 错误并切换到 ERROR 状态。
-     * @param message 错误描述。
-     */
-    void mark_error(const char* message);
-
-    /**
-     * @brief 根据 SSL_get_error 的返回值处理非阻塞握手结果。
-     * @param action 当前动作名称。
-     * @param result OpenSSL 原始返回值。
-     * @return true 表示仍可继续推进，false 表示已进入错误态。
-     */
+    bool ensure_tls_session(const char* action) const; // 校验 SSL/BIO/状态机是否可继续执行。
+    void mark_error(const char* message); // 记录不可恢复错误并切换 ERROR。
     bool handle_tls_progress(const char* action, int result);
 
 private:

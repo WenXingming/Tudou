@@ -26,7 +26,7 @@ TcpConnection::TcpConnection(EventLoop* loop, int connFd, const InetAddress& loc
     peerAddr_(peerAddr),
     highWaterMark_(64 * 1024 * 1024), // 64 MB
     readBuffer_(std::make_unique<Buffer>()),
-    writeBuffer_(std::make_unique<Buffer>()), // Don't forget! Or cause segfault!
+    writeBuffer_(std::make_unique<Buffer>()), // 写缓冲与读缓冲对称初始化，避免发送路径空指针。
     messageCallback_(nullptr),
     closeCallback_(nullptr),
     errorCallback_(nullptr),
@@ -46,6 +46,8 @@ TcpConnection::TcpConnection(EventLoop* loop, int connFd, const InetAddress& loc
     channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
+
+    // 底层 fd 事件统一汇入 on_read/on_write/on_close/on_error 四条主干路径。
     channel_->enable_reading();
 }
 
@@ -308,6 +310,7 @@ void TcpConnection::start_app_heartbeat_timer() {
         return;
     }
 
+    // 定时器回调只持有 weak_ptr，避免连接销毁后仍被心跳任务意外保活。
     std::weak_ptr<TcpConnection> weakConn = shared_from_this();
     heartbeatTimerId_ = loop_->run_every(heartbeatIntervalSeconds_, [weakConn]() {
         auto conn = weakConn.lock();
@@ -324,6 +327,7 @@ void TcpConnection::stop_app_heartbeat_timer() {
     if (!heartbeatTimerId_.valid()) {
         return;
     }
+
     loop_->cancel(heartbeatTimerId_);
     heartbeatTimerId_ = TimerId();
 }

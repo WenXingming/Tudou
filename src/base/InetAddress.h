@@ -1,7 +1,31 @@
-// ============================================================================ //
+// ============================================================================
 // InetAddress.h
 // IPv4 地址值对象，对 sockaddr_in 的构造、校验与读取契约做显式封装。
-// ============================================================================ //
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// InetAddress.h
+// └── InetAddress
+//     ├── InetAddress(ip, port)                  # [公有] 从 IPv4 文本和端口构造地址对象
+//     │   ├── create_empty_address()             # [私有] 生成零值 sockaddr_in
+//     │   ├── assign_family(address)             # [私有] 固定 AF_INET
+//     │   ├── assign_port(address, port)         # [私有] 写入网络字节序端口
+//     │   └── assign_ip(address, ip)             # [私有] 解析并校验 IPv4 文本地址
+//     ├── InetAddress(address)                   # [公有] 从原生 sockaddr_in 接管地址
+//     │   └── ensure_ipv4_family(address)        # [私有] 校验输入确为 IPv4
+//     ├── InetAddress(other)                     # [公有] 默认拷贝构造，保留地址值语义
+//     ├── operator=(other)                       # [公有] 默认拷贝赋值
+//     ├── ~InetAddress()                         # [公有] 默认析构
+//     ├── get_sockaddr() const                   # [公有] 返回底层 sockaddr_in 视图
+//     ├── get_ip() const                         # [公有] 输出 IPv4 文本地址
+//     │   └── to_ip_string(address)              # [私有] 做二进制到文本转换
+//     ├── get_port() const                       # [公有] 输出主机字节序端口
+//     │   └── read_port(address)                 # [私有] 还原端口字节序
+//     ├── get_ip_port() const                    # [公有] 输出 ip:port 组合字符串
+//     │   ├── to_ip_string(address)              # [私有] 获取文本 IP
+//     │   ├── read_port(address)                 # [私有] 获取主机字节序端口
+//     │   └── format_ip_port(ip, port)           # [私有] 统一格式化 endpoint
+// ============================================================================
 
 #pragma once
 
@@ -15,91 +39,22 @@ public:
     explicit InetAddress(const sockaddr_in& address);
     InetAddress(const InetAddress& other) = default;
 
-    /**
-     * @brief 复制另一个 InetAddress 的地址契约。
-     * @param other 被复制的地址对象。
-     * @return InetAddress& 当前对象引用。
-     */
     InetAddress& operator=(const InetAddress& other) = default;
     ~InetAddress() = default;
 
-    /**
-     * @brief 返回底层 sockaddr_in 视图。
-     * @return const sockaddr_in& 以网络字节序保存的底层地址结构。
-     */
     const sockaddr_in& get_sockaddr() const;
-
-    /**
-     * @brief 获取可读的 IPv4 文本地址。
-     * @return std::string 点分十进制的 IPv4 文本。
-     */
     std::string get_ip() const;
-
-    /**
-     * @brief 获取主机字节序表示的端口。
-     * @return uint16_t 主机字节序端口值。
-     */
     uint16_t get_port() const;
-
-    /**
-     * @brief 获取 ip:port 形式的组合字符串。
-     * @return std::string 组合后的终端节点文本。
-     */
-    std::string get_ip_port() const;
+    std::string get_ip_port() const; // 输出统一格式的 ip:port 文本。
 
 private:
-    /**
-     * @brief 创建一个全零初始化的原生地址结构。
-     * @return sockaddr_in 已清零的地址结构。
-     */
     static sockaddr_in create_empty_address();
-
-    /**
-     * @brief 为原生地址结构写入 IPv4 地址族。
-     * @param address 待写入的原生地址结构。
-     */
     static void assign_family(sockaddr_in& address);
-
-    /**
-     * @brief 为原生地址结构写入网络字节序端口。
-     * @param address 待写入的原生地址结构。
-     * @param port 主机字节序端口值。
-     */
     static void assign_port(sockaddr_in& address, uint16_t port);
-
-    /**
-     * @brief 为原生地址结构写入经过校验的 IPv4 文本地址。
-     * @param address 待写入的原生地址结构。
-     * @param ip 点分十进制 IPv4 文本。
-     */
     static void assign_ip(sockaddr_in& address, const std::string& ip);
-
-    /**
-     * @brief 校验外部传入的原生地址是否属于 IPv4。
-     * @param address 待校验的原生地址结构。
-     */
     static void ensure_ipv4_family(const sockaddr_in& address);
-
-    /**
-     * @brief 将原生地址中的二进制 IP 转为可读文本。
-     * @param address 已持有 IPv4 数据的原生地址结构。
-     * @return std::string 点分十进制 IPv4 文本。
-     */
     static std::string to_ip_string(const sockaddr_in& address);
-
-    /**
-     * @brief 将网络字节序端口还原为主机字节序。
-     * @param address 已持有端口数据的原生地址结构。
-     * @return uint16_t 主机字节序端口值。
-     */
     static uint16_t read_port(const sockaddr_in& address);
-
-    /**
-     * @brief 格式化 ip:port 字符串输出。
-     * @param ip 点分十进制 IPv4 文本。
-     * @param port 主机字节序端口值。
-     * @return std::string 标准化后的终端节点文本。
-     */
     static std::string format_ip_port(const std::string& ip, uint16_t port);
 
 private:

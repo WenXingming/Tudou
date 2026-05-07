@@ -1,7 +1,7 @@
-// ============================================================================ //
+// ============================================================================
 // Router.cpp
 // HTTP 路由器实现，严格按精确匹配、405 判定、前缀兜底、404 回退的顺序分发。
-// ============================================================================ //
+// ============================================================================
 
 #include "Router.h"
 
@@ -15,6 +15,8 @@ bool RouteKey::operator==(const RouteKey& other) const {
 std::size_t RouteKeyHash::operator()(const RouteKey& key) const {
     const std::size_t methodHash = std::hash<std::string>{}(key.method);
     const std::size_t pathHash = std::hash<std::string>{}(key.path);
+
+    // method 和 path 同时参与混合，避免同一路径下不同方法过度落在同一桶中。
     return methodHash ^ (pathHash + 0x9e3779b97f4a7c15ULL + (methodHash << 6) + (methodHash >> 2));
 }
 
@@ -68,6 +70,7 @@ void Router::add_head_route(const std::string& path, Handler handler) {
 }
 
 void Router::add_prefix_route(const std::string& prefix, Handler handler) {
+    // 前缀路由依赖注册顺序表达优先级，因此这里保留线性容器。
     prefixRoutes_.push_back(PrefixRoute{ prefix, std::move(handler) });
 }
 
@@ -179,6 +182,7 @@ bool Router::starts_with(const std::string& text, const std::string& prefix) {
     if (text.size() < prefix.size()) {
         return false;
     }
+
     return text.compare(0, prefix.size(), prefix) == 0;
 }
 

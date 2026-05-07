@@ -1,7 +1,31 @@
-// ============================================== //
+// ============================================================================
 // HttpResponse.h
 // HTTP 响应 DTO，负责持有协议字段并序列化为可发送报文。
-// ============================================== //
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// HttpResponse.h
+// └── HttpResponse
+//     ├── HttpResponse()                         # [公有] 构造默认 200 OK 响应 DTO
+//     ├── ~HttpResponse()                        # [公有] 默认析构
+//     ├── package_to_string() const              # [公有] 序列化总入口：状态行 -> 头部 -> 空行 -> body
+//     │   ├── append_status_line(output) const   # [私有] 追加状态行
+//     │   ├── append_headers(output) const       # [私有] 追加响应头并按需补 Connection: close
+//     │   └── append_body(output) const          # [私有] 追加空行和响应体
+//     ├── set_http_version(version)              # [公有] 写入 HTTP 版本
+//     ├── get_http_version() const               # [公有] 读取 HTTP 版本
+//     ├── set_status(code, message)              # [公有] 写入状态码和状态描述
+//     ├── get_status_code() const                # [公有] 读取状态码
+//     ├── get_status_message() const             # [公有] 读取状态描述
+//     ├── set_header(field, value)               # [公有] 写入或覆盖一个响应头
+//     ├── add_header(field, value)               # [公有] 兼容旧接口，复用 set_header
+//     ├── has_header(field) const                # [公有] 判断响应头是否存在
+//     ├── get_headers() const                    # [公有] 读取全部响应头
+//     ├── set_body(body)                         # [公有] 写入响应体
+//     ├── get_body() const                       # [公有] 读取响应体
+//     ├── set_close_connection(on)               # [公有] 标记响应后是否关闭连接
+//     └── get_close_connection() const           # [公有] 读取关闭连接标记
+// ============================================================================
 
 #pragma once
 #include <string>
@@ -16,116 +40,31 @@ public:
     HttpResponse();
     ~HttpResponse() = default;
 
-    /**
-     * @brief 将当前响应对象序列化为 HTTP 响应报文。
-     * @return 可直接发送到网络层的完整响应字符串。
-     */
-    std::string package_to_string() const;
+    std::string package_to_string() const; // 将当前响应对象序列化为完整 HTTP 报文。
 
-    /**
-     * @brief 设置 HTTP 版本。
-     * @param version 响应行中的协议版本。
-     */
     void set_http_version(const std::string& version) { httpVersion_ = version; }
-
-    /**
-     * @brief 获取 HTTP 版本。
-     * @return 当前响应行中的协议版本。
-     */
     const std::string& get_http_version() const { return httpVersion_; }
-
-    /**
-     * @brief 设置状态码与状态消息。
-     * @param code HTTP 状态码。
-     * @param message HTTP 状态描述。
-     */
     void set_status(int _code, const std::string& _message) {
         statusCode_ = _code;
         statusMessage_ = _message;
     }
-
-    /**
-     * @brief 获取状态码。
-     * @return 当前响应状态码。
-     */
     int get_status_code() const { return statusCode_; }
-
-    /**
-     * @brief 获取状态消息。
-     * @return 当前响应状态消息。
-     */
     const std::string& get_status_message() const { return statusMessage_; }
+    void set_header(const std::string& field, const std::string& value); // 写入或覆盖一个响应头。
 
-    /**
-     * @brief 写入或覆盖一个响应头。
-     * @param field 响应头名称。
-     * @param value 响应头值。
-     */
-    void set_header(const std::string& field, const std::string& value);
-
-    /**
-     * @brief 兼容旧接口，写入或覆盖一个响应头。
-     * @param field 响应头名称。
-     * @param value 响应头值。
-     */
     void add_header(const std::string& field, const std::string& value) {
         set_header(field, value);
     }
-
-    /**
-     * @brief 判断某个响应头是否已经存在。
-     * @param field 响应头名称。
-     * @return true 表示响应头已存在。
-     */
     bool has_header(const std::string& field) const;
-
-    /**
-     * @brief 获取全部响应头。
-     * @return 当前响应头映射的只读引用。
-     */
     const Headers& get_headers() const { return headers_; }
-
-    /**
-     * @brief 设置响应体。
-     * @param body 响应体内容。
-     */
     void set_body(const std::string& _body) { body_ = _body; }
-
-    /**
-     * @brief 获取响应体。
-     * @return 当前响应体内容。
-     */
     const std::string& get_body() const { return body_; }
-
-    /**
-     * @brief 标记响应发送后是否关闭连接。
-     * @param on true 表示应关闭连接。
-     */
     void set_close_connection(bool _on) { closeConnection_ = _on; }
-
-    /**
-     * @brief 查询响应是否要求关闭连接。
-     * @return true 表示连接应在响应后关闭。
-     */
     bool get_close_connection() const { return closeConnection_; }
 
 private:
-    /**
-     * @brief 追加状态行。
-     * @param output 目标响应字符串。
-     */
     void append_status_line(std::string& output) const;
-
-    /**
-     * @brief 追加显式设置的响应头，并在需要时补齐 Connection: close。
-     * @param output 目标响应字符串。
-     */
-    void append_headers(std::string& output) const;
-
-    /**
-     * @brief 追加响应体分隔符和 body。
-     * @param output 目标响应字符串。
-     */
+    void append_headers(std::string& output) const; // 追加响应头，并按需补齐 close 语义。
     void append_body(std::string& output) const;
 
 private:

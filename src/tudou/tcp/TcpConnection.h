@@ -1,6 +1,80 @@
 // ============================================================================
 // TcpConnection.h
 // TcpConnection 负责单个连接的收发、关闭和心跳流程，并把底层事件压平成可读的业务步骤。
+//
+// 成员函数调用树（[公有]/[私有] 标注接口层级）：
+//
+// TcpConnection.h
+// └── TcpConnection
+//     ├── TcpConnection(loop, connFd, localAddr, peerAddr)  # [公有] 构造：绑定 Channel 四类事件并默认开启读关注
+//     │   ├── on_read(channel)                       # [私有] 绑定为读事件主干：读数据、判 EOF、判错误
+//     │   │   ├── read_from_channel(channel, &err)   # [私有] 从 fd 搬运数据到 readBuffer_
+//     │   │   ├── refresh_last_read_time()           # [私有] 有入站数据就刷新活跃时间
+//     │   │   ├── notify_message_callback()          # [私有] 把“有消息”事件抛给上层
+//     │   │   ├── record_socket_error("read", err)   # [私有] 记录读失败错误信息
+//     │   │   ├── notify_error_callback()            # [私有] 通知上层错误
+//     │   │   └── close_connection(channel)          # [私有] EOF 或致命错误都走统一关闭流程
+//     │   │       ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │   │       └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     │   ├── on_write(channel)                      # [私有] 绑定为可写事件主干：刷发送缓冲并处理收尾
+//     │   │   ├── write_to_channel(channel, &err)    # [私有] 把 writeBuffer_ 写入 fd
+//     │   │   ├── notify_write_complete_callback()   # [私有] 写缓冲清空时通知上层
+//     │   │   ├── record_socket_error("write", err)  # [私有] 记录写失败错误信息
+//     │   │   ├── notify_error_callback()            # [私有] 通知上层错误
+//     │   │   └── close_connection(channel)          # [私有] 致命写错误时统一收口
+//     │   │       ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │   │       └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     │   ├── on_close(channel)                      # [私有] 绑定为 close 事件入口
+//     │   │   └── close_connection(channel)          # [私有] 幂等关闭入口
+//     │   │       ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │   │       └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     │   └── on_error(channel)                      # [私有] 绑定为 error 事件入口
+//     │       ├── notify_error_callback()            # [私有] 向上转发错误事件
+//     │       └── close_connection(channel)          # [私有] 与 read/write 错误共用收尾逻辑
+//     │           ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │           └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     ├── ~TcpConnection()                       # [公有] 析构：连接对象生命周期结束点
+//     ├── send(msg)                              # [公有] 统一发送入口，先入写缓冲再注册写事件
+//     │   └── notify_high_water_mark_callback()  # [私有] 越过高水位阈值时上报背压
+//     ├── receive()                              # [公有] 拉取并清空当前读缓冲中的应用层数据
+//     ├── connection_establish()                 # [公有] 建立 shared_from_this 保活并补启心跳
+//     │   ├── tie_channel_to_owner()             # [私有] 将自身绑到 Channel tie 机制
+//     │   └── start_app_heartbeat_timer()        # [私有] 若已启用心跳则创建周期任务
+//     │       ├── stop_app_heartbeat_timer()     # [私有] 先取消旧定时器避免重复触发
+//     │       └── on_heartbeat_tick()            # [私有] run_every 到期后执行一次心跳 tick
+//     │           ├── is_heartbeat_timeout(now) const    # [私有] 判断连接是否已空闲超时
+//     │           ├── close_connection(*channel_)        # [私有] 超时则主动关闭连接
+//     │           │   ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │           │   └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     │           └── send(heartbeatPingMessage_)        # [公有] 未超时则复用统一发送路径发探测包
+//     ├── enable_app_heartbeat(interval, timeout, ping)  # [公有] 打开心跳并立即刷新活跃时间
+//     │   ├── refresh_last_read_time()           # [私有] 重置最近收包时间
+//     │   └── start_app_heartbeat_timer()        # [私有] 重建 run_every 定时器
+//     │       ├── stop_app_heartbeat_timer()     # [私有] 先取消旧定时器避免重复触发
+//     │       └── on_heartbeat_tick()            # [私有] run_every 到期后执行一次心跳 tick
+//     │           ├── is_heartbeat_timeout(now) const    # [私有] 判断连接是否已空闲超时
+//     │           ├── close_connection(*channel_)        # [私有] 超时则主动关闭连接
+//     │           │   ├── stop_app_heartbeat_timer()     # [私有] 避免关闭后残留定时器继续回调
+//     │           │   └── notify_close_callback()        # [私有] 触发服务器侧连接移除逻辑
+//     │           └── send(heartbeatPingMessage_)        # [公有] 未超时则复用统一发送路径发探测包
+//     ├── disable_app_heartbeat()                # [公有] 关闭心跳并取消定时器
+//     │   └── stop_app_heartbeat_timer()         # [私有] cancel 当前 TimerId
+//     ├── set_tcp_no_delay(on)                   # [公有] 配置 TCP_NODELAY
+//     ├── set_tcp_keepalive(on)                  # [公有] 配置 SO_KEEPALIVE 与 TCP keepalive 参数
+//     ├── set_message_callback(cb)               # [公有] 注册消息回调
+//     ├── set_close_callback(cb)                 # [公有] 注册关闭回调
+//     ├── set_error_callback(cb)                 # [公有] 注册错误回调
+//     ├── set_write_complete_callback(cb)        # [公有] 注册写完成回调
+//     ├── set_high_water_mark_callback(cb, mark) # [公有] 注册高水位回调并更新阈值
+//     ├── is_app_heartbeat_enabled() const       # [公有] 查询心跳开关状态
+//     ├── get_loop() const                       # [公有] 返回所属 EventLoop
+//     ├── get_fd() const                         # [公有] 返回连接 fd
+//     ├── get_local_addr() const                 # [公有] 返回本地地址快照
+//     ├── get_peer_addr() const                  # [公有] 返回对端地址快照
+//     ├── get_last_error() const                 # [公有] 返回最近错误码
+//     ├── get_last_error_msg() const             # [公有] 返回最近错误描述
+//     ├── get_write_buffer_size() const          # [公有] 返回当前发送积压字节数
+//     └── get_high_water_mark() const            # [公有] 返回高水位阈值
 // ============================================================================
 
 #pragma once
@@ -30,242 +104,50 @@ public:
     TcpConnection(EventLoop* loop, int connFd, const InetAddress& localAddr, const InetAddress& peerAddr);
     ~TcpConnection();
 
-    /**
-     * @brief 把应用层数据追加到发送缓冲并注册写事件。
-     * @param msg 待发送的应用层数据。
-     */
-    void send(const std::string& msg);
+    void send(const std::string& msg); // 统一发送入口：先进写缓冲，再由可写事件刷出。
+    std::string receive(); // 取走当前读缓冲中的全部应用层数据。
 
-    /**
-     * @brief 取走当前读缓冲中的全部数据。
-     * @return 当前已接收但尚未消费的数据。
-     */
-    std::string receive();
-
-    /**
-     * @brief 设置消息回调。
-     * @param cb 收到数据时触发的回调。
-     */
     void set_message_callback(MessageCallback cb);
-
-    /**
-     * @brief 设置关闭回调。
-     * @param cb 连接进入关闭流程时触发的回调。
-     */
     void set_close_callback(CloseCallback cb);
-
-    /**
-     * @brief 设置错误回调。
-     * @param cb 发生套接字错误时触发的回调。
-     */
     void set_error_callback(ErrorCallback cb);
-
-    /**
-     * @brief 设置写完成回调。
-     * @param cb 发送缓冲完全刷空时触发的回调。
-     */
     void set_write_complete_callback(WriteCompleteCallback cb);
-
-    /**
-     * @brief 设置高水位回调。
-     * @param cb 写缓冲积压越过阈值时触发的回调。
-     * @param highWaterMark 高水位阈值，单位字节。
-     */
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark);
 
-    /**
-     * @brief 建立 shared_from_this 保护并补启已配置的心跳任务。
-     */
-    void connection_establish();
-
-    /**
-     * @brief 设置 TCP_NODELAY。
-     * @param on 为 true 时禁用 Nagle 算法，为 false 时恢复 Nagle。
-     */
+    void connection_establish(); // 建立 Channel tie，并补启已经配置好的心跳。
     void set_tcp_no_delay(bool on);
-
-    /**
-     * @brief 设置 TCP keepalive。
-     * @param on 为 true 时启用 keepalive，并同步常用探测参数。
-     */
     void set_tcp_keepalive(bool on);
-
-    /**
-     * @brief 启用应用层心跳。
-     * @param intervalSeconds 心跳发送周期，单位秒。
-     * @param timeoutSeconds 入站空闲超时阈值，单位秒。
-     * @param pingMessage 周期发送的探测报文；空字符串表示只做超时检测。
-     */
-    void enable_app_heartbeat(double intervalSeconds, double timeoutSeconds, const std::string& pingMessage = "PING\r\n");
-
-    /**
-     * @brief 关闭应用层心跳并取消内部定时器。
-     */
+    void enable_app_heartbeat(double intervalSeconds, double timeoutSeconds, const std::string& pingMessage = "PING\r\n"); // 开启应用层心跳检测。
     void disable_app_heartbeat();
 
-    /**
-     * @brief 判断应用层心跳是否已启用。
-     * @return true 表示心跳已启用。
-     */
     bool is_app_heartbeat_enabled() const { return heartbeatEnabled_; }
-
-    /**
-     * @brief 获取所属事件循环。
-     * @return 连接所属的 EventLoop 指针。
-     */
     EventLoop* get_loop() const { return loop_; }
-
-    /**
-     * @brief 获取连接 fd。
-     * @return 连接 fd。
-     */
     int get_fd() const { return channel_->get_fd(); }
-
-    /**
-     * @brief 获取本地地址。
-     * @return 本地地址引用。
-     */
     const InetAddress& get_local_addr() const { return localAddr_; }
-
-    /**
-     * @brief 获取对端地址。
-     * @return 对端地址引用。
-     */
     const InetAddress& get_peer_addr() const { return peerAddr_; }
-
-    /**
-     * @brief 获取最近一次错误码。
-     * @return 最近一次 errno。
-     */
     int get_last_error() const { return lastErrorCode_; }
-
-    /**
-     * @brief 获取最近一次错误描述。
-     * @return 最近一次错误描述字符串。
-     */
     const std::string& get_last_error_msg() const { return lastErrorMsg_; }
-
-    /**
-     * @brief 获取写缓冲中的可读字节数。
-     * @return 当前写缓冲积压字节数。
-     */
     size_t get_write_buffer_size() const { return writeBuffer_->readable_bytes(); }
-
-    /**
-     * @brief 获取高水位阈值。
-     * @return 当前高水位阈值，单位字节。
-     */
     size_t get_high_water_mark() const { return highWaterMark_; }
 
 private:
-    /**
-     * @brief 处理可读事件。
-     * @param channel 触发事件的 Channel。
-     */
-    void on_read(Channel& channel);
-
-    /**
-     * @brief 从套接字读取数据到读缓冲。
-     * @param channel 触发可读事件的 Channel。
-     * @param savedErrno 输出参数，返回系统错误码。
-     * @return 本次读取的字节数；0 表示对端关闭；负值表示出错。
-     */
+    void on_read(Channel& channel); // 处理读事件、EOF 和致命读错误。
     ssize_t read_from_channel(const Channel& channel, int* savedErrno);
-
-    /**
-     * @brief 刷新“最近一次收到数据”的时间戳。
-     */
     void refresh_last_read_time();
-
-    /**
-     * @brief 向上分发消息回调。
-     */
     void notify_message_callback();
-
-    /**
-     * @brief 处理可写事件。
-     * @param channel 触发事件的 Channel。
-     */
-    void on_write(Channel& channel);
-
-    /**
-     * @brief 把发送缓冲中的数据刷入套接字。
-     * @param channel 触发可写事件的 Channel。
-     * @param savedErrno 输出参数，返回系统错误码。
-     * @return 本次写出的字节数；负值表示出错。
-     */
+    void on_write(Channel& channel); // 刷发送缓冲并处理写完成或错误收口。
     ssize_t write_to_channel(const Channel& channel, int* savedErrno);
-
-    /**
-     * @brief 向上分发写完成回调。
-     */
     void notify_write_complete_callback();
-
-    /**
-     * @brief 处理关闭事件。
-     * @param channel 触发事件的 Channel。
-     */
     void on_close(Channel& channel);
-
-    /**
-     * @brief 执行一次幂等的关闭流程。
-     * @param channel 当前连接绑定的 Channel。
-     */
-    void close_connection(Channel& channel);
-
-    /**
-     * @brief 向上分发关闭回调。
-     */
+    void close_connection(Channel& channel); // 统一停心跳、关事件并向上交还连接。
     void notify_close_callback();
-
-    /**
-     * @brief 处理错误事件。
-     * @param channel 触发事件的 Channel。
-     */
     void on_error(Channel& channel);
-
-    /**
-     * @brief 记录最近一次套接字错误。
-     * @param action 出错动作，例如 read/write。
-     * @param errorCode 系统错误码。
-     */
-    void record_socket_error(const char* action, int errorCode);
-
-    /**
-     * @brief 向上分发错误回调。
-     */
+    void record_socket_error(const char* action, int errorCode); // 记录 errno 与诊断文本。
     void notify_error_callback();
-
-    /**
-     * @brief 向上分发高水位回调。
-     */
     void notify_high_water_mark_callback();
-
-    /**
-     * @brief 把当前对象绑定到 Channel 的 tie 机制上。
-     */
     void tie_channel_to_owner();
-
-    /**
-     * @brief 创建或重建周期性心跳定时器。
-     */
-    void start_app_heartbeat_timer();
-
-    /**
-     * @brief 停止当前心跳定时器。
-     */
+    void start_app_heartbeat_timer(); // 重建周期心跳定时器。
     void stop_app_heartbeat_timer();
-
-    /**
-     * @brief 执行一次心跳 tick，判断超时并按需发送探测报文。
-     */
-    void on_heartbeat_tick();
-
-    /**
-     * @brief 判断连接是否已经超过心跳超时阈值。
-     * @param now 当前时间点。
-     * @return true 表示连接已超时。
-     */
+    void on_heartbeat_tick(); // 判超时并按需发送心跳探测包。
     bool is_heartbeat_timeout(std::chrono::steady_clock::time_point now) const;
 
 private:
