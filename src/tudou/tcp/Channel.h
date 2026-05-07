@@ -10,10 +10,10 @@
 //     │   └── update_in_register()                 # [私有] 首次同步事件兴趣到 Poller
 //     ├── Channel(copy)                            # [公有] 删除拷贝构造，保持 fd/loop 绑定唯一
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止共享同一事件通道
-//     ├── ~Channel()                               # [公有] 析构：停关注、反注册并关闭 fd
+//     ├── ~Channel()                               # [公有] 析构：停关注、反注册（fd 生命周期由持有者管理）
 //     │   ├── disable_all()                        # [公有] 清空全部事件兴趣
 //     │   │   └── update_in_register()             # [私有] 把 none-event 状态同步给 Poller
-//     │   └── remove_in_register()                 # [私有] 从 Poller 中删除当前 fd
+//     │   └── remove_in_register()                 # [私有] 从 Poller 中删除当前 fd（不再调用 ::close）
 //     ├── handle_events()                          # [公有] Channel 唯一事件入口，先做 tie 保活再分发
 //     │   └── handle_events_with_guard()           # [私有] 按“关/错/读/写”优先级回放事件
 //     │       ├── handle_close_callback()          # [私有] EPOLLHUP 且无读事件时优先走关闭回调

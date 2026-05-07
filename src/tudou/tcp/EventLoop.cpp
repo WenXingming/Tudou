@@ -55,6 +55,11 @@ EventLoop::~EventLoop() {
         assert(false);
     }
     loopInthisThread = nullptr;
+
+    // 先销毁 TimerQueue（关闭 timerfd），再销毁 wakeupChannel 和 wakeup fd
+    timerQueue_.reset();
+    wakeupChannel_.reset();
+    ::close(wakeupFd_);
 }
 
 void EventLoop::loop(int timeoutMs) {

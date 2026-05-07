@@ -8,6 +8,7 @@
 
 #include "base/InetAddress.h"
 #include "tudou/tcp/EventLoop.h"
+#include "tudou/tcp/Socket.h"
 #include "tudou/tcp/TcpConnection.h"
 
 namespace {
@@ -15,7 +16,7 @@ namespace {
 std::shared_ptr<TcpConnection> make_connection(EventLoop& loop, int fd) {
     InetAddress localAddr("127.0.0.1", 8080);
     InetAddress peerAddr("127.0.0.1", 8081);
-    return std::make_shared<TcpConnection>(&loop, fd, localAddr, peerAddr);
+    return std::make_shared<TcpConnection>(&loop, Socket(fd), localAddr, peerAddr);
 }
 
 } // namespace
@@ -44,7 +45,7 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
 
     EXPECT_EQ(received, "hello");
 
-    ::close(fds[1]);
+    ::close(fds[1]); // fds[1] 未交给 Socket，需手动关闭
 }
 
 TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) {

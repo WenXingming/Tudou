@@ -9,7 +9,7 @@
 //     ├── EventLoop()                              # [公有] 构造：创建 Poller、wakeup Channel 和 TimerQueue
 //     │   ├── create_wakeup_fd()                   # [私有] 创建 eventfd 作为跨线程唤醒源
 //     │   └── on_read()                            # [私有] 绑定为 wakeupChannel_ 读回调，负责消费唤醒事件
-//     ├── ~EventLoop()                             # [公有] 析构：校验线程归属并清理线程局部指针
+//     ├── ~EventLoop()                             # [公有] 析构：校验线程归属，显式销毁 TimerQueue/wakeupChannel 并关闭 wakeupFd
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
 //     ├── loop(timeoutMs)                          # [公有] Reactor 主循环：poll 后执行本轮待处理任务

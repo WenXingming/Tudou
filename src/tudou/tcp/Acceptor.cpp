@@ -1,16 +1,13 @@
 // ============================================================================
 // Acceptor.cpp
-// 监听接入器实现，显式展开“监听、accept、发布新连接”的控制路径。
+// 监听接入器实现，Socket 接管底层 socket 操作，Acceptor 只做编排。
 // ============================================================================
 
 #include "Acceptor.h"
 
 #include <cassert>
 #include <cerrno>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <unistd.h>
+
 #include "spdlog/spdlog.h"
 #include "Channel.h"
 #include "EventLoop.h"
@@ -18,16 +15,12 @@
 Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
     loop_(loop),
     listenAddr_(listenAddr),
-    listenFd_(-1),
+    listenSocket_(Socket::create_tcp_listener(listenAddr_)),
     channel_(nullptr),
     newConnectCallback_(nullptr) {
 
-    listenFd_ = create_fd();
-    bind_address(listenFd_);
-    start_listen(listenFd_);
-
-    // 监听 socket 就绪后再挂接 Channel，保证回调只面对可用的 listen fd。
-    channel_ = std::make_unique<Channel>(loop_, listenFd_);
+    // 监听 socket 就绪后再挂接 Channel，保证回调只面对可用的 listen fd
+    channel_ = std::make_unique<Channel>(loop_, listenSocket_.fd());
     bind_channel_callbacks();
 }
 
@@ -39,35 +32,10 @@ void Acceptor::set_connect_callback(NewConnectCallback cb) {
 }
 
 int Acceptor::get_listen_fd() const {
-    return channel_->get_fd();
-}
-
-int Acceptor::create_fd() {
-    const int listenFd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
-    if (listenFd < 0) {
-        spdlog::error("Acceptor::create_fd(): socket error, errno: {}", errno);
-        assert(false);
-    }
-    return listenFd;
-}
-
-void Acceptor::bind_address(int listenFd) {
-    sockaddr_in address = listenAddr_.get_sockaddr();
-    if (::bind(listenFd, (sockaddr*)&address, sizeof(address)) < 0) {
-        spdlog::error("Acceptor::bind_address(): bind error, errno: {}", errno);
-        assert(false);
-    }
-}
-
-void Acceptor::start_listen(int listenFd) {
-    if (::listen(listenFd, SOMAXCONN) < 0) {
-        spdlog::error("Acceptor::start_listen(): listen error, errno: {}", errno);
-        assert(false);
-    }
+    return listenSocket_.fd();
 }
 
 void Acceptor::bind_channel_callbacks() {
-    // Acceptor 自己只做 accept 和上抛，连接对象由更上层的 TcpServer 接管。
     channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
@@ -89,35 +57,28 @@ void Acceptor::on_write(Channel& channel) {
 }
 
 void Acceptor::on_read(Channel& channel) {
-    // LT 模式下每次只接一个连接即可；若 backlog 仍有数据，epoll 会再次唤醒。
     sockaddr_in clientAddr{};
-    const int connFd = accept_connection(&clientAddr);
-    if (connFd < 0) {
+    Socket connSocket = listenSocket_.accept(&clientAddr);
+    if (connSocket.fd() < 0) {
         if (!is_transient_accept_error(errno)) {
             spdlog::error("Acceptor::on_read(): accept error, errno: {}", errno);
         }
         return;
     }
 
-    publish_connection(connFd, clientAddr);
-}
-
-int Acceptor::accept_connection(sockaddr_in* clientAddr) const {
-    socklen_t length = sizeof(*clientAddr);
-    return ::accept4(listenFd_, reinterpret_cast<sockaddr*>(clientAddr), &length, SOCK_NONBLOCK | SOCK_CLOEXEC);
+    publish_connection(std::move(connSocket), InetAddress(clientAddr));
 }
 
 bool Acceptor::is_transient_accept_error(int errorCode) const {
     return errorCode == EAGAIN || errorCode == EWOULDBLOCK || errorCode == EINTR;
 }
 
-void Acceptor::publish_connection(int connFd, const sockaddr_in& clientAddr) {
-    const InetAddress peerAddr(clientAddr);
-    spdlog::debug("Acceptor: connFd {} accepted from {}", connFd, peerAddr.get_ip_port());
-    handle_connect_callback(connFd, peerAddr);
+void Acceptor::publish_connection(Socket connSocket, const InetAddress& peerAddr) {
+    spdlog::debug("Acceptor: connFd {} accepted from {}", connSocket.fd(), peerAddr.get_ip_port());
+    handle_connect_callback(std::move(connSocket), peerAddr);
 }
 
-void Acceptor::handle_connect_callback(int connFd, const InetAddress& peerAddr) {
+void Acceptor::handle_connect_callback(Socket connSocket, const InetAddress& peerAddr) {
     assert(this->newConnectCallback_ != nullptr);
-    newConnectCallback_(connFd, peerAddr);
+    newConnectCallback_(std::move(connSocket), peerAddr);
 }

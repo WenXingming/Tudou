@@ -10,6 +10,7 @@
 #include "base/InetAddress.h"
 #include "tudou/tcp/Acceptor.h"
 #include "tudou/tcp/EventLoop.h"
+#include "tudou/tcp/Socket.h"
 
 namespace {
 
@@ -28,9 +29,11 @@ TEST(AcceptorTest, AcceptPublishesNonBlockingCloseOnExecSocket) {
 
     int acceptedFd = -1;
     std::string peerIp;
+    Socket acceptedSocket(-1); // 接收回调转移的 Socket 所有权，延长 fd 生命周期
 
-    acceptor.set_connect_callback([&](int connFd, const InetAddress& peerAddr) {
-        acceptedFd = connFd;
+    acceptor.set_connect_callback([&](Socket connSocket, const InetAddress& peerAddr) {
+        acceptedFd = connSocket.fd();
+        acceptedSocket = std::move(connSocket); // 接管所有权，避免回调结束后 fd 被关闭
         peerIp = peerAddr.get_ip();
         loop.quit();
         });
@@ -58,5 +61,5 @@ TEST(AcceptorTest, AcceptPublishesNonBlockingCloseOnExecSocket) {
     EXPECT_NE(descriptorFlags & FD_CLOEXEC, 0);
 
     ::close(clientFd);
-    ::close(acceptedFd);
+    // acceptedSocket 析构时自动关闭 acceptedFd，无需手动 ::close(acceptedFd)
 }

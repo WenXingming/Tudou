@@ -35,7 +35,7 @@ Channel::~Channel() {
     loop_->assert_in_loop_thread();
     disable_all();
     remove_in_register();
-    ::close(fd_); // 当前由 Channel 兜底关闭 fd；后续可再抽成独立 RAII 封装。
+    // fd 生命周期由持有者（Socket 或显式 close）管理，Channel 不再负责关闭。
 }
 
 void Channel::set_read_callback(EventCallback cb) {

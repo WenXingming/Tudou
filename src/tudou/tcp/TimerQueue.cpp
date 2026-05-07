@@ -52,6 +52,9 @@ TimerQueue::TimerQueue(EventLoop* loop)
 }
 
 TimerQueue::~TimerQueue() {
+    // Channel 不再负责关闭 fd，析构时显式清理 timerfd
+    timerChannel_.reset();
+    ::close(timerFd_);
 }
 
 TimerId TimerQueue::add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval) {

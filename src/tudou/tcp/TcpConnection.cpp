@@ -1,6 +1,6 @@
 // ============================================================================
 // TcpConnection.cpp
-// TcpConnection 的实现保持单层事件编排：读、写、错、关和心跳各自只描述一层业务步骤。
+// TcpConnection 的实现：Socket 接管 fd 所有权，连接只关心会话语义。
 // ============================================================================
 
 #include "TcpConnection.h"
@@ -9,9 +9,6 @@
 #include <cerrno>
 #include <chrono>
 #include <cstring>
-#include <netinet/tcp.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 #include "spdlog/spdlog.h"
@@ -19,14 +16,15 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-TcpConnection::TcpConnection(EventLoop* loop, int connFd, const InetAddress& localAddr, const InetAddress& peerAddr) :
+TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr) :
     loop_(loop),
-    channel_(std::make_unique<Channel>(loop, connFd)),
+    connSocket_(std::move(connSocket)),
+    channel_(std::make_unique<Channel>(loop, connSocket_.fd())),
     localAddr_(localAddr),
     peerAddr_(peerAddr),
-    highWaterMark_(64 * 1024 * 1024), // 64 MB
+    highWaterMark_(64 * 1024 * 1024),
     readBuffer_(std::make_unique<Buffer>()),
-    writeBuffer_(std::make_unique<Buffer>()), // 写缓冲与读缓冲对称初始化，避免发送路径空指针。
+    writeBuffer_(std::make_unique<Buffer>()),
     messageCallback_(nullptr),
     closeCallback_(nullptr),
     errorCallback_(nullptr),
@@ -46,13 +44,11 @@ TcpConnection::TcpConnection(EventLoop* loop, int connFd, const InetAddress& loc
     channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
-
-    // 底层 fd 事件统一汇入 on_read/on_write/on_close/on_error 四条主干路径。
     channel_->enable_reading();
 }
 
 TcpConnection::~TcpConnection() {
-    spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", channel_->get_fd());
+    spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", connSocket_.fd());
 }
 
 void TcpConnection::send(const std::string& msg) {
@@ -62,7 +58,6 @@ void TcpConnection::send(const std::string& msg) {
     writeBuffer_->write_to_buffer(msg);
     const size_t newLen = writeBuffer_->readable_bytes();
 
-    // 背压在开启写事件前判断，保证回调看到的是跨阈值瞬间的真实积压量。
     if (highWaterMarkCallback_ && oldLen < highWaterMark_ && newLen >= highWaterMark_) {
         notify_high_water_mark_callback();
     }
@@ -99,44 +94,8 @@ void TcpConnection::set_high_water_mark_callback(HighWaterMarkCallback cb, size_
 void TcpConnection::connection_establish() {
     tie_channel_to_owner();
 
-    // 上层可能先配置心跳、后完成建连；这里统一补启，避免状态分叉。
     if (heartbeatEnabled_) {
         start_app_heartbeat_timer();
-    }
-}
-
-void TcpConnection::set_tcp_no_delay(bool on) {
-    const int fd = channel_->get_fd();
-    const int kEnable = on ? 1 : 0;
-    if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &kEnable, sizeof(kEnable)) < 0) {
-        spdlog::error("TcpConnection::set_tcp_no_delay() failed, errno={} ({})", errno, strerror(errno));
-    }
-}
-
-void TcpConnection::set_tcp_keepalive(bool on) {
-    const int fd = channel_->get_fd();
-    const int kEnable = on ? 1 : 0;
-    constexpr int kKeepIdleSec = 60;
-    constexpr int kKeepIntvlSec = 10;
-    constexpr int kKeepCnt = 3;
-
-    if (::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &kEnable, sizeof(kEnable)) < 0) {
-        spdlog::warn("TcpConnection: failed to enable SO_KEEPALIVE on fd {}, errno: {}", fd, errno);
-        return;
-    }
-
-    if (!on) {
-        return;
-    }
-
-    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &kKeepIdleSec, sizeof(kKeepIdleSec)) < 0) {
-        spdlog::warn("TcpConnection: failed to set TCP_KEEPIDLE on fd {}, errno: {}", fd, errno);
-    }
-    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &kKeepIntvlSec, sizeof(kKeepIntvlSec)) < 0) {
-        spdlog::warn("TcpConnection: failed to set TCP_KEEPINTVL on fd {}, errno: {}", fd, errno);
-    }
-    if (::setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &kKeepCnt, sizeof(kKeepCnt)) < 0) {
-        spdlog::warn("TcpConnection: failed to set TCP_KEEPCNT on fd {}, errno: {}", fd, errno);
     }
 }
 
@@ -171,7 +130,6 @@ void TcpConnection::on_read(Channel& channel) {
     int savedErrno = 0;
     const ssize_t n = read_from_channel(channel, &savedErrno);
     if (n > 0) {
-        // 任意入站数据都视为连接存活，统一刷新活跃时间后再通知上层。
         refresh_last_read_time();
         notify_message_callback();
         return;
@@ -254,8 +212,6 @@ void TcpConnection::close_connection(Channel& channel) {
     }
 
     isClosed_ = true;
-
-    // 所有关闭路径都统一先停心跳，再注销事件关注，最后通知上层回收连接。
     stop_app_heartbeat_timer();
     channel.disable_all();
     notify_close_callback();
@@ -264,7 +220,6 @@ void TcpConnection::close_connection(Channel& channel) {
 void TcpConnection::notify_close_callback() {
     assert(closeCallback_ != nullptr);
 
-    // 关闭回调可能导致连接对象被移出容器，这里显式保活到回调结束。
     std::shared_ptr<TcpConnection> guardThis{ shared_from_this() };
     closeCallback_(guardThis);
 }
@@ -310,7 +265,6 @@ void TcpConnection::start_app_heartbeat_timer() {
         return;
     }
 
-    // 定时器回调只持有 weak_ptr，避免连接销毁后仍被心跳任务意外保活。
     std::weak_ptr<TcpConnection> weakConn = shared_from_this();
     heartbeatTimerId_ = loop_->run_every(heartbeatIntervalSeconds_, [weakConn]() {
         auto conn = weakConn.lock();
@@ -350,7 +304,6 @@ void TcpConnection::on_heartbeat_tick() {
     }
 
     if (!heartbeatPingMessage_.empty()) {
-        // 心跳探测复用统一 send 路径，确保背压与写完成语义完全一致。
         send(heartbeatPingMessage_);
     }
 }

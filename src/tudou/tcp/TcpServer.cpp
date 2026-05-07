@@ -1,6 +1,6 @@
 // ============================================================================
 // TcpServer.cpp
-// TcpServer 的实现保持单层编排：选择线程、装配连接、注册连接、通知上层。
+// TcpServer 的实现：Socket 沿回调链传递到 TcpConnection，沿途配置 socket 选项。
 // ============================================================================
 
 #include "TcpServer.h"
@@ -44,8 +44,8 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     EventLoop& mainLoop = require_main_loop();
 
     acceptor_ = std::make_unique<Acceptor>(&mainLoop, listenAddr);
-    acceptor_->set_connect_callback([this](int connFd, const InetAddress& peerAddr) {
-        on_connect(connFd, peerAddr);
+    acceptor_->set_connect_callback([this](Socket connSocket, const InetAddress& peerAddr) {
+        on_connect(std::move(connSocket), peerAddr);
         });
 }
 
@@ -56,8 +56,6 @@ void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
 
     EventLoop& mainLoop = require_main_loop();
-
-    // 先启动 IO 线程池，再进入主循环，保证 accept 之后可以立刻把连接分发出去。
     loopThreadPool_->start();
     mainLoop.loop();
 }
@@ -109,50 +107,40 @@ EventLoop& TcpServer::select_loop() const {
     return *ioLoop;
 }
 
-void TcpServer::on_connect(int connFd, const InetAddress& peerAddr) {
+void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     assert_in_main_loop_thread();
 
-    spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), connFd);
+    const int fd = connSocket.fd();
+    spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), fd);
 
     EventLoop* ioLoop = &select_loop();
 
-    // 连接必须在目标 IO 线程内一次性完成装配，避免回调早于初始化生效。
-    ioLoop->run_in_loop([this, connFd, ioLoop, peerAddr]() {
-        const InetAddress localAddr = resolve_local_address(connFd);
-        const auto conn = create_connection(*ioLoop, connFd, localAddr, peerAddr);
+    // Socket 是 move-only 类型，用 shared_ptr 包装使 lambda 可拷贝以适配 std::function。
+    auto connSocketPtr = std::make_shared<Socket>(std::move(connSocket));
 
-        configure_connection_socket(conn);
+    ioLoop->run_in_loop([this, connSocketPtr, ioLoop, peerAddr, fd]() {
+        // 在交给 TcpConnection 之前统一配置 socket 选项
+        connSocketPtr->set_tcp_no_delay(true);
+        connSocketPtr->set_keep_alive(true);
+        const InetAddress localAddr = connSocketPtr->local_address();
+
+        const auto conn = create_connection(*ioLoop, std::move(*connSocketPtr), localAddr, peerAddr);
+
         bind_connection_callbacks(conn);
-        store_connection(connFd, conn);
+        store_connection(fd, conn);
         establish_connection(conn);
         notify_connection_callback(conn);
         });
 }
 
-InetAddress TcpServer::resolve_local_address(int connFd) const {
-    sockaddr_in localSockAddr{};
-    socklen_t addrLen = sizeof(localSockAddr);
-    if (::getsockname(connFd, reinterpret_cast<sockaddr*>(&localSockAddr), &addrLen) < 0) {
-        spdlog::error("TcpServer::resolve_local_address(). getsockname error, errno: {}", errno);
-    }
-    return InetAddress(localSockAddr);
-}
-
 std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
-    int connFd,
+    Socket connSocket,
     const InetAddress& localAddr,
     const InetAddress& peerAddr) const {
-    return std::make_shared<TcpConnection>(&ioLoop, connFd, localAddr, peerAddr);
-}
-
-void TcpServer::configure_connection_socket(const std::shared_ptr<TcpConnection>& conn) const {
-    // 低延迟连接统一关闭 Nagle，同时启用 keepalive 及时回收死连接。
-    conn->set_tcp_no_delay(true);
-    conn->set_tcp_keepalive(true);
+    return std::make_shared<TcpConnection>(&ioLoop, std::move(connSocket), localAddr, peerAddr);
 }
 
 void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn) {
-    // message/close 是连接生命周期的主干事件，因此总是绑定回 TcpServer。
     conn->set_message_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
         on_message(activeConn);
         });
@@ -160,7 +148,6 @@ void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& 
         on_close(activeConn);
         });
 
-    // 其余回调按需接通，避免未配置时多一层空转转发。
     if (errorCallback_) {
         conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
             notify_error_callback(activeConn);
@@ -180,11 +167,9 @@ void TcpServer::bind_connection_callbacks(const std::shared_ptr<TcpConnection>& 
     }
 }
 
-void TcpServer::store_connection(int connFd, const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::store_connection(int fd, const std::shared_ptr<TcpConnection>& conn) {
     std::lock_guard<std::mutex> lock(connectionsMutex_);
-
-    // 连接表持有 shared_ptr，确保异步回调期间连接对象不会提前析构。
-    connections_[connFd] = conn;
+    connections_[fd] = conn;
 }
 
 void TcpServer::establish_connection(const std::shared_ptr<TcpConnection>& conn) const {
@@ -200,7 +185,6 @@ void TcpServer::notify_connection_callback(const std::shared_ptr<TcpConnection>&
 }
 
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
-    // TcpServer 只做事件转发，消息内容仍由业务层通过 conn->receive() 拉取。
     notify_message_callback(conn);
 }
 
@@ -211,8 +195,6 @@ void TcpServer::notify_message_callback(const std::shared_ptr<TcpConnection>& co
 
 void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     remove_connection(conn);
-
-    // 先移除连接，再把关闭事件交给上层，避免回调期间看到陈旧连接表。
     notify_close_callback(conn);
 }
 

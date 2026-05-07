@@ -16,7 +16,7 @@
 //     │       └── sync_timerfd()                   # [私有] 以新的最早到期时间重置 timerfd
 //     ├── TimerQueue(copy)                         # [公有] 删除拷贝构造，避免复制 timerfd 与双索引状态
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，保持队列归属唯一
-//     ├── ~TimerQueue()                            # [公有] 析构：资源由 Channel/timerfd 生命周期托管
+//     ├── ~TimerQueue()                            # [公有] 析构：显式销毁 timerChannel 并关闭 timerFd
 //     ├── add_timer(callback, when, interval)      # [公有] 统一注册入口：生成 ID 后投递到 EventLoop 线程
 //     │   └── sync_timerfd()                       # [私有] 若最早到期时间变化则重武装 timerfd
 //     │       ├── reset_timerfd(expiration)        # [私有] 设置下次唤醒时刻
