@@ -25,6 +25,10 @@ target_include_directories(TudouUnitTest PRIVATE
 
 )
 
+target_compile_definitions(TudouUnitTest PRIVATE
+    TUDOU_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
 # 链接 tudou
 target_link_libraries(TudouUnitTest PRIVATE 
     tudou

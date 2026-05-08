@@ -2,20 +2,22 @@
 
 #include <openssl/ssl.h>
 
+#include <string>
+
 #include "tudou/http/SslContext.h"
 
 namespace {
 
-constexpr char kValidCertPath[] = "/workspaces/Tudou/certs/test-cert.pem";
-constexpr char kValidKeyPath[] = "/workspaces/Tudou/certs/test-key.pem";
-constexpr char kMissingCertPath[] = "/workspaces/Tudou/certs/missing-cert.pem";
+std::string cert_path(const char* fileName) {
+    return std::string(TUDOU_SOURCE_DIR) + "/certs/" + fileName;
+}
 
 } // namespace
 
 TEST(SslContextTest, InitWithValidCertificateCreatesServerSsl) {
     SslContext context;
 
-    ASSERT_TRUE(context.init(kValidCertPath, kValidKeyPath));
+    ASSERT_TRUE(context.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
     EXPECT_TRUE(context.is_initialized());
 
     SSL* ssl = context.create_ssl();
@@ -26,10 +28,10 @@ TEST(SslContextTest, InitWithValidCertificateCreatesServerSsl) {
 TEST(SslContextTest, FailedReinitializationClearsPreviousContext) {
     SslContext context;
 
-    ASSERT_TRUE(context.init(kValidCertPath, kValidKeyPath));
+    ASSERT_TRUE(context.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
     EXPECT_TRUE(context.is_initialized());
 
-    EXPECT_FALSE(context.init(kMissingCertPath, kValidKeyPath));
+    EXPECT_FALSE(context.init(cert_path("missing-cert.pem"), cert_path("test-key.pem")));
     EXPECT_FALSE(context.is_initialized());
     EXPECT_EQ(context.create_ssl(), nullptr);
 }

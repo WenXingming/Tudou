@@ -34,7 +34,7 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
         loop.quit();
         });
     conn->set_close_callback([](const std::shared_ptr<TcpConnection>&) {});
-    conn->connection_establish();
+    conn->tie_to_object(conn);
 
     ASSERT_EQ(::write(fds[1], "hello", 5), 5);
 
@@ -60,37 +60,12 @@ TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) 
     conn->set_high_water_mark_callback([&](const std::shared_ptr<TcpConnection>&) {
         highWaterMarkReached = true;
         }, 4);
-    conn->connection_establish();
+    conn->tie_to_object(conn);
 
     conn->send("hello");
 
     EXPECT_TRUE(highWaterMarkReached);
     EXPECT_EQ(conn->get_write_buffer_size(), 5U);
-
-    ::close(fds[1]);
-}
-
-TEST(TcpConnectionTest, HeartbeatTimeoutClosesIdleConnection) {
-    int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
-
-    EventLoop loop(20);
-    auto conn = make_connection(loop, fds[0]);
-    bool closed = false;
-
-    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        closed = true;
-        loop.quit();
-        });
-    conn->connection_establish();
-    conn->enable_app_heartbeat(0.01, 0.02, "");
-
-    loop.run_after(0.2, [&]() {
-        loop.quit();
-        });
-    loop.loop();
-
-    EXPECT_TRUE(closed);
 
     ::close(fds[1]);
 }

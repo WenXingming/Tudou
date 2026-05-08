@@ -10,27 +10,24 @@
 //     ├── ~TcpServer()                            # [公有] 析构：资源由成员对象统一回收
 //     ├── start()                                 # [公有] 启动线程池、创建 Acceptor 并进入主事件循环
 //     │   └── on_connect(connSocket, peerAddr)    # [私有] 绑定为 Acceptor 的新连接回调
-//     │       ├── assert_in_main_loop_thread()    # [私有] 确保 accept 回调在主 loop 线程执行
-//     │       ├── select_loop() const             # [私有] 轮询选出负责该连接的 IO loop
-//     │       ├── create_connection(...) const    # [私有] 构造 TcpConnection（传入 Socket 所有权）
-//     │       ├── bind_connection_callbacks(conn) # [私有] 绑定消息、关闭、错误、背压等回调
-//     │       │   ├── on_message(conn)            # [私有] TcpServer 只转发消息事件
-//     │       │   │   └── notify_message_callback(conn) # [私有] 触发上层 messageCallback_
-//     │       │   ├── on_close(conn)              # [私有] 关闭主干：先删连接，再通知业务层
-//     │       │   │   ├── remove_connection(conn) # [私有] 从 connections_ 中移除
-//     │       │   │   └── notify_close_callback(conn) # [私有] 转发连接关闭事件
-//     │       │   ├── notify_error_callback(conn) # [私有] 向上分发错误事件
-//     │       │   ├── notify_write_complete_callback(conn) # [私有] 向上分发写完成事件
-//     │       │   └── notify_high_water_mark_callback(conn) # [私有] 向上分发高水位事件
-//     │       ├── store_connection(fd, conn)      # [私有] 放入活动连接表
-//     │       ├── establish_connection(conn) const # [私有] 触发 tie/self-keepalive 初始化
-//     │       └── notify_connection_callback(conn) # [私有] 把"连接已建立"事件抛给业务层
+//     │       └── create_connection(...)          # [私有] 创建 TcpConnection、配置 socket 选项、绑定回调、存入连接表
+//     │           ├── create_connection_heartbeat(conn) const # [私有] 按需实例化空闲检测策略对象
+//     │           ├── on_message(conn)            # [私有] 消息事件先刷新心跳再向上转发
+//     │           │   ├── refresh_connection_heartbeat(conn) # [私有] 更新连接最后活跃时间
+//     │           │   └── handle_message_callback(conn) # [私有] 触发上层 messageCallback_
+//     │           ├── on_close(conn)              # [私有] 关闭主干：先删连接，再通知业务层
+//     │           │   ├── remove_connection(conn) # [私有] 从 connections_ 和心跳表中移除，停止心跳定时器
+//     │           │   └── handle_close_callback(conn) # [私有] 转发连接关闭事件
+//     │           ├── handle_error_callback(conn) # [私有] 向上分发错误事件
+//     │           ├── handle_write_complete_callback(conn) # [私有] 向上分发写完成事件
+//     │           └── handle_high_water_mark_callback(conn) # [私有] 向上分发高水位事件
 //     ├── set_connection_callback(cb)             # [公有] 注册建连回调
 //     ├── set_message_callback(cb)                # [公有] 注册消息回调
 //     ├── set_close_callback(cb)                  # [公有] 注册关闭回调
 //     ├── set_error_callback(cb)                  # [公有] 注册错误回调
 //     ├── set_write_complete_callback(cb)         # [公有] 注册写完成回调
 //     ├── set_high_water_mark_callback(cb, mark)  # [公有] 注册高水位回调并设置阈值
+//     ├── set_connection_heartbeat(interval, timeout) # [公有] 配置所有连接共享的空闲检测策略
 //     ├── get_ip() const                          # [公有] 返回监听 IP
 //     ├── get_port() const                        # [公有] 返回监听端口
 //     └── get_num_threads() const                 # [公有] 返回线程池 loop 总数
@@ -51,6 +48,7 @@
 #include "Socket.h"
 
 class Acceptor;
+class ConnectionHeartbeat;
 class EventLoop;
 class TcpConnection;
 
@@ -75,42 +73,50 @@ public:
     void set_error_callback(ErrorCallback cb);
     void set_write_complete_callback(WriteCompleteCallback cb);
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark = 64 * 1024 * 1024);
+    // 为之后创建的所有连接启用统一的空闲检测；策略对象的生命周期由 TcpServer 统一编排。
+    void set_connection_heartbeat(double checkIntervalSeconds, double idleTimeoutSeconds);
     const std::string& get_ip() const { return ip_; }
     uint16_t get_port() const { return port_; }
     int get_num_threads() const { return loopThreadPool_ ? loopThreadPool_->get_num_threads() : 0; }
 
 private:
-    void assert_in_main_loop_thread() const;
-    EventLoop& select_loop() const;
-
     // 新连接装配总入口，接收 Socket 所有权。
     void on_connect(Socket connSocket, const InetAddress& peerAddr);
+    void on_message(const std::shared_ptr<TcpConnection>& conn);
+    void on_close(const std::shared_ptr<TcpConnection>& conn);
 
     std::shared_ptr<TcpConnection> create_connection(EventLoop& ioLoop,
         Socket connSocket,
-        const InetAddress& localAddr,
-        const InetAddress& peerAddr) const;
-
-    void bind_connection_callbacks(const std::shared_ptr<TcpConnection>& conn);
-    void store_connection(int fd, const std::shared_ptr<TcpConnection>& conn);
-    void establish_connection(const std::shared_ptr<TcpConnection>& conn) const;
-    void notify_connection_callback(const std::shared_ptr<TcpConnection>& conn);
-    void on_message(const std::shared_ptr<TcpConnection>& conn);
-    void notify_message_callback(const std::shared_ptr<TcpConnection>& conn);
-    void on_close(const std::shared_ptr<TcpConnection>& conn);
+        const InetAddress& peerAddr,
+        int fd);
     void remove_connection(const std::shared_ptr<TcpConnection>& conn);
-    void notify_close_callback(const std::shared_ptr<TcpConnection>& conn);
-    void notify_error_callback(const std::shared_ptr<TcpConnection>& conn);
-    void notify_write_complete_callback(const std::shared_ptr<TcpConnection>& conn);
-    void notify_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn);
+
+    std::shared_ptr<ConnectionHeartbeat> create_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn) const;
+    void refresh_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn);
+
+    void handle_connection_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_message_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_close_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_error_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn);
+    void handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn);
 
 private:
+    struct ConnectionHeartbeatOptions {
+        bool enabled = false;
+        double checkIntervalSeconds = 0.0;
+        double idleTimeoutSeconds = 0.0;
+    };
+
     std::unique_ptr<EventLoopThreadPool> loopThreadPool_;
+
     std::string ip_;
     uint16_t port_;
     std::unique_ptr<Acceptor> acceptor_;
     std::unordered_map<int, std::shared_ptr<TcpConnection>> connections_;
+    std::unordered_map<int, std::shared_ptr<ConnectionHeartbeat>> connectionHeartbeats_;
     std::mutex connectionsMutex_;
+
     ConnectionCallback connectionCallback_;
     MessageCallback messageCallback_;
     CloseCallback closeCallback_;
@@ -118,4 +124,5 @@ private:
     WriteCompleteCallback writeCompleteCallback_;
     HighWaterMarkCallback highWaterMarkCallback_;
     size_t highWaterMark_;
+    ConnectionHeartbeatOptions connectionHeartbeatOptions_;
 };

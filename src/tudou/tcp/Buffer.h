@@ -2,6 +2,23 @@
 // Buffer.h
 // Buffer 是 TCP 子系统的纯工具层，负责把 fd 读写和应用层字符串搬运统一成稳定的缓冲区契约。
 //
+// 内部模型：
+//    A buffer class modeled after org.jboss.netty.buffer.ChannelBuffer
+//    设计参考 Netty 的 ChannelBuffer
+//    @code
+//    +-------------------+------------------+------------------+
+//    | prependable bytes |  readable bytes  |  writable bytes  |
+//    |                   |     (CONTENT)    |                  |
+//    +-------------------+------------------+------------------+
+//    |                   |                  |                  |
+//    0      <=      readerIndex   <=   writerIndex     <=     size
+//    @endcode
+//
+//    - 共有两个数据流向（缓冲区设计的精巧之处在于读、写空间的自动转换）：
+//      1. 从 fd 读取数据写入 InputBuffer 的 writable bytes 区域（read_from_fd），自动变成可读区域，供上层从缓冲区读取使用（read_from_buffer）
+//      2. 上层写入数据到 OutputBuffer 的 writable bytes 区域（write_to_buffer），自动变成可读区域，供写入 fd 使用（write_to_fd）
+//    - 总之：上层通过 read_from_buffer()/write_to_buffer() 与缓冲区进行数据搬运，缓冲区通过 read_from_fd()/write_to_fd() 与 fd 进行数据搬运。
+//
 // 成员函数调用树（[公有]/[私有] 标注接口层级）：
 //
 // Buffer.h

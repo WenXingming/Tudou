@@ -9,8 +9,9 @@
 
 namespace {
 
-constexpr char kValidCertPath[] = "/workspaces/Tudou/certs/test-cert.pem";
-constexpr char kValidKeyPath[] = "/workspaces/Tudou/certs/test-key.pem";
+std::string cert_path(const char* fileName) {
+    return std::string(TUDOU_SOURCE_DIR) + "/certs/" + fileName;
+}
 
 class ClientTlsPeer {
 public:
@@ -163,7 +164,7 @@ TEST(TlsConnectionTest, NullSslHandleTransitionsToErrorState) {
 
 TEST(TlsConnectionTest, HandshakeEncryptAndDecryptRoundTrip) {
     SslContext serverContext;
-    ASSERT_TRUE(serverContext.init(kValidCertPath, kValidKeyPath));
+    ASSERT_TRUE(serverContext.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
 
     SSL* serverSsl = serverContext.create_ssl();
     ASSERT_NE(serverSsl, nullptr);

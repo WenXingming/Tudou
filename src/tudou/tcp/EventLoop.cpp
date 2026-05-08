@@ -154,7 +154,8 @@ TimerId EventLoop::run_every(double intervalSeconds, const Functor& cb) {
         interval = std::chrono::milliseconds(1);
     }
     auto when = std::chrono::steady_clock::now() + interval;
-    return timerQueue_->add_timer(cb, when, interval);
+    TimerId timerId = timerQueue_->add_timer(cb, when, interval);
+    return timerId;
 }
 
 void EventLoop::cancel(TimerId timerId) {
