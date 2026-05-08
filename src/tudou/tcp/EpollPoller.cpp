@@ -14,8 +14,9 @@
 EpollPoller::EpollPoller(EventLoop* loop)
     : loop_(loop)
     , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 确保 exec 后 fd 被自动关闭，避免 fork 的子进程误继承父进程的 epollFd 导致资源泄漏或竞争
-    , eventList_(initEventListSize_)
-    , channels_() {
+    , channels_()
+    , initEventListSize_(16)
+    , eventList_(initEventListSize_) {
     if (epollFd_ < 0) {
         spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
@@ -27,15 +28,15 @@ EpollPoller::~EpollPoller() {
     assert(ret == 0);
 }
 
-void EpollPoller::poll(int timeoutMs) {
+std::vector<Channel*> EpollPoller::poll(int timeoutMs) {
     const int numReady = get_ready_num(timeoutMs);
-    const auto activeChannels = get_activate_channels(numReady);
-    dispatch_events(activeChannels);
+    auto activeChannels = get_activate_channels(numReady);
     resize_event_list(numReady);
+    return activeChannels; // NRVO，勿加 std::move
 }
 
 void EpollPoller::update_channel(Channel* channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     int fd = channel->get_fd();
     uint32_t events = channel->get_events();
@@ -68,7 +69,7 @@ void EpollPoller::update_channel(Channel* channel) {
 }
 
 void EpollPoller::remove_channel(Channel* channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     // epollfd、channels 应该同步
     int fd = channel->get_fd();
@@ -81,7 +82,7 @@ void EpollPoller::remove_channel(Channel* channel) {
 }
 
 bool EpollPoller::has_channel(Channel* channel) const {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     int fd = channel->get_fd();
     auto findIt = channels_.find(fd);
@@ -119,12 +120,6 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
         activeChannels.push_back(channel);
     }
     return activeChannels; // NRVO，勿加 std::move
-}
-
-void EpollPoller::dispatch_events(const std::vector<Channel*>& activeChannels) {
-    for (Channel* channel : activeChannels) {
-        channel->handle_events();
-    }
 }
 
 void EpollPoller::resize_event_list(int numReady) {

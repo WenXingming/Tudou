@@ -14,8 +14,7 @@
 
 Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
     loop_(loop),
-    listenAddr_(listenAddr),
-    listenSocket_(Socket::create_tcp_listener(listenAddr_)),
+    listenSocket_(Socket::create_tcp_listener(listenAddr)),
     channel_(nullptr),
     newConnectCallback_(nullptr) {
 

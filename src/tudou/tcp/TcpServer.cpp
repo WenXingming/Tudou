@@ -95,7 +95,7 @@ EventLoop& TcpServer::require_main_loop() const {
 }
 
 void TcpServer::assert_in_main_loop_thread() const {
-    require_main_loop().assert_in_loop_thread();
+    assert(require_main_loop().is_in_loop_thread());
 }
 
 EventLoop& TcpServer::select_loop() const {
@@ -200,7 +200,7 @@ void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
 
 void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
     EventLoop* loop = conn->get_loop();
-    loop->assert_in_loop_thread();
+    assert(loop->is_in_loop_thread());
 
     int fd = conn->get_fd();
     bool erased = false;

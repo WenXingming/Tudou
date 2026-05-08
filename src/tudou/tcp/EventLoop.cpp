@@ -31,9 +31,9 @@ EventLoop::EventLoop() :
     timerQueue_(nullptr) {
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
-    wakeupFd_ = create_wakeup_fd();
+    wakeupFd_ = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
     if (wakeupFd_ < 0) {
-        spdlog::critical("EventLoop: Failed to create wakeupFd");
+        spdlog::critical("EventLoop: Failed to create eventfd");
         assert(false);
     }
     wakeupChannel_ = std::make_unique<Channel>(this, wakeupFd_);
@@ -42,6 +42,7 @@ EventLoop::EventLoop() :
 
     timerQueue_ = std::make_unique<TimerQueue>(this);
 
+    // 确保每个线程最多拥有一个 EventLoop 实例，强制执行 one loop per thread 约束。
     if (loopInthisThread != nullptr) {
         spdlog::critical("Cannot create more than one EventLoop per thread");
         assert(false);
@@ -56,41 +57,47 @@ EventLoop::~EventLoop() {
     }
     loopInthisThread = nullptr;
 
-    // 先销毁 TimerQueue（关闭 timerfd），再销毁 wakeupChannel 和 wakeup fd
-    timerQueue_.reset();
+    // 析构函数体先于成员析构执行，timerQueue_/poller_ 按声明逆序自动析构，wakeupFd_ 是原始类型，其"析构"什么也不做。
+    // 为了确保 epoll_ctl(DEL) 在 ::close 之前完成，因此必须手动 reset wakeupChannel_。
+    // wakeupChannel_.reset() 不是多余的——它强制把 Channel 析构提前到函数体内，保证在 ::close 之前完成 epoll 注销。
+    // 结论：当前的 wakeupChannel_.reset() 必须保留。如果将来把 wakeupFd_ 封装成 RAII 类型（如已有的 Socket 类），声明在 wakeupChannel_ 之后，就能完全依赖自动析构顺序，连 reset() 也不需要了。
     wakeupChannel_.reset();
     ::close(wakeupFd_);
 }
 
 void EventLoop::loop(int timeoutMs) {
-    assert_in_loop_thread();
+    assert(is_in_loop_thread());
 
     isLooping_ = true;
     while (!isQuit_) {
-        // 每轮循环只做两件事：处理内核事件，然后处理本轮排队任务。
-        poller_->poll(timeoutMs);
+        // 事件循环的核心流程：等待事件、分发事件，异步执行本轮积累的待处理任务（如跨线程任务等）。
+        auto activeChannels = poller_->poll(timeoutMs);
+        for (Channel* channel : activeChannels) {
+            channel->handle_events();
+        }
         do_pending_functors();
     }
     isLooping_ = false;
 }
 
 void EventLoop::update_channel(Channel* channel) const {
-    assert_in_loop_thread();
+    assert(is_in_loop_thread());
     poller_->update_channel(channel);
 }
 
 void EventLoop::remove_channel(Channel* channel) const {
-    assert_in_loop_thread();
+    assert(is_in_loop_thread());
     poller_->remove_channel(channel);
 }
 
 bool EventLoop::has_channel(Channel* channel) const {
-    assert_in_loop_thread();
+    assert(is_in_loop_thread());
     return poller_->has_channel(channel);
 }
 
 void EventLoop::quit() {
     isQuit_ = true;
+    // 如果调用 quit() 的线程不是 EventLoop 所在线程，必须通过 wakeup 唤醒它，让 loop() 能够及时感知 isQuit_ 的变化并退出。
     if (!is_in_loop_thread()) {
         wakeup();
     }
@@ -98,10 +105,6 @@ void EventLoop::quit() {
 
 bool EventLoop::is_in_loop_thread() const {
     return threadId_ == std::this_thread::get_id();
-}
-
-void EventLoop::assert_in_loop_thread() const {
-    assert(is_in_loop_thread());
 }
 
 void EventLoop::run_in_loop(const Functor& cb) {
@@ -147,15 +150,6 @@ void EventLoop::cancel(TimerId timerId) {
         return;
     }
     timerQueue_->erase_timer(timerId);
-}
-
-int EventLoop::create_wakeup_fd() {
-    int eventFd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-    if (eventFd < 0) {
-        spdlog::error("Failed to create eventfd");
-        assert(false);
-    }
-    return eventFd;
 }
 
 void EventLoop::wakeup() {

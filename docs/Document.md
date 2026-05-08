@@ -235,15 +235,6 @@ Channel 在构造函数中立即调用 `update_in_register()` 将自身注册到
 
 Tudou 的 EpollPoller 使用 `channels_.find(fd)` 替代了这一状态判断逻辑（map 中找不到则 ADD，找到则 MOD），因此 `index_` 在 Tudou 中是死代码，已移除。
 
-## tie-mechanism
-
-Channel 的 tie 机制是为了防止在事件处理过程中 Channel 对象被销毁导致的悬空指针问题。通过 tie 机制，Channel 可以绑定一个 shared_ptr 对象（通常是 TcpConnection），在事件处理过程中通过 lock() 获取 shared_ptr 的临时对象，确保 Channel 在事件处理期间不会被销毁。
-
-handle_events() 可能有断开连接的情况。断开连接的处理并不简单：对方关闭连接，会触发 Channel::handle_event()，后者调用 handle_close_callback()；handle_close_callback() 调用上层注册的 closeCallback，TcpConnection::close_callback()；TcpConnection::close_callback() 负责关闭连接，在 TcpServer 中销毁 TcpConnection 对象。此时 Channel 对象也会被销毁；然而此时 handle_events_with_guard() 还没有返回，后续代码继续执行，可能访问已经被销毁的 Channel 对象，导致段错误。见书籍 p274。muduo 的做法是通过 Channel::tie() 绑定一个弱智能指针，延长其生命周期，保证 Channel 对象在 handle_events_with_guard() 执行期间不会被销毁
-
-
-通过弱智能指针 tie 绑定一个 shared_ptr 智能指针，延长其生命周期，防止 handle_events_with_guard 过程中被销毁。只有对象是通过 shared_ptr 管理的，才能锁定。所以需要 isTied 标志。Accetor 不需要 tie（因为没有 remove 回调，而且也不是 shared_ptr 管理的）；TcpConnection 需要 tie，其有 remove 回调，且是 shared_ptr 管理的。
-
 ## EventLoop 设计说明
 
 ### wakeup 机制：eventfd 打断 poll 阻塞 {#eventloop-wakeup}

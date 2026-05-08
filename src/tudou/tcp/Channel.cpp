@@ -27,12 +27,12 @@ Channel::Channel(EventLoop* loop, int fd)
     , errorCallback_(nullptr) {
 
     // 构造时立即注册到 Poller，保证 fd 和 Channel 生命周期严格同步
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
     update_in_register();
 }
 
 Channel::~Channel() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
     disable_all();
     remove_in_register();
     // fd 生命周期由持有者（Socket 或显式 close）管理，Channel 不再负责关闭。
@@ -59,15 +59,14 @@ void Channel::set_revents(uint32_t revents) {
 }
 
 void Channel::handle_events() {
-    // 若启用了 tie 机制，必须先保活所有者对象，再进入事件分发。
     if (isTied_) {
-        std::shared_ptr<void> guard = tie_.lock();
+        std::shared_ptr<void> guard = tie_.lock(); // 升级：栈上临时强引用
         if (guard) {
-            handle_events_with_guard();
+            handle_events_with_guard(); // 对象保活，安全执行事件分发
         }
     }
     else {
-        handle_events_with_guard();
+        handle_events_with_guard(); // Acceptor 走此分支，无需保活
     }
 }
 

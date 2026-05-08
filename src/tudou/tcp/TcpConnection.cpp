@@ -52,7 +52,7 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::send(const std::string& msg) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     const size_t oldLen = writeBuffer_->readable_bytes();
     writeBuffer_->write_to_buffer(msg);
@@ -66,7 +66,7 @@ void TcpConnection::send(const std::string& msg) {
 }
 
 std::string TcpConnection::receive() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
     return readBuffer_->read_from_buffer();
 }
 
@@ -100,7 +100,7 @@ void TcpConnection::connection_establish() {
 }
 
 void TcpConnection::enable_app_heartbeat(double intervalSeconds, double timeoutSeconds, const std::string& pingMessage) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     if (intervalSeconds <= 0.0 || timeoutSeconds <= 0.0) {
         spdlog::warn("TcpConnection::enable_app_heartbeat() invalid args, interval={}, timeout={}, fd={}",
@@ -118,14 +118,14 @@ void TcpConnection::enable_app_heartbeat(double intervalSeconds, double timeoutS
 }
 
 void TcpConnection::disable_app_heartbeat() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     heartbeatEnabled_ = false;
     stop_app_heartbeat_timer();
 }
 
 void TcpConnection::on_read(Channel& channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     int savedErrno = 0;
     const ssize_t n = read_from_channel(channel, &savedErrno);
@@ -163,7 +163,7 @@ void TcpConnection::notify_message_callback() {
 }
 
 void TcpConnection::on_write(Channel& channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     if (!channel.is_writing()) {
         spdlog::error("TcpConnection::on_write() but channel is not writing.");
@@ -202,7 +202,7 @@ void TcpConnection::notify_write_complete_callback() {
 }
 
 void TcpConnection::on_close(Channel& channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
     close_connection(channel);
 }
 
@@ -225,7 +225,7 @@ void TcpConnection::notify_close_callback() {
 }
 
 void TcpConnection::on_error(Channel& channel) {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
     notify_error_callback();
     close_connection(channel);
 }
@@ -258,7 +258,7 @@ void TcpConnection::tie_channel_to_owner() {
 }
 
 void TcpConnection::start_app_heartbeat_timer() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     stop_app_heartbeat_timer();
     if (!heartbeatEnabled_ || isClosed_) {
@@ -276,7 +276,7 @@ void TcpConnection::start_app_heartbeat_timer() {
 }
 
 void TcpConnection::stop_app_heartbeat_timer() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     if (!heartbeatTimerId_.valid()) {
         return;
@@ -287,7 +287,7 @@ void TcpConnection::stop_app_heartbeat_timer() {
 }
 
 void TcpConnection::on_heartbeat_tick() {
-    loop_->assert_in_loop_thread();
+    assert(loop_->is_in_loop_thread());
 
     if (!heartbeatEnabled_ || isClosed_) {
         return;

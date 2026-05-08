@@ -6,13 +6,12 @@
 //
 // EventLoop.h
 // └── EventLoop
-//     ├── EventLoop()                              # [公有] 构造：创建 Poller、wakeup Channel 和 TimerQueue
-//     │   ├── create_wakeup_fd()                   # [私有] 创建 eventfd 作为跨线程唤醒源
+//     ├── EventLoop()                              # [公有] 构造：创建 Poller、eventfd + wakeup Channel 和 TimerQueue
 //     │   └── on_read()                            # [私有] 绑定为 wakeupChannel_ 读回调，负责消费唤醒事件
 //     ├── ~EventLoop()                             # [公有] 析构：校验线程归属，显式销毁 TimerQueue/wakeupChannel 并关闭 wakeupFd
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
-//     ├── loop(timeoutMs)                          # [公有] Reactor 主循环：poll 后执行本轮待处理任务
+//     ├── loop(timeoutMs)                          # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
 //     │   └── do_pending_functors()                # [私有] 固定走“摘队列 -> 顺序执行”路径
 //     │       ├── take_pending_functors()          # [私有] 摘出当前批次待执行任务
 //     │       └── execute_pending_functors(...)    # [私有] 顺序执行本轮 functor
@@ -29,8 +28,7 @@
 //     ├── update_channel(channel) const            # [公有] 把 Channel 事件兴趣同步到 Poller
 //     ├── remove_channel(channel) const            # [公有] 从 Poller 中注销 Channel
 //     ├── has_channel(channel) const               # [公有] 查询 Poller 是否已经持有该 Channel
-//     ├── is_in_loop_thread() const                # [公有] 判断当前线程是否就是所属 loop 线程
-//     └── assert_in_loop_thread() const            # [公有] 对线程归属做强校验
+//     └── is_in_loop_thread() const                # [公有] 判断当前线程是否就是所属 loop 线程
 // ============================================================================
 
 #pragma once
@@ -63,7 +61,6 @@ public:
     bool has_channel(Channel* channel) const;
     void quit();
     bool is_in_loop_thread() const;
-    void assert_in_loop_thread() const;
     void run_in_loop(const Functor& cb); // 同线程直执，跨线程转入 pending queue。
     void queue_in_loop(const Functor& cb); // 异步投递任务，必要时唤醒阻塞中的 poll。
 
@@ -74,7 +71,6 @@ public:
 private:
     using FunctorQueue = std::queue<Functor>;
 
-    int create_wakeup_fd();
     void wakeup(); // 通过 eventfd 打断阻塞中的 poll。
     void on_read(); // 消费 wakeupFd_ 事件，避免重复通知。
     void do_pending_functors(); // 执行当前批次待处理任务。

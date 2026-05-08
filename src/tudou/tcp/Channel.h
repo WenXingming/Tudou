@@ -97,6 +97,7 @@ private:
     static const uint32_t kWriteEvent_;
 
     EventLoop* loop_; // 所属 EventLoop，非 owning。
+
     int fd_; // 当前 Channel 绑定的 fd。
     uint32_t events_; // 当前感兴趣事件掩码。
     uint32_t revents_; // Poller 返回的本轮就绪事件掩码。

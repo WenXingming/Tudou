@@ -59,8 +59,7 @@ private:
 
 private:
     EventLoop* loop_;
-    InetAddress listenAddr_;
     Socket listenSocket_;                    // 监听 socket 的 RAII 句柄，析构时自动关闭 fd
-    std::unique_ptr<Channel> channel_;       // 监听 socket 对应的事件通道（必须先于 Socket 声明）
+    std::unique_ptr<Channel> channel_;       // 监听 socket 对应的事件通道（声明在后，确保析构时先反注册再关 fd）
     NewConnectCallback newConnectCallback_;
 };

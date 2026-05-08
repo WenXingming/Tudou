@@ -18,13 +18,13 @@ EventLoopThreadPool::EventLoopThreadPool(const std::string& name, int numThreads
     started_(false) {
 
     mainLoop_.reset(new EventLoop());
-    mainLoop_->assert_in_loop_thread();
+    assert(mainLoop_->is_in_loop_thread());
 }
 
 EventLoopThreadPool::~EventLoopThreadPool() = default;
 
 void EventLoopThreadPool::start() {
-    mainLoop_->assert_in_loop_thread();
+    assert(mainLoop_->is_in_loop_thread());
     assert(!started_);
 
     // 先把后台 IO loops 启起来，后续 accept 到的连接才能立即分发出去。
@@ -50,7 +50,7 @@ void EventLoopThreadPool::initialize_main_loop_if_needed() const {
 }
 
 EventLoop* EventLoopThreadPool::get_next_loop() {
-    mainLoop_->assert_in_loop_thread();
+    assert(mainLoop_->is_in_loop_thread());
     assert(started_);
 
     EventLoop* loop = mainLoop_.get();
