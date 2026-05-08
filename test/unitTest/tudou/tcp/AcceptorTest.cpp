@@ -24,7 +24,7 @@ sockaddr_in read_bound_address(int fd) {
 } // namespace
 
 TEST(AcceptorTest, AcceptPublishesNonBlockingCloseOnExecSocket) {
-    EventLoop loop;
+    EventLoop loop(20);
     Acceptor acceptor(&loop, InetAddress("127.0.0.1", 0));
 
     int acceptedFd = -1;
@@ -47,7 +47,7 @@ TEST(AcceptorTest, AcceptPublishesNonBlockingCloseOnExecSocket) {
     loop.run_after(0.2, [&]() {
         loop.quit();
         });
-    loop.loop(20);
+    loop.loop();
 
     ASSERT_GE(acceptedFd, 0);
     EXPECT_EQ(peerIp, "127.0.0.1");

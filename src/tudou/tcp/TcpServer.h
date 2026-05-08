@@ -6,27 +6,25 @@
 //
 // TcpServer.h
 // └── TcpServer
-//     ├── TcpServer(ip, port, ioLoopNum)         # [公有] 构造：创建线程池、主 loop 和 Acceptor
-//     │   ├── require_main_loop() const          # [私有] 取出主 EventLoop 作为监听线程
-//     │   └── on_connect(connSocket, peerAddr)   # [私有] 绑定为 Acceptor 的新连接回调
-//     │       ├── assert_in_main_loop_thread()   # [私有] 确保 accept 回调在主 loop 线程执行
-//     │       ├── select_loop() const            # [私有] 轮询选出负责该连接的 IO loop
-//     │       ├── create_connection(...) const   # [私有] 构造 TcpConnection（传入 Socket 所有权）
+//     ├── TcpServer(ip, port, ioLoopNum)         # [公有] 构造：仅记录配置，不创建任何运行时资源
+//     ├── ~TcpServer()                            # [公有] 析构：资源由成员对象统一回收
+//     ├── start()                                 # [公有] 启动线程池、创建 Acceptor 并进入主事件循环
+//     │   └── on_connect(connSocket, peerAddr)    # [私有] 绑定为 Acceptor 的新连接回调
+//     │       ├── assert_in_main_loop_thread()    # [私有] 确保 accept 回调在主 loop 线程执行
+//     │       ├── select_loop() const             # [私有] 轮询选出负责该连接的 IO loop
+//     │       ├── create_connection(...) const    # [私有] 构造 TcpConnection（传入 Socket 所有权）
 //     │       ├── bind_connection_callbacks(conn) # [私有] 绑定消息、关闭、错误、背压等回调
-//     │       │   ├── on_message(conn)           # [私有] TcpServer 只转发消息事件
+//     │       │   ├── on_message(conn)            # [私有] TcpServer 只转发消息事件
 //     │       │   │   └── notify_message_callback(conn) # [私有] 触发上层 messageCallback_
-//     │       │   ├── on_close(conn)             # [私有] 关闭主干：先删连接，再通知业务层
+//     │       │   ├── on_close(conn)              # [私有] 关闭主干：先删连接，再通知业务层
 //     │       │   │   ├── remove_connection(conn) # [私有] 从 connections_ 中移除
 //     │       │   │   └── notify_close_callback(conn) # [私有] 转发连接关闭事件
 //     │       │   ├── notify_error_callback(conn) # [私有] 向上分发错误事件
 //     │       │   ├── notify_write_complete_callback(conn) # [私有] 向上分发写完成事件
 //     │       │   └── notify_high_water_mark_callback(conn) # [私有] 向上分发高水位事件
-//     │       ├── store_connection(fd, conn)     # [私有] 放入活动连接表
+//     │       ├── store_connection(fd, conn)      # [私有] 放入活动连接表
 //     │       ├── establish_connection(conn) const # [私有] 触发 tie/self-keepalive 初始化
 //     │       └── notify_connection_callback(conn) # [私有] 把"连接已建立"事件抛给业务层
-//     ├── ~TcpServer()                            # [公有] 析构：资源由成员对象统一回收
-//     ├── start()                                 # [公有] 启动 IO 线程池并进入主事件循环
-//     │   └── require_main_loop() const           # [私有] 获取主 loop
 //     ├── set_connection_callback(cb)             # [公有] 注册建连回调
 //     ├── set_message_callback(cb)                # [公有] 注册消息回调
 //     ├── set_close_callback(cb)                  # [公有] 注册关闭回调
@@ -82,7 +80,6 @@ public:
     int get_num_threads() const { return loopThreadPool_ ? loopThreadPool_->get_num_threads() : 0; }
 
 private:
-    EventLoop& require_main_loop() const;
     void assert_in_main_loop_thread() const;
     EventLoop& select_loop() const;
 

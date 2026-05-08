@@ -40,13 +40,6 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     writeCompleteCallback_(nullptr),
     highWaterMarkCallback_(nullptr),
     highWaterMark_(kDefaultHighWaterMark) {
-    InetAddress listenAddr(this->ip_, this->port_);
-    EventLoop& mainLoop = require_main_loop();
-
-    acceptor_ = std::make_unique<Acceptor>(&mainLoop, listenAddr);
-    acceptor_->set_connect_callback([this](Socket connSocket, const InetAddress& peerAddr) {
-        on_connect(std::move(connSocket), peerAddr);
-        });
 }
 
 TcpServer::~TcpServer() {
@@ -55,8 +48,15 @@ TcpServer::~TcpServer() {
 void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
 
-    EventLoop& mainLoop = require_main_loop();
     loopThreadPool_->start();
+    EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
+
+    InetAddress listenAddr(ip_, port_);
+    acceptor_ = std::make_unique<Acceptor>(&mainLoop, listenAddr);
+    acceptor_->set_connect_callback([this](Socket connSocket, const InetAddress& peerAddr) {
+        on_connect(std::move(connSocket), peerAddr);
+    });
+
     mainLoop.loop();
 }
 
@@ -85,17 +85,10 @@ void TcpServer::set_high_water_mark_callback(HighWaterMarkCallback cb, size_t _h
     this->highWaterMark_ = _highWaterMark;
 }
 
-EventLoop& TcpServer::require_main_loop() const {
-    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
-    if (mainLoop == nullptr) {
-        spdlog::critical("TcpServer::require_main_loop(). mainLoop is nullptr.");
-        assert(false);
-    }
-    return *mainLoop;
-}
-
 void TcpServer::assert_in_main_loop_thread() const {
-    assert(require_main_loop().is_in_loop_thread());
+    EventLoop* mainLoop = loopThreadPool_->get_main_loop();
+    assert(mainLoop != nullptr);
+    assert(mainLoop->is_in_loop_thread());
 }
 
 EventLoop& TcpServer::select_loop() const {

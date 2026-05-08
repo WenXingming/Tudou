@@ -48,6 +48,7 @@
 
 #include <functional>
 #include <memory>
+#include <cstdint>
 
 class EventLoop;
 

@@ -6,7 +6,7 @@
 #include "tudou/tcp/EventLoop.h"
 
 TEST(EventLoopTest, RunAfterFiresFirstScheduledTimer) {
-    EventLoop loop;
+    EventLoop loop(20);
     bool fired = false;
 
     loop.run_after(0.01, [&]() {
@@ -17,13 +17,13 @@ TEST(EventLoopTest, RunAfterFiresFirstScheduledTimer) {
         loop.quit();
         });
 
-    loop.loop(20);
+    loop.loop();
 
     EXPECT_TRUE(fired);
 }
 
 TEST(EventLoopTest, QueueInLoopFromAnotherThreadWakesLoop) {
-    EventLoop loop;
+    EventLoop loop(20);
     std::atomic<bool> executed{ false };
 
     std::thread worker([&]() {
@@ -36,14 +36,14 @@ TEST(EventLoopTest, QueueInLoopFromAnotherThreadWakesLoop) {
     loop.run_after(0.2, [&]() {
         loop.quit();
         });
-    loop.loop(20);
+    loop.loop();
     worker.join();
 
     EXPECT_TRUE(executed.load());
 }
 
 TEST(EventLoopTest, RunEveryCanCancelRepeatingTimer) {
-    EventLoop loop;
+    EventLoop loop(20);
     int count = 0;
     TimerId repeatingTimer;
 
@@ -60,7 +60,7 @@ TEST(EventLoopTest, RunEveryCanCancelRepeatingTimer) {
         loop.quit();
         });
 
-    loop.loop(20);
+    loop.loop();
 
     EXPECT_EQ(count, 3);
 }

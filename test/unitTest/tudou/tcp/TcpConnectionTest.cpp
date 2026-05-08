@@ -25,7 +25,7 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
-    EventLoop loop;
+    EventLoop loop(50);
     auto conn = make_connection(loop, fds[0]);
     std::string received;
 
@@ -41,7 +41,7 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
     loop.run_after(0.2, [&]() {
         loop.quit();
         });
-    loop.loop(50);
+    loop.loop();
 
     EXPECT_EQ(received, "hello");
 
@@ -74,7 +74,7 @@ TEST(TcpConnectionTest, HeartbeatTimeoutClosesIdleConnection) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
-    EventLoop loop;
+    EventLoop loop(20);
     auto conn = make_connection(loop, fds[0]);
     bool closed = false;
 
@@ -88,7 +88,7 @@ TEST(TcpConnectionTest, HeartbeatTimeoutClosesIdleConnection) {
     loop.run_after(0.2, [&]() {
         loop.quit();
         });
-    loop.loop(20);
+    loop.loop();
 
     EXPECT_TRUE(closed);
 

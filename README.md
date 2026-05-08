@@ -156,16 +156,19 @@ Transfer/sec:    163.08MB
 
 主要依赖项如下：
 
-| **依赖项**      | **最低版本/状态**     | **说明**          | **作用**                                 |
-| --------------- | --------------------- | ----------------- | ---------------------------------------- |
-| **Compiler**    | C++14 或更高          | 现代 C++ 语法支持 | 核心编译工具 (g++)               |
-| **CMake**       | 3.10 或更高           | 项目构建系统      | 生成 Makefile 并管理编译流程             |
-| **Google Test** | 系统库 (libgtest-dev) | **开发环境必备**  | 用于运行单元测试，验证代码逻辑           |
-| **OpenSSL**     | 系统库 (libssl-dev)   | **核心依赖**      | 提供 HTTPS 协议所需的加密算法与 TLS 支持 |
-| **llhttp**      | 项目内置              | 无需额外安装      | 高性能 HTTP 协议解析                     |
-| **spdlog**      | 项目内置              | 无需额外安装      | 异步/同步日志记录库                      |
+| **依赖项**            | **最低版本/状态**          | **说明**         | **作用**                                 |
+| --------------------- | -------------------------- | ---------------- | ---------------------------------------- |
+| **Compiler**          | C++14 或更高               | 现代 C++ 语法支持 | 核心编译工具 (g++)                       |
+| **CMake**             | 3.10 或更高                | 项目构建系统     | 生成 Makefile 并管理编译流程             |
+| **Google Test**       | 系统库 (libgtest-dev)      | 开发环境必备     | 用于运行单元测试，验证代码逻辑           |
+| **OpenSSL**           | 系统库 (libssl-dev)        | 核心依赖         | 提供 HTTPS 协议所需的加密算法与 TLS 支持 |
+| **libcurl**           | 系统库 (libcurl4-openssl-dev) | StarMind 依赖 | HTTP 客户端，用于调用外部 AI 模型 API    |
+| **MySQL Connector C++** | 系统库 (libmysqlcppconn-dev) | FileLinkServer 可选 | 连接 MySQL 数据库，存储文件元数据      |
+| **hiredis**           | 系统库 (libhiredis-dev)    | FileLinkServer 可选 | 连接 Redis，缓存热点文件索引           |
+| **llhttp**            | 项目内置                   | 无需额外安装     | 高性能 HTTP 协议解析                     |
+| **spdlog**            | 项目内置                   | 无需额外安装     | 异步/同步日志记录库                      |
 
-安装依赖项（Ubuntu）：
+安装所有依赖项（Ubuntu）：
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
@@ -173,6 +176,9 @@ sudo apt-get update && sudo apt-get install -y \
     cmake \
     libgtest-dev \
     libssl-dev \
+    libcurl4-openssl-dev \
+    libmysqlcppconn-dev \
+    libhiredis-dev \
     openssl
 
 # 进入项目目录（cd ${TUDOU_SOURCE_DIR}）并初始化 SSL 测试证书（使用 -subj 避免手动输入信息）
@@ -259,12 +265,7 @@ mkdir -p certs && openssl req -x509 -newkey rsa:2048 \
 环境要求：
 
 1. 需要 MySQL 和 Redis 环境支持（若没有配置该环境则自动退化为无数据库和缓存模式）。可以使用 Docker 快速部署 MySQL 和 Redis 服务（见 [docker-compose.yml](./docker-compose.yml)）。
-2. 需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`），以便能够使用 C++ 连接 MySQL 和 Redis 服务端进行操作。
-
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y libmysqlcppconn-dev libhiredis-dev libssl-dev
-    ```
+2. 需要安装 MySQL C++ Connector 库（`libmysqlcppconn-dev`）、hiredis 库（`libhiredis-dev`），详见上方 Requirements 中的一键安装命令。
 
 ### StarMind AI 聊天服务示例 ✨
 
@@ -275,12 +276,7 @@ mkdir -p certs && openssl req -x509 -newkey rsa:2048 \
 环境要求：
 
 1. 需要有一个可用的 AI 大语言模型 API（如 OpenAI 的 GPT-3.5 或 GPT-4 API），并获取相应的 API Key。
-2. 需要安装 libcurl 库（`libcurl4-openssl-dev`），以便能够使用 C++ 进行 HTTP 请求，调用 AI 模型的 API 接口。
-
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y libcurl4-openssl-dev
-    ```
+2. 需要安装 libcurl 库（`libcurl4-openssl-dev`），详见上方 Requirements 中的一键安装命令。
 
 ## Citation 📚
 

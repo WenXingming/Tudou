@@ -16,18 +16,17 @@
 #include <thread>
 
 thread_local EventLoop* EventLoop::loopInthisThread = nullptr;
-const int EventLoop::pollTimeoutMs_ = 10000;
-
-EventLoop::EventLoop() :
+EventLoop::EventLoop(int pollTimeoutMs) :
+    threadId_(std::this_thread::get_id()),
+    pollTimeoutMs_(pollTimeoutMs),
     poller_(std::make_unique<EpollPoller>(this)),
     isLooping_(false),
     isQuit_(false),
-    threadId_(std::this_thread::get_id()),
     wakeupFd_(-1),
     wakeupChannel_(nullptr),
     pendingFunctors_(),
     isCallingPendingFunctors_(false),
-    mtx_(),
+    pendingFunctorsMutex_(),
     timerQueue_(nullptr) {
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
@@ -65,13 +64,12 @@ EventLoop::~EventLoop() {
     ::close(wakeupFd_);
 }
 
-void EventLoop::loop(int timeoutMs) {
+void EventLoop::loop() {
     assert(is_in_loop_thread());
 
     isLooping_ = true;
     while (!isQuit_) {
-        // 事件循环的核心流程：等待事件、分发事件，异步执行本轮积累的待处理任务（如跨线程任务等）。
-        auto activeChannels = poller_->poll(timeoutMs);
+        auto activeChannels = poller_->poll(pollTimeoutMs_);
         for (Channel* channel : activeChannels) {
             channel->handle_events();
         }
@@ -108,6 +106,11 @@ bool EventLoop::is_in_loop_thread() const {
 }
 
 void EventLoop::run_in_loop(const Functor& cb) {
+    if (!cb) {
+        spdlog::error("EventLoop::run_in_loop() received empty functor");
+        return;
+    }
+
     if (is_in_loop_thread()) {
         cb();
         return;
@@ -116,8 +119,13 @@ void EventLoop::run_in_loop(const Functor& cb) {
 }
 
 void EventLoop::queue_in_loop(const Functor& cb) {
+    if (!cb) {
+        spdlog::error("EventLoop::queue_in_loop() received empty functor");
+        return;
+    }
+
     {
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock<std::mutex> lock(pendingFunctorsMutex_);
         pendingFunctors_.push(cb);
     }
 
@@ -125,6 +133,10 @@ void EventLoop::queue_in_loop(const Functor& cb) {
     if (!is_in_loop_thread() || isCallingPendingFunctors_) {
         wakeup();
     }
+}
+
+TimerId EventLoop::run_at(Timestamp when, const Functor& cb) {
+    return timerQueue_->add_timer(cb, when, std::chrono::milliseconds(0));
 }
 
 TimerId EventLoop::run_after(double delaySeconds, const Functor& cb) {
@@ -178,7 +190,7 @@ EventLoop::FunctorQueue EventLoop::take_pending_functors() {
     FunctorQueue functors;
     isCallingPendingFunctors_ = true;
     {
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock<std::mutex> lock(pendingFunctorsMutex_);
         functors.swap(pendingFunctors_);
     }
     return functors;

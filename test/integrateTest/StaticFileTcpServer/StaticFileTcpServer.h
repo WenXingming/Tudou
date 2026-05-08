@@ -15,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cstdint>
 
 class EventLoop;
 class TcpServer;

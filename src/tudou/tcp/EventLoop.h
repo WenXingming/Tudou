@@ -1,6 +1,6 @@
 // ============================================================================
 // EventLoop.h
-// Reactor 核心事件循环，负责 poll、唤醒、任务投递和定时任务编排。
+// Reactor 核心事件循环，负责事件循环、事件分发，异步投递的任务执行和定时任务编排。
 //
 // 成员函数调用树（[公有]/[私有] 标注接口层级）：
 //
@@ -22,6 +22,7 @@
 //     │   └── wakeup()                             # [私有] 保证任务不会拖到下一轮 poll
 //     ├── quit()                                   # [公有] 请求退出事件循环
 //     │   └── wakeup()                             # [私有] 非所属线程调用时强制唤醒 loop
+//     ├── run_at(when, cb)                         # [公有] 在指定时间点执行一次性任务，底层委托 TimerQueue
 //     ├── run_after(delaySeconds, cb)              # [公有] 注册一次性定时任务，底层委托 TimerQueue
 //     ├── run_every(intervalSeconds, cb)           # [公有] 注册周期定时任务，底层委托 TimerQueue
 //     ├── cancel(timerId)                          # [公有] 取消指定定时器，底层委托 TimerQueue
@@ -50,12 +51,12 @@ class EventLoop {
 public:
     using Functor = std::function<void()>;
 
-    EventLoop();
+    EventLoop(int pollTimeoutMs = 10000);
     ~EventLoop();
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
 
-    void loop(int timeoutMs = pollTimeoutMs_); // EventLoop 主入口：poll 并执行本轮任务。
+    void loop(); // EventLoop 主入口：poll 并执行本轮任务。
     void update_channel(Channel* channel) const;
     void remove_channel(Channel* channel) const;
     bool has_channel(Channel* channel) const;
@@ -64,6 +65,9 @@ public:
     void run_in_loop(const Functor& cb); // 同线程直执，跨线程转入 pending queue。
     void queue_in_loop(const Functor& cb); // 异步投递任务，必要时唤醒阻塞中的 poll。
 
+    using Timestamp = std::chrono::steady_clock::time_point;
+
+    TimerId run_at(Timestamp when, const Functor& cb); // 在指定时间点执行一次性定时任务。
     TimerId run_after(double delaySeconds, const Functor& cb); // 注册一次性定时任务。
     TimerId run_every(double intervalSeconds, const Functor& cb); // 注册周期定时任务。
     void cancel(TimerId timerId);
@@ -78,20 +82,21 @@ private:
     void execute_pending_functors(FunctorQueue& functors);
 
 private:
-    thread_local static EventLoop* loopInthisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。
-    static const int pollTimeoutMs_;
+    thread_local static EventLoop* loopInthisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查
+    const std::thread::id threadId_; // EventLoop 所属线程 ID，用于线程归属断言。
 
+    const int pollTimeoutMs_;
     std::unique_ptr<EpollPoller> poller_; // 当前线程的 Poller 实现。
+
     std::atomic<bool> isLooping_; // 当前事件循环是否处于运行状态。
     std::atomic<bool> isQuit_; // 当前事件循环是否收到退出请求。
-    const std::thread::id threadId_; // EventLoop 所属线程 ID，用于线程归属断言。
 
     int wakeupFd_; // 跨线程唤醒使用的 eventfd。
     std::unique_ptr<Channel> wakeupChannel_; // 负责监听 wakeupFd_ 可读事件的 Channel。
 
     FunctorQueue pendingFunctors_; // 待回到 EventLoop 线程执行的任务队列。
     std::atomic<bool> isCallingPendingFunctors_; // 当前是否正在执行一批待处理任务。
-    std::mutex mtx_; // 保护 pendingFunctors_ 的互斥锁。
+    std::mutex pendingFunctorsMutex_; // 保护 pendingFunctors_ 的互斥锁。
 
     std::unique_ptr<class TimerQueue> timerQueue_; // 负责所有定时任务的 timerfd 封装层。
 };

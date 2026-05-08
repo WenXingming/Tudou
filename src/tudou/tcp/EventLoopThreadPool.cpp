@@ -1,6 +1,6 @@
 // ============================================================================
 // EventLoopThreadPool.cpp
-// EventLoop 线程池实现，显式展开“创建主 loop、启动 IO 线程、轮询选择 loop”。
+// EventLoop 线程池实现，显式展开"创建主 loop、启动 IO 线程、轮询选择 loop"。
 // ============================================================================
 
 #include "EventLoopThreadPool.h"
@@ -14,23 +14,31 @@ EventLoopThreadPool::EventLoopThreadPool(const std::string& name, int numThreads
     ioLoopsIndex_(0),
     name_(name),
     numThreads_(numThreads),
-    initCallback_(cb),
-    started_(false) {
-
-    mainLoop_.reset(new EventLoop());
-    assert(mainLoop_->is_in_loop_thread());
+    started_(false),
+    initCallback_(cb) {
 }
 
 EventLoopThreadPool::~EventLoopThreadPool() = default;
 
 void EventLoopThreadPool::start() {
-    assert(mainLoop_->is_in_loop_thread());
-    assert(!started_);
+    if (started_) {
+        return;
+    }
 
-    // 先把后台 IO loops 启起来，后续 accept 到的连接才能立即分发出去。
+    create_main_loop();
     create_io_threads();
-    initialize_main_loop_if_needed();
+
     started_ = true;
+}
+
+void EventLoopThreadPool::create_main_loop() {
+    // 在当前线程创建主 EventLoop（也就是说主 loop 跑在调用 start() 的线程上）
+    mainLoop_.reset(new EventLoop());
+
+    // 单线程模式下，main loop 兼任 IO loop，需要执行 initCallback。
+    if (numThreads_ == 0 && initCallback_) {
+        initCallback_(mainLoop_.get());
+    }
 }
 
 void EventLoopThreadPool::create_io_threads() {
@@ -43,19 +51,13 @@ void EventLoopThreadPool::create_io_threads() {
     }
 }
 
-void EventLoopThreadPool::initialize_main_loop_if_needed() const {
-    if (numThreads_ == 0 && initCallback_) {
-        initCallback_(mainLoop_.get());
-    }
-}
-
 EventLoop* EventLoopThreadPool::get_next_loop() {
     assert(mainLoop_->is_in_loop_thread());
     assert(started_);
 
+    // 连接分发采用 round-robin，保持不同 IO loop 的负载大体均衡。
     EventLoop* loop = mainLoop_.get();
     if (!ioLoopThreads_.empty()) {
-        // 连接分发采用 round-robin，保持不同 IO loop 的负载大体均衡。
         loop = ioLoopThreads_[ioLoopsIndex_]->get_loop();
         ioLoopsIndex_ = (ioLoopsIndex_ + 1) % ioLoopThreads_.size();
     }
@@ -64,6 +66,7 @@ EventLoop* EventLoopThreadPool::get_next_loop() {
 
 std::vector<EventLoop*> EventLoopThreadPool::get_all_loops() const {
     assert(started_);
+
     std::vector<EventLoop*> loops;
     loops.reserve(ioLoopThreads_.size() + 1);
     loops.push_back(mainLoop_.get());
