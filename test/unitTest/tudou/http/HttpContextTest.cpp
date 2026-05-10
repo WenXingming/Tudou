@@ -16,13 +16,7 @@ TEST(HttpContextTest, ParseSimpleGetRequest) {
         "\r\n"
         "Hello";
 
-    size_t nparsed = 0;
-    bool ok = ctx.parse(raw_request.data(), raw_request.size(), nparsed);
-
-    EXPECT_TRUE(ok);
-    EXPECT_EQ(nparsed, raw_request.size());
-    EXPECT_TRUE(ctx.is_complete());
-
+    EXPECT_EQ(ctx.parse(raw_request.data(), raw_request.size()), HttpContext::ParseResult::Complete);
     const HttpRequest& req = ctx.get_request();
 
     EXPECT_EQ(req.get_method(), "GET");
@@ -47,13 +41,7 @@ TEST(HttpContextTest, ParseGetWithoutQuery) {
         "Host: localhost\r\n"
         "\r\n";
 
-    size_t nparsed = 0;
-    bool ok = ctx.parse(raw_request.data(), raw_request.size(), nparsed);
-
-    EXPECT_TRUE(ok);
-    EXPECT_EQ(nparsed, raw_request.size());
-    EXPECT_TRUE(ctx.is_complete());
-
+    EXPECT_EQ(ctx.parse(raw_request.data(), raw_request.size()), HttpContext::ParseResult::Complete);
     const HttpRequest& req = ctx.get_request();
 
     EXPECT_EQ(req.get_method(), "GET");
@@ -77,13 +65,7 @@ TEST(HttpContextTest, ParseSimpleGet_FromLegacyTestHttpParser) {
         "Connection: close\r\n"
         "\r\n";
 
-    size_t nparsed = 0;
-    bool ok = ctx.parse(raw_request.data(), raw_request.size(), nparsed);
-
-    EXPECT_TRUE(ok);
-    EXPECT_EQ(nparsed, raw_request.size());
-    EXPECT_TRUE(ctx.is_complete());
-
+    EXPECT_EQ(ctx.parse(raw_request.data(), raw_request.size()), HttpContext::ParseResult::Complete);
     const HttpRequest& r = ctx.get_request();
 
     EXPECT_EQ(r.get_method(), "GET");
@@ -107,14 +89,9 @@ TEST(HttpContextTest, ParseRequestAcrossMultipleChunks) {
         "\r\n"
         "hello world";
 
-    size_t nparsed = 0;
-    EXPECT_TRUE(ctx.parse(firstChunk.data(), firstChunk.size(), nparsed));
-    EXPECT_EQ(nparsed, firstChunk.size());
-    EXPECT_FALSE(ctx.is_complete());
+    EXPECT_EQ(ctx.parse(firstChunk.data(), firstChunk.size()), HttpContext::ParseResult::NeedMoreData);
 
-    EXPECT_TRUE(ctx.parse(secondChunk.data(), secondChunk.size(), nparsed));
-    EXPECT_EQ(nparsed, secondChunk.size());
-    EXPECT_TRUE(ctx.is_complete());
+    EXPECT_EQ(ctx.parse(secondChunk.data(), secondChunk.size()), HttpContext::ParseResult::Complete);
 
     const HttpRequest& req = ctx.get_request();
     EXPECT_EQ(req.get_method(), "POST");
@@ -136,16 +113,12 @@ TEST(HttpContextTest, ResetDropsPreviousRequestState) {
         "Host: localhost\r\n"
         "\r\n";
 
-    size_t nparsed = 0;
-    ASSERT_TRUE(ctx.parse(firstRequest.data(), firstRequest.size(), nparsed));
-    ASSERT_TRUE(ctx.is_complete());
+    ASSERT_EQ(ctx.parse(firstRequest.data(), firstRequest.size()), HttpContext::ParseResult::Complete);
     EXPECT_EQ(ctx.get_request().get_query(), "debug=1");
 
     ctx.reset();
 
-    ASSERT_TRUE(ctx.parse(secondRequest.data(), secondRequest.size(), nparsed));
-    ASSERT_TRUE(ctx.is_complete());
-
+    ASSERT_EQ(ctx.parse(secondRequest.data(), secondRequest.size()), HttpContext::ParseResult::Complete);
     const HttpRequest& req = ctx.get_request();
     EXPECT_EQ(req.get_path(), "/second");
     EXPECT_TRUE(req.get_query().empty());
@@ -162,18 +135,11 @@ TEST(HttpContextTest, ParseSplitRequestLinePreservesTargetAndHttpVersion) {
     const std::string thirdChunk =
         "\r\n";
 
-    size_t nparsed = 0;
-    EXPECT_TRUE(ctx.parse(firstChunk.data(), firstChunk.size(), nparsed));
-    EXPECT_EQ(nparsed, firstChunk.size());
-    EXPECT_FALSE(ctx.is_complete());
+    EXPECT_EQ(ctx.parse(firstChunk.data(), firstChunk.size()), HttpContext::ParseResult::NeedMoreData);
 
-    EXPECT_TRUE(ctx.parse(secondChunk.data(), secondChunk.size(), nparsed));
-    EXPECT_EQ(nparsed, secondChunk.size());
-    EXPECT_FALSE(ctx.is_complete());
+    EXPECT_EQ(ctx.parse(secondChunk.data(), secondChunk.size()), HttpContext::ParseResult::NeedMoreData);
 
-    EXPECT_TRUE(ctx.parse(thirdChunk.data(), thirdChunk.size(), nparsed));
-    EXPECT_EQ(nparsed, thirdChunk.size());
-    EXPECT_TRUE(ctx.is_complete());
+    EXPECT_EQ(ctx.parse(thirdChunk.data(), thirdChunk.size()), HttpContext::ParseResult::Complete);
 
     const HttpRequest& req = ctx.get_request();
     EXPECT_EQ(req.get_method(), "GET");

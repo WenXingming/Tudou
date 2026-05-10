@@ -33,7 +33,6 @@ file(GLOB tudou_source_files
     ${CMAKE_SOURCE_DIR}/src/base/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/tcp/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/http/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/tudou/router/*.cpp
 )
 add_library(tudou STATIC ${tudou_source_files})
 

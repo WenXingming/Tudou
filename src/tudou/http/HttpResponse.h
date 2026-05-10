@@ -18,7 +18,6 @@
 //     ├── get_status_code() const                # [公有] 读取状态码
 //     ├── get_status_message() const             # [公有] 读取状态描述
 //     ├── set_header(field, value)               # [公有] 写入或覆盖一个响应头
-//     ├── add_header(field, value)               # [公有] 兼容旧接口，复用 set_header
 //     ├── has_header(field) const                # [公有] 判断响应头是否存在
 //     ├── get_headers() const                    # [公有] 读取全部响应头
 //     ├── set_body(body)                         # [公有] 写入响应体
@@ -56,9 +55,6 @@ public:
     const std::string& get_status_message() const { return statusMessage_; }
     void set_header(const std::string& field, const std::string& value); // 写入或覆盖一个响应头。
 
-    void add_header(const std::string& field, const std::string& value) {
-        set_header(field, value);
-    }
     bool has_header(const std::string& field) const;
     const Headers& get_headers() const { return headers_; }
     void set_body(const std::string& _body) { body_ = _body; }

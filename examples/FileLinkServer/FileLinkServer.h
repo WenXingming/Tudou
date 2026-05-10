@@ -15,7 +15,6 @@
 #include "auth/AuthService.h"
 
 #include "tudou/http/HttpServer.h"
-#include "tudou/router/Router.h"
 #include "FileLinkService.h"
 #include "FileLinkServerConfig.h"
 
@@ -32,9 +31,6 @@ public:
     void start();
 
 private:
-    // 统一入口：所有 HTTP 请求都从这里分发到各 handler。
-    void on_http_request(const HttpRequest& req, HttpResponse& resp);
-
     void init();
 
     void handle_static(const HttpRequest& req, HttpResponse& resp);
@@ -56,7 +52,4 @@ private:
     std::unique_ptr<FileLinkService> service_;
 
     std::unique_ptr<HttpServer> httpServer_;
-    Router router_;
-
-
 };

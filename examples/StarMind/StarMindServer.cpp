@@ -21,7 +21,6 @@
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 #include "tudou/http/HttpServer.h"
-#include "tudou/router/Router.h"
 
 namespace {
 
@@ -103,14 +102,14 @@ std::string get_header_or_empty(const HttpRequest& req, const std::string& key) 
 
 void set_keep_alive(HttpResponse& resp, bool keepAlive) {
     resp.set_close_connection(!keepAlive);
-    resp.add_header("Connection", keepAlive ? "Keep-Alive" : "close");
+    resp.set_header("Connection", keepAlive ? "Keep-Alive" : "close");
 }
 
 void respond_text(HttpResponse& resp, int status, const char* reason, const std::string& body, bool keepAlive, const char* contentType) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(status, reason);
     resp.set_body(body);
-    resp.add_header("Content-Type", contentType);
+    resp.set_header("Content-Type", contentType);
     set_keep_alive(resp, keepAlive);
 }
 
@@ -120,7 +119,7 @@ void respond_plain(HttpResponse& resp, int status, const char* reason, const std
 
 void respond_json(HttpResponse& resp, int status, const char* reason, const std::string& json, bool keepAlive) {
     respond_text(resp, status, reason, json, keepAlive, "application/json; charset=utf-8");
-    resp.add_header("Cache-Control", "no-store");
+    resp.set_header("Cache-Control", "no-store");
 }
 
 // Very small JSON helper for bodies like {"user":"..","password":".."}
@@ -463,7 +462,7 @@ struct StarMindServer::StarMindState {
 
         resp.set_http_version("HTTP/1.1");
         resp.set_status(302, "Found");
-        resp.add_header("Location", ok ? "/chat" : "/login");
+        resp.set_header("Location", ok ? "/chat" : "/login");
         resp.set_body("");
         set_keep_alive(resp, true);
     }
@@ -493,7 +492,7 @@ struct StarMindServer::StarMindState {
         resp.set_http_version("HTTP/1.1");
         resp.set_status(200, "OK");
         resp.set_body(body);
-        resp.add_header("Content-Type", guess_content_type(realPath));
+        resp.set_header("Content-Type", guess_content_type(realPath));
         set_keep_alive(resp, true);
     }
 
@@ -501,7 +500,7 @@ struct StarMindServer::StarMindState {
         const std::string& method = req.get_method();
         if (method != "GET" && method != "HEAD") {
             respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
-            resp.add_header("Allow", "GET, HEAD");
+            resp.set_header("Allow", "GET, HEAD");
             return;
         }
 
@@ -546,7 +545,7 @@ struct StarMindServer::StarMindState {
         resp.set_http_version("HTTP/1.1");
         resp.set_status(200, "OK");
         resp.set_body(body);
-        resp.add_header("Content-Type", guess_content_type(realPath));
+        resp.set_header("Content-Type", guess_content_type(realPath));
         set_keep_alive(resp, true);
     }
 
@@ -575,7 +574,7 @@ struct StarMindServer::StarMindState {
         const int ttl = auth.ttl_seconds();
         const std::string cookie = std::string(kCookieName) + "=" + token + "; Path=/; Max-Age=" + std::to_string(ttl) + "; HttpOnly; SameSite=Lax";
 
-        resp.add_header("Set-Cookie", cookie);
+        resp.set_header("Set-Cookie", cookie);
 
         std::string json = std::string("{\"ok\":true,\"expiresIn\":") + std::to_string(ttl) + "}";
         respond_json(resp, 200, "OK", json, true);
@@ -587,7 +586,7 @@ struct StarMindServer::StarMindState {
         sessions.erase(token);
 
         // Clear cookie
-        resp.add_header("Set-Cookie", std::string(kCookieName) + "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+        resp.set_header("Set-Cookie", std::string(kCookieName) + "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
         respond_json(resp, 200, "OK", "{\"ok\":true}", true);
     }
 
@@ -675,7 +674,7 @@ struct StarMindServer::StarMindState {
         }
 
         respond_text(resp, 200, "OK", r.body, true, "application/json; charset=utf-8");
-        resp.add_header("Cache-Control", "no-store");
+        resp.set_header("Cache-Control", "no-store");
     }
 
     StarMindServerConfig cfg;
@@ -684,7 +683,7 @@ struct StarMindServer::StarMindState {
 };
 
 StarMindServer::StarMindServer(StarMindServerConfig cfg)
-    : cfg_(std::move(cfg)), state_(nullptr), httpServer_(nullptr), router_(nullptr) {
+    : cfg_(std::move(cfg)), state_(nullptr), httpServer_(nullptr) {
     init();
 }
 
@@ -700,28 +699,19 @@ void StarMindServer::start() {
 
 void StarMindServer::init() {
     httpServer_.reset(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum));
-    router_.reset(new Router());
 
     state_.reset(new StarMindState(cfg_));
 
     // Route registration
-    router_->add_get_route("/", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_home(req, resp); });
-    router_->add_get_route("/login", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_page("login.html", req, resp, false); });
-    router_->add_get_route("/chat", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_page("chat.html", req, resp, true); });
-    router_->add_get_route("/api/me", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_me(req, resp); });
+    httpServer_->add_get_route("/", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_home(req, resp); });
+    httpServer_->add_get_route("/login", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_page("login.html", req, resp, false); });
+    httpServer_->add_get_route("/chat", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_page("chat.html", req, resp, true); });
+    httpServer_->add_get_route("/api/me", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_me(req, resp); });
 
-    router_->add_post_route("/api/login", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_login(req, resp); });
-    router_->add_post_route("/api/logout", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_logout(req, resp); });
-    router_->add_post_route("/api/clear", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_clear(req, resp); });
-    router_->add_post_route("/api/chat", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_chat(req, resp); });
+    httpServer_->add_post_route("/api/login", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_login(req, resp); });
+    httpServer_->add_post_route("/api/logout", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_logout(req, resp); });
+    httpServer_->add_post_route("/api/clear", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_clear(req, resp); });
+    httpServer_->add_post_route("/api/chat", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_chat(req, resp); });
 
-    router_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_static(req, resp); });
-
-    httpServer_->set_http_callback([this](const HttpRequest& req, HttpResponse& resp) {
-        on_http_request(req, resp);
-        });
-}
-
-void StarMindServer::on_http_request(const HttpRequest& req, HttpResponse& resp) {
-    (void)router_->dispatch(req, resp);
+    httpServer_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) { state_->handle_static(req, resp); });
 }

@@ -1,5 +1,7 @@
 #include "HttpContext.h"
 
+#include <cassert>
+
 // ============================================================================
 // HttpContext.cpp
 // HTTP 请求解析上下文实现，把 llhttp 回调流收敛成稳定的 HttpRequest。
@@ -27,24 +29,25 @@ HttpContext::HttpContext() :
     parser_.data = this;
 }
 
-bool HttpContext::parse(const char* data, size_t len, size_t& nparsed) {
-    // 解析门面只负责执行状态机并返回契约结果，不在这里混入请求组装细节。
+HttpContext::ParseResult HttpContext::parse(const char* data, size_t len) {
+    assert(data != nullptr || len == 0);
+
+    // 解析门面只负责执行状态机并返回显式状态，不再把“是否完整”拆成额外查询契约。
     const llhttp_errno_t err = llhttp_execute(&parser_, data, len);
 
-    // llhttp 无错误时表示本批输入已经被当前状态机接收；是否完整由 messageComplete_ 单独表达。
+    // llhttp 无错误时表示本批输入已经被当前状态机接收；完整性直接体现在返回值里。
     if (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) {
-        nparsed = len;
-        return true;
+        return messageComplete_ ? ParseResult::Complete : ParseResult::NeedMoreData;
     }
 
-    nparsed = 0;
-    return false;
+    return ParseResult::Rejected;
 }
 
 void HttpContext::reset() {
     // reset 同时清空 DTO 状态和 llhttp 内部状态机，确保下一条报文从干净边界开始。
     reset_message_state();
     llhttp_reset(&parser_);
+    parser_.data = this;
 }
 
 int HttpContext::on_message_begin(llhttp_t* parser) {

@@ -31,7 +31,54 @@ TlsConnection::~TlsConnection() {
     }
 }
 
-int TlsConnection::feed_data(const char* data, size_t len) {
+TlsConnection::ReadResult TlsConnection::read_plaintext(
+    const std::string& ciphertext,
+    std::string& plaintext,
+    std::string& outboundCiphertext) {
+    plaintext.clear();
+    outboundCiphertext.clear();
+
+    if (feed_ciphertext(ciphertext.data(), ciphertext.size()) < 0) {
+        return ReadResult::Error;
+    }
+
+    if (is_handshaking() && !advance_handshake()) {
+        return ReadResult::Error;
+    }
+
+    // 先把握手阶段产生的待发密文交给调用方，再决定本轮是否已有可读明文。
+    outboundCiphertext = drain_ciphertext();
+    if (is_handshaking()) {
+        return ReadResult::NeedMoreData;
+    }
+
+    if (!is_established()) {
+        spdlog::error("TlsConnection: TLS session left handshake without entering ESTABLISHED");
+        return ReadResult::Error;
+    }
+
+    if (drain_plaintext(plaintext) < 0) {
+        return ReadResult::Error;
+    }
+
+    return plaintext.empty() ? ReadResult::NeedMoreData : ReadResult::Ready;
+}
+
+bool TlsConnection::write_plaintext(const std::string& plaintext, std::string& ciphertext) {
+    ciphertext.clear();
+    if (plaintext.empty()) {
+        return true;
+    }
+
+    if (seal_plaintext(plaintext.data(), plaintext.size()) < 0) {
+        return false;
+    }
+
+    ciphertext = drain_ciphertext();
+    return !ciphertext.empty();
+}
+
+int TlsConnection::feed_ciphertext(const char* data, size_t len) {
     if (!ensure_tls_session("feed_data")) {
         return -1;
     }
@@ -50,7 +97,7 @@ int TlsConnection::feed_data(const char* data, size_t len) {
     return written;
 }
 
-bool TlsConnection::do_handshake() {
+bool TlsConnection::advance_handshake() {
     if (!ensure_tls_session("do_handshake")) {
         return false;
     }
@@ -65,7 +112,7 @@ bool TlsConnection::do_handshake() {
     return handle_tls_progress("TlsConnection: TLS handshake failed", result);
 }
 
-int TlsConnection::decrypt(std::string& plaintext) {
+int TlsConnection::drain_plaintext(std::string& plaintext) {
     if (!ensure_tls_session("decrypt")) {
         return -1;
     }
@@ -104,7 +151,7 @@ int TlsConnection::decrypt(std::string& plaintext) {
     return totalRead;
 }
 
-int TlsConnection::encrypt(const char* data, size_t len) {
+int TlsConnection::seal_plaintext(const char* data, size_t len) {
     if (!ensure_tls_session("encrypt")) {
         return -1;
     }
@@ -133,14 +180,14 @@ int TlsConnection::encrypt(const char* data, size_t len) {
     return written;
 }
 
-std::string TlsConnection::get_output() {
+std::string TlsConnection::drain_ciphertext() {
     std::string output;
 
     if (!ssl_ || !wbio_) {
         return output;
     }
 
-    // OpenSSL 把待发送密文积压在写 BIO 里，网络层统一从这里拉取后再 send。
+    // OpenSSL 把待发送密文积压在写 BIO 里，这里统一抽干交给调用方发送。
     const int pending = BIO_ctrl_pending(wbio_);
     if (pending <= 0) {
         return output;

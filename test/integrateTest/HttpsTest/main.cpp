@@ -25,11 +25,10 @@ int main() {
         return 1;
     }
 
-    // 设置简单的回调
-    server.set_http_callback([](const HttpRequest& req, HttpResponse& resp) {
+    server.add_get_route("/", [](const HttpRequest& req, HttpResponse& resp) {
         resp.set_http_version("HTTP/1.1");
         resp.set_status(200, "OK");
-        resp.add_header("Content-Type", "text/plain");
+        resp.set_header("Content-Type", "text/plain");
         resp.set_body("Hello, HTTPS!\n");
         });
 

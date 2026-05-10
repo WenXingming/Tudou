@@ -49,8 +49,8 @@ TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesConnectionState) {
     ASSERT_EQ(server.connectionStates_.size(), 1U);
     const auto stateIt = server.connectionStates_.find(conn->get_fd());
     ASSERT_NE(stateIt, server.connectionStates_.end());
-    EXPECT_NE(stateIt->second.httpContext, nullptr);
-    EXPECT_EQ(stateIt->second.tlsConnection, nullptr);
+    ASSERT_NE(stateIt->second, nullptr);
+    EXPECT_EQ(stateIt->second->tlsConnection, nullptr);
 
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
         server.on_close(activeConn);
@@ -62,17 +62,17 @@ TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesConnectionState) {
     ::close(fds[1]);
 }
 
-TEST(HttpServerTest, ProcessPlainHttpRequestInvokesCallbackAndSendsResponse) {
+TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsResponse) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
     EventLoop loop(20);
     HttpServer server("127.0.0.1", 8080, 0);
     auto conn = make_connection(loop, fds[0]);
-    bool callbackCalled = false;
+    bool routeCalled = false;
 
-    server.set_http_callback([&](const HttpRequest& request, HttpResponse& response) {
-        callbackCalled = true;
+    server.add_get_route("/hello", [&](const HttpRequest& request, HttpResponse& response) {
+        routeCalled = true;
         EXPECT_EQ(request.get_path(), "/hello");
         response.set_status(201, "Created");
         response.set_body("ok");
@@ -81,7 +81,7 @@ TEST(HttpServerTest, ProcessPlainHttpRequestInvokesCallbackAndSendsResponse) {
     server.on_connect(conn);
 
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.process(activeConn);
+        server.on_message(activeConn);
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();
@@ -102,7 +102,7 @@ TEST(HttpServerTest, ProcessPlainHttpRequestInvokesCallbackAndSendsResponse) {
     loop.loop();
 
     const std::string response = read_available(fds[1]);
-    EXPECT_TRUE(callbackCalled);
+    EXPECT_TRUE(routeCalled);
     EXPECT_NE(response.find("HTTP/1.1 201 Created\r\n"), std::string::npos);
     EXPECT_NE(response.find("Content-Type: text/plain\r\n"), std::string::npos);
     EXPECT_NE(response.find("Content-Length: 2\r\n"), std::string::npos);
@@ -124,7 +124,7 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
 
     server.on_connect(conn);
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.process(activeConn);
+        server.on_message(activeConn);
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();
@@ -152,7 +152,9 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
 
     const auto stateIt = server.connectionStates_.find(conn->get_fd());
     ASSERT_NE(stateIt, server.connectionStates_.end());
-    EXPECT_FALSE(stateIt->second.httpContext->is_complete());
+    ASSERT_NE(stateIt->second, nullptr);
+    EXPECT_TRUE(stateIt->second->httpContext.get_request().get_path().empty());
+    EXPECT_TRUE(stateIt->second->httpContext.get_request().get_body().empty());
 
     conn->force_close();
     EXPECT_TRUE(server.connectionStates_.empty());

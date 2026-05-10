@@ -56,7 +56,7 @@ std::string get_header_or_empty(const HttpRequest& req, const std::string& key) 
 
 void set_keep_alive(HttpResponse& resp, bool keepAlive) {
     resp.set_close_connection(!keepAlive);
-    resp.add_header("Connection", keepAlive ? "Keep-Alive" : "close");
+    resp.set_header("Connection", keepAlive ? "Keep-Alive" : "close");
 }
 
 void respond_text(HttpResponse& resp,
@@ -67,7 +67,7 @@ void respond_text(HttpResponse& resp,
     const char* contentType) {
     resp.set_status(status, reason);
     resp.set_body(body);
-    resp.add_header("Content-Type", contentType);
+    resp.set_header("Content-Type", contentType);
     set_keep_alive(resp, keepAlive);
 }
 
@@ -199,11 +199,6 @@ void FileLinkServer::start() {
     httpServer_->start();
 }
 
-void FileLinkServer::on_http_request(const HttpRequest& req, HttpResponse& resp) {
-    spdlog::debug("FileLinkServer: method={}, path={}", req.get_method(), req.get_path());
-    (void)router_.dispatch(req, resp);
-}
-
 void FileLinkServer::init() {
     httpServer_.reset(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum));
 
@@ -213,31 +208,26 @@ void FileLinkServer::init() {
     FileSystemStorage storage(cfg_.storageRoot);
     service_.reset(new FileLinkService(std::move(storage), std::move(metaStore), std::move(metaCache)));
 
-    // 路由注册（启动前完成注册；当前 Router 未做并发防护）
+    // 路由注册（启动前完成注册；当前 HttpServer 内部 Router 未做并发防护）
     // （已移除 /health 路由）
 
-    router_.add_post_route("/login", [this](const HttpRequest& req, HttpResponse& resp) {
+    httpServer_->add_post_route("/login", [this](const HttpRequest& req, HttpResponse& resp) {
         handle_login(req, resp);
         });
 
-    router_.add_post_route("/upload", [this](const HttpRequest& req, HttpResponse& resp) {
+    httpServer_->add_post_route("/upload", [this](const HttpRequest& req, HttpResponse& resp) {
         handle_upload(req, resp);
         });
 
     // 动态路由：/file/{id}
     // 这里用 prefix 兜底，具体 fileId 解析仍由 handle_download 完成。
-    router_.add_prefix_route("/file/", [this](const HttpRequest& req, HttpResponse& resp) {
+    httpServer_->add_prefix_route("/file/", [this](const HttpRequest& req, HttpResponse& resp) {
         handle_download(req, resp);
         });
 
     // 静态文件服务：用前缀路由统一处理（放在最后，作为兜底）。
-    router_.add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
+    httpServer_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
         handle_static(req, resp);
-        });
-
-    httpServer_->set_http_callback(
-        [this](const HttpRequest& req, HttpResponse& resp) {
-            on_http_request(req, resp);
         });
 }
 
@@ -245,7 +235,7 @@ void FileLinkServer::handle_static(const HttpRequest& req, HttpResponse& resp) {
     const std::string& method = req.get_method();
     if (method != "GET" && method != "HEAD") {
         respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
-        resp.add_header("Allow", "GET, HEAD");
+        resp.set_header("Allow", "GET, HEAD");
         return;
     }
 
@@ -271,7 +261,7 @@ void FileLinkServer::handle_static(const HttpRequest& req, HttpResponse& resp) {
 
     resp.set_status(200, "OK");
     resp.set_body(body);
-    resp.add_header("Content-Type", filelink::guess_content_type_by_name(realPath));
+    resp.set_header("Content-Type", filelink::guess_content_type_by_name(realPath));
     set_keep_alive(resp, true);
 }
 
@@ -333,7 +323,7 @@ bool FileLinkServer::require_auth(const HttpRequest& req, HttpResponse& resp) {
     const std::string token = get_header_or_empty(req, "X-Auth-Token");
     if (!auth_.validate_token(token)) {
         respond_plain(resp, 401, "Unauthorized", "unauthorized", false);
-        resp.add_header("WWW-Authenticate", "FileLinkServer");
+        resp.set_header("WWW-Authenticate", "FileLinkServer");
         return false;
     }
     return true;
@@ -365,7 +355,7 @@ void FileLinkServer::handle_login(const HttpRequest& req, HttpResponse& resp) {
         "\",\"expiresIn\":" + std::to_string(ttl) + "}";
 
     respond_json(resp, 200, "OK", json, true);
-    resp.add_header("Cache-Control", "no-store");
+    resp.set_header("Cache-Control", "no-store");
 }
 
 void FileLinkServer::handle_upload(const HttpRequest& req, HttpResponse& resp) {
@@ -476,7 +466,7 @@ void FileLinkServer::handle_download(const HttpRequest& req, HttpResponse& resp)
     // prefix 路由不区分 method，这里保持 HTTP 语义：非 GET 直接 405。
     if (req.get_method() != "GET") {
         respond_plain(resp, 405, "Method Not Allowed", "Method Not Allowed", false);
-        resp.add_header("Allow", "GET");
+        resp.set_header("Allow", "GET");
         return;
     }
 
@@ -501,10 +491,10 @@ void FileLinkServer::handle_download(const HttpRequest& req, HttpResponse& resp)
     const std::string ct = !out.meta.contentType.empty()
         ? out.meta.contentType
         : filelink::guess_content_type_by_name(out.meta.originalName);
-    resp.add_header("Content-Type", ct);
+    resp.set_header("Content-Type", ct);
 
     // 触发下载，保留原始文件名（兼容空格/非 ASCII 文件名）
-    resp.add_header("Content-Disposition", filelink::build_content_disposition_attachment(out.meta.originalName));
+    resp.set_header("Content-Disposition", filelink::build_content_disposition_attachment(out.meta.originalName));
 
     set_keep_alive(resp, true);
 }

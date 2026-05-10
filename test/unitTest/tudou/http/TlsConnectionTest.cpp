@@ -128,16 +128,16 @@ bool complete_handshake(ClientTlsPeer& client, TlsConnection& server) {
             return false;
         }
 
-        const std::string clientOutput = client.take_output();
-        if (!clientOutput.empty() && server.feed_data(clientOutput.data(), clientOutput.size()) < 0) {
+        std::string serverPlaintext;
+        std::string serverOutput;
+        const TlsConnection::ReadResult readResult =
+            server.read_plaintext(client.take_output(), serverPlaintext, serverOutput);
+        if (readResult == TlsConnection::ReadResult::Error) {
             return false;
         }
-
-        if (!server.is_established() && !server.do_handshake()) {
+        if (!serverPlaintext.empty()) {
             return false;
         }
-
-        const std::string serverOutput = server.get_output();
         if (!serverOutput.empty() && client.feed_input(serverOutput) < 0) {
             return false;
         }
@@ -154,12 +154,13 @@ bool complete_handshake(ClientTlsPeer& client, TlsConnection& server) {
 
 TEST(TlsConnectionTest, NullSslHandleTransitionsToErrorState) {
     TlsConnection connection(nullptr);
+    std::string plaintext;
+    std::string ciphertext;
 
     EXPECT_TRUE(connection.is_error());
-    EXPECT_FALSE(connection.do_handshake());
-    EXPECT_EQ(connection.feed_data("x", 1), -1);
-    EXPECT_EQ(connection.encrypt("x", 1), -1);
-    EXPECT_TRUE(connection.get_output().empty());
+    EXPECT_EQ(connection.read_plaintext("x", plaintext, ciphertext), TlsConnection::ReadResult::Error);
+    EXPECT_FALSE(connection.write_plaintext("x", ciphertext));
+    EXPECT_TRUE(ciphertext.empty());
 }
 
 TEST(TlsConnectionTest, HandshakeEncryptAndDecryptRoundTrip) {
@@ -178,18 +179,16 @@ TEST(TlsConnectionTest, HandshakeEncryptAndDecryptRoundTrip) {
     const std::string request = "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n";
     ASSERT_TRUE(clientPeer.write_plaintext(request));
 
-    const std::string encryptedRequest = clientPeer.take_output();
-    ASSERT_FALSE(encryptedRequest.empty());
-    ASSERT_GT(serverConnection.feed_data(encryptedRequest.data(), encryptedRequest.size()), 0);
-
     std::string decryptedRequest;
-    EXPECT_EQ(serverConnection.decrypt(decryptedRequest), static_cast<int>(request.size()));
+    std::string serverOutput;
+    ASSERT_EQ(serverConnection.read_plaintext(clientPeer.take_output(), decryptedRequest, serverOutput),
+        TlsConnection::ReadResult::Ready);
+    EXPECT_TRUE(serverOutput.empty());
     EXPECT_EQ(decryptedRequest, request);
 
     const std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
-    ASSERT_EQ(serverConnection.encrypt(response.data(), response.size()), static_cast<int>(response.size()));
-
-    const std::string encryptedResponse = serverConnection.get_output();
+    std::string encryptedResponse;
+    ASSERT_TRUE(serverConnection.write_plaintext(response, encryptedResponse));
     ASSERT_FALSE(encryptedResponse.empty());
     ASSERT_GT(clientPeer.feed_input(encryptedResponse), 0);
 

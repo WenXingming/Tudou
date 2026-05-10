@@ -12,7 +12,7 @@
 //     ├── HttpContext(move)                      # [公有] 删除移动构造，避免 llhttp 持有悬空指针
 //     ├── operator=(move)                        # [公有] 删除移动赋值，保持上下文地址稳定
 //     ├── ~HttpContext()                         # [公有] 默认析构
-//     ├── parse(data, len, nparsed)              # [公有] 解析总入口，驱动 llhttp 状态机
+//     ├── parse(data, len)                       # [公有] 解析总入口，返回 Reject/NeedMoreData/Complete
 //     │   ├── on_message_begin(parser)           # [私有] 静态桥：消息开始回调
 //     │   │   ├── get_context(parser)            # [私有] 恢复当前 HttpContext
 //     │   │   └── on_message_begin_impl()        # [私有] 重置本条消息的构建状态
@@ -38,7 +38,6 @@
 //     │           ├── flush_pending_header()     # [私有] 提交最后一个 header
 //     │           ├── apply_request_target()     # [私有] 拆分 path 与 query
 //     │           └── capture_http_version()     # [私有] 根据解析器状态写入 HTTP 版本
-//     ├── is_complete() const                    # [公有] 判断当前请求是否已完整
 //     ├── get_request() const                    # [公有] 读取当前解析出的 HttpRequest
 //     └── reset()                                # [公有] 重置请求状态和 llhttp 解析器
 //         └── reset_message_state()              # [私有] 清空当前消息的全部中间状态
@@ -51,6 +50,12 @@
 // 负责管理单连接 HTTP 解析状态，并以 parse() 作为唯一对外解析门面。
 class HttpContext {
 public:
+    enum class ParseResult {
+        Rejected,
+        NeedMoreData,
+        Complete
+    };
+
     HttpContext();
     ~HttpContext() = default;
 
@@ -60,9 +65,8 @@ public:
     HttpContext(HttpContext&&) = delete;
     HttpContext& operator=(HttpContext&&) = delete;
 
-    bool parse(const char* data, size_t len, size_t& nparsed); // 执行一次 llhttp 解析。
+    ParseResult parse(const char* data, size_t len); // 执行一次 llhttp 解析并返回当前解析状态。
 
-    bool is_complete() const { return messageComplete_; }
     const HttpRequest& get_request() const { return request_; }
     void reset();
 

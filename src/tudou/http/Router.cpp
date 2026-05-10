@@ -28,7 +28,7 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     // 先命中最具体的精确路由，避免兜底规则提前吞掉明确业务入口。
     const Handler* exactHandler = find_exact_handler(req);
     if (exactHandler != nullptr) {
-        execute_handler(*exactHandler, req, resp);
+        (*exactHandler)(req, resp);
         return DispatchResult::Matched;
     }
 
@@ -42,7 +42,7 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     // 只有不存在精确路由且不存在 405 分支时，前缀兜底才有资格接管请求。
     const Handler* prefixHandler = find_prefix_handler(req.get_path());
     if (prefixHandler != nullptr) {
-        execute_handler(*prefixHandler, req, resp);
+        (*prefixHandler)(req, resp);
         return DispatchResult::Matched;
     }
 
@@ -91,11 +91,6 @@ const Router::Handler* Router::find_exact_handler(const HttpRequest& req) const 
     return &routeIt->second;
 }
 
-void Router::execute_handler(const Handler& handler, const HttpRequest& req, HttpResponse& resp) const {
-    // 路由器统一通过这一跳执行外部注入的处理器，保持 dispatch 只负责流程编排。
-    handler(req, resp);
-}
-
 const Router::AllowedMethods* Router::find_allowed_methods(const std::string& path) const {
     // 单独维护路径索引，是为了把“路径不存在”和“方法不允许”严格区分开。
     const auto methodsIt = allowedMethodsByPath_.find(path);
@@ -111,23 +106,16 @@ void Router::write_method_not_allowed_response(
     HttpResponse& resp) const {
     // 自定义 405 处理器优先，允许上层系统覆盖默认文本响应但不改变分支语义。
     if (methodNotAllowedHandler_) {
-        execute_handler(methodNotAllowedHandler_, req, resp);
+        methodNotAllowedHandler_(req, resp);
         return;
     }
 
-    // 没有覆盖处理器时，回落到路由器内建的最小 405 契约。
-    fill_default_method_not_allowed_response(allowedMethods, resp);
-}
-
-void Router::fill_default_method_not_allowed_response(
-    const AllowedMethods& allowedMethods,
-    HttpResponse& resp) const {
     // 先构造统一的纯文本骨架，再按 405 语义补充 Allow 头，避免模板散落到多个分支。
     resp = HttpResponse::plain_text(405, "Method Not Allowed", "Method Not Allowed");
 
     const std::string allowHeader = format_allow_header(allowedMethods);
     if (!allowHeader.empty()) {
-        resp.add_header("Allow", allowHeader);
+        resp.set_header("Allow", allowHeader);
     }
 }
 
@@ -157,32 +145,21 @@ std::string Router::format_allow_header(const AllowedMethods& allowedMethods) co
 const Router::Handler* Router::find_prefix_handler(const std::string& path) const {
     // 前缀兜底的优先级等于注册顺序，因此这里必须保持线性扫描。
     for (const PrefixRoute& prefixRoute : prefixRoutes_) {
-        if (starts_with(path, prefixRoute.prefix)) {
+        if (path.size() >= prefixRoute.prefix.size()
+            && path.compare(0, prefixRoute.prefix.size(), prefixRoute.prefix) == 0) {
             return &prefixRoute.handler;
         }
     }
     return nullptr;
 }
 
-bool Router::starts_with(const std::string& text, const std::string& prefix) {
-    if (text.size() < prefix.size()) {
-        return false;
-    }
-
-    return text.compare(0, prefix.size(), prefix) == 0;
-}
-
 void Router::write_not_found_response(const HttpRequest& req, HttpResponse& resp) const {
     // 自定义 404 处理器只接管响应内容，不改变 dispatch 对未命中分支的判定。
     if (notFoundHandler_) {
-        execute_handler(notFoundHandler_, req, resp);
+        notFoundHandler_(req, resp);
         return;
     }
 
     // 默认 404 保持最小责任，只输出缺省响应契约。
-    fill_default_not_found_response(resp);
-}
-
-void Router::fill_default_not_found_response(HttpResponse& resp) const {
     resp = HttpResponse::plain_text(404, "Not Found", "Not Found");
 }

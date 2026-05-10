@@ -18,105 +18,6 @@ namespace {
 
 constexpr char kContentLengthHeader[] = "Content-Length";
 constexpr char kBadRequestMessage[] = "Bad Request";
-constexpr char kNotFoundMessage[] = "Not Found";
-
-std::string normalize_plaintext_payload(std::string receivedData) {
-    return receivedData;
-}
-
-bool feed_tls_ciphertext(TlsConnection& tls, const std::string& encryptedData, int fd) {
-    if (tls.feed_data(encryptedData.data(), encryptedData.size()) < 0) {
-        spdlog::error("HttpServer: TLS feed_data failed for fd={}", fd);
-        return false;
-    }
-
-    return true;
-}
-
-bool advance_tls_handshake(TlsConnection& tls, int fd) {
-    if (!tls.do_handshake()) {
-        spdlog::error("HttpServer: TLS handshake failed for fd={}", fd);
-        return false;
-    }
-
-    return true;
-}
-
-bool flush_tls_output(const std::shared_ptr<TcpConnection>& conn, TlsConnection& tls) {
-    const std::string pendingOutput = tls.get_output();
-    if (pendingOutput.empty()) {
-        return true;
-    }
-
-    if (!conn) {
-        spdlog::error("HttpServer: Cannot flush TLS output, connection is nullptr");
-        return false;
-    }
-
-    conn->send(pendingOutput);
-    return true;
-}
-
-std::string decrypt_tls_payload(TlsConnection& tls, int fd) {
-    std::string plaintext;
-    const int decrypted = tls.decrypt(plaintext);
-    if (decrypted < 0) {
-        spdlog::error("HttpServer: TLS decrypt failed for fd={}", fd);
-        return "";
-    }
-
-    if (decrypted == 0) {
-        return "";
-    }
-
-    return plaintext;
-}
-
-std::string normalize_tls_payload(const std::shared_ptr<TcpConnection>& conn,
-    TlsConnection& tls,
-    const std::string& encryptedData) {
-    if (!conn) {
-        return "";
-    }
-
-    if (!feed_tls_ciphertext(tls, encryptedData, conn->get_fd())) {
-        return "";
-    }
-
-    if (tls.is_handshaking() && !advance_tls_handshake(tls, conn->get_fd())) {
-        return "";
-    }
-
-    if (!flush_tls_output(conn, tls)) {
-        return "";
-    }
-
-    if (tls.is_handshaking()) {
-        return "";
-    }
-
-    if (!tls.is_established()) {
-        spdlog::error("HttpServer: TlsConnection in error state for fd={}", conn->get_fd());
-        return "";
-    }
-
-    return decrypt_tls_payload(tls, conn->get_fd());
-}
-
-std::string encrypt_tls_response(TlsConnection& tls, int fd, const std::string& plainData) {
-    if (!tls.is_established()) {
-        spdlog::error("HttpServer: Cannot encrypt, TLS not established for fd={}", fd);
-        return "";
-    }
-
-    const int written = tls.encrypt(plainData.data(), plainData.size());
-    if (written <= 0) {
-        spdlog::error("HttpServer: TLS encrypt failed for fd={}", fd);
-        return "";
-    }
-
-    return tls.get_output();
-}
 
 } // namespace
 
@@ -126,7 +27,7 @@ HttpServer::HttpServer(std::string ip, uint16_t port, int threadNum) :
     tcpServer_(std::make_unique<TcpServer>(this->ip_, this->port_, threadNum)),
     connectionStates_(),
     contextsMutex_(),
-    messageCallback_(nullptr),
+    router_(),
     sslContext_(nullptr) {
 
     bind_tcp_callbacks();
@@ -148,8 +49,32 @@ void HttpServer::start() {
     tcpServer_->start();
 }
 
-void HttpServer::set_http_callback(const MessageCallback& cb) {
-    messageCallback_ = cb;
+void HttpServer::add_route(const std::string& method, const std::string& path, Handler handler) {
+    router_.add_route(method, path, std::move(handler));
+}
+
+void HttpServer::add_get_route(const std::string& path, Handler handler) {
+    router_.add_get_route(path, std::move(handler));
+}
+
+void HttpServer::add_post_route(const std::string& path, Handler handler) {
+    router_.add_post_route(path, std::move(handler));
+}
+
+void HttpServer::add_head_route(const std::string& path, Handler handler) {
+    router_.add_head_route(path, std::move(handler));
+}
+
+void HttpServer::add_prefix_route(const std::string& prefix, Handler handler) {
+    router_.add_prefix_route(prefix, std::move(handler));
+}
+
+void HttpServer::set_not_found_handler(Handler handler) {
+    router_.set_not_found_handler(std::move(handler));
+}
+
+void HttpServer::set_method_not_allowed_handler(Handler handler) {
+    router_.set_method_not_allowed_handler(std::move(handler));
 }
 
 bool HttpServer::enable_ssl(const std::string& certFile, const std::string& keyFile) {
@@ -168,42 +93,34 @@ bool HttpServer::is_ssl_enabled() const {
     return sslContext_ && sslContext_->is_initialized();
 }
 
-const std::string& HttpServer::get_ip() const {
-    return ip_;
-}
-
-int HttpServer::get_port() const {
-    return port_;
-}
-
-int HttpServer::get_thread_num() const {
-    return tcpServer_ ? tcpServer_->get_num_threads() : 0;
-}
-
-void HttpServer::process(const std::shared_ptr<TcpConnection>& conn) {
-    ConnectionState state = resolve_connection_state(conn);
-    if (!state.httpContext) {
+void HttpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
+    if (!conn) {
+        spdlog::error("HttpServer: Cannot process message, connection is nullptr");
         return;
     }
 
-    // 业务门面：统一呈现为“读入 -> 解析 -> 产出响应”的主干，TLS 细节留在文件内辅助函数中。
-    const std::string payload = read_request_payload(conn, state);
-    if (payload.empty()) {
+    std::shared_ptr<ConnectionState> state = find_connection_state(conn->get_fd());
+    if (!state) {
         return;
     }
 
-    const ParseState parseState = parse_http_request(*state.httpContext, payload);
-    if (parseState == ParseState::NeedMoreData) {
+    std::string payload;
+    if (!read_request_payload(conn, *state, payload)) {
+        return;
+    }
+
+    // 主线只保留“收数据 -> 解析 -> 分支响应”三个步骤，避免 TLS/状态仓库细节打断阅读。
+    switch (state->httpContext.parse(payload.data(), payload.size())) {
+    case HttpContext::ParseResult::NeedMoreData:
         log_incomplete_request(conn->get_fd());
         return;
-    }
-
-    if (parseState == ParseState::Rejected) {
-        reject_bad_request(conn, state, *state.httpContext);
+    case HttpContext::ParseResult::Rejected:
+        reject_bad_request(conn, *state);
+        return;
+    case HttpContext::ParseResult::Complete:
+        reply_complete_request(conn, *state);
         return;
     }
-
-    reply_complete_request(conn, state, *state.httpContext);
 }
 
 void HttpServer::bind_tcp_callbacks() {
@@ -212,7 +129,7 @@ void HttpServer::bind_tcp_callbacks() {
         on_connect(conn);
         });
     tcpServer_->set_message_callback([this](const std::shared_ptr<TcpConnection>& conn) {
-        process(conn);
+        on_message(conn);
         });
     tcpServer_->set_close_callback([this](const std::shared_ptr<TcpConnection>& conn) {
         on_close(conn);
@@ -226,7 +143,7 @@ void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
     }
 
     const int fd = conn->get_fd();
-    ConnectionState state = create_connection_state(fd);
+    std::shared_ptr<ConnectionState> state = create_connection_state(fd);
 
     {
         std::lock_guard<std::mutex> lock(contextsMutex_);
@@ -239,9 +156,8 @@ void HttpServer::on_connect(const std::shared_ptr<TcpConnection>& conn) {
     spdlog::debug("HttpServer: New connection established, fd={}", fd);
 }
 
-HttpServer::ConnectionState HttpServer::create_connection_state(int fd) const {
-    ConnectionState state;
-    state.httpContext = std::make_shared<HttpContext>();
+std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state(int fd) const {
+    auto state = std::make_shared<ConnectionState>();
 
     if (!sslContext_) {
         return state;
@@ -254,7 +170,7 @@ HttpServer::ConnectionState HttpServer::create_connection_state(int fd) const {
     }
 
     spdlog::debug("HttpServer: TlsConnection created for fd={}", fd);
-    state.tlsConnection = std::make_shared<TlsConnection>(ssl);
+    state->tlsConnection = std::make_unique<TlsConnection>(ssl);
     return state;
 }
 
@@ -269,62 +185,62 @@ void HttpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
     spdlog::debug("HttpServer: Connection closed, fd={}", fd);
 }
 
-std::string HttpServer::read_request_payload(const std::shared_ptr<TcpConnection>& conn,
-    const ConnectionState& state) const {
+bool HttpServer::read_request_payload(const std::shared_ptr<TcpConnection>& conn,
+    ConnectionState& state,
+    std::string& payload) const {
+    payload.clear();
+
     if (!conn) {
         spdlog::error("HttpServer: Cannot receive data, connection is nullptr");
-        return "";
+        return false;
     }
 
     std::string receivedData = conn->receive();
     if (receivedData.empty()) {
-        return "";
+        return false;
     }
 
     if (state.tlsConnection) {
-        return normalize_tls_payload(conn, *state.tlsConnection, receivedData);
+        std::string plaintext;
+        std::string outboundCiphertext;
+        const TlsConnection::ReadResult tlsResult =
+            state.tlsConnection->read_plaintext(receivedData, plaintext, outboundCiphertext);
+
+        if (!outboundCiphertext.empty()) {
+            conn->send(outboundCiphertext);
+        }
+
+        if (tlsResult == TlsConnection::ReadResult::Error) {
+            spdlog::error("HttpServer: TLS read failed for fd={}", conn->get_fd());
+            return false;
+        }
+
+        if (tlsResult != TlsConnection::ReadResult::Ready) {
+            return false;
+        }
+
+        payload = std::move(plaintext);
+        return true;
     }
 
     if (is_ssl_enabled()) {
         spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn->get_fd());
-        return "";
+        return false;
     }
 
-    return normalize_plaintext_payload(std::move(receivedData));
+    payload = std::move(receivedData);
+    return true;
 }
 
-HttpServer::ConnectionState HttpServer::find_connection_state(int fd) {
+std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(int fd) {
     std::lock_guard<std::mutex> lock(contextsMutex_);
     const auto it = connectionStates_.find(fd);
     if (it == connectionStates_.end()) {
         spdlog::error("HttpServer: No ConnectionState found for fd={}", fd);
-        return ConnectionState();
+        return nullptr;
     }
 
     return it->second;
-}
-
-HttpServer::ConnectionState HttpServer::resolve_connection_state(const std::shared_ptr<TcpConnection>& conn) {
-    if (!conn) {
-        spdlog::error("HttpServer: Cannot resolve connection state, connection is nullptr");
-        return ConnectionState();
-    }
-
-    return find_connection_state(conn->get_fd());
-}
-
-HttpServer::ParseState HttpServer::parse_http_request(HttpContext& ctx, const std::string& payload) const {
-    size_t nparsed = 0;
-    if (!ctx.parse(payload.data(), payload.size(), nparsed)) {
-        return ParseState::Rejected;
-    }
-
-    // llhttp 接受了数据但消息未闭合时，需要保持上下文继续累计后续片段。
-    if (!ctx.is_complete()) {
-        return ParseState::NeedMoreData;
-    }
-
-    return ParseState::Complete;
 }
 
 void HttpServer::log_incomplete_request(int fd) const {
@@ -332,37 +248,26 @@ void HttpServer::log_incomplete_request(int fd) const {
 }
 
 void HttpServer::reject_bad_request(const std::shared_ptr<TcpConnection>& conn,
-    const ConnectionState& state,
-    HttpContext& ctx) {
+    ConnectionState& state) {
     send_http_response(conn, state, build_bad_request_response());
-    reset_http_context(ctx);
+    state.httpContext.reset();
 }
 
 void HttpServer::reply_complete_request(const std::shared_ptr<TcpConnection>& conn,
-    const ConnectionState& state,
-    HttpContext& ctx) {
-    send_http_response(conn, state, build_http_response(ctx.get_request()));
-    reset_http_context(ctx);
+    ConnectionState& state) {
+    send_http_response(conn, state, build_http_response(state.httpContext.get_request()));
+    state.httpContext.reset();
 }
 
 HttpResponse HttpServer::build_http_response(const HttpRequest& req) const {
     HttpResponse response;
-    if (!messageCallback_) {
-        spdlog::warn("HttpServer: HTTP callback not set, returning 404 Not Found");
-        return build_not_found_response();
-    }
-
-    // 业务层只负责填充领域响应，不需要关心默认 404、Content-Length 或 TLS 等基础设施细节。
-    messageCallback_(req, response);
+    // 路由分发与默认 404/405 统一收口在 HttpServer 内部，应用层只负责注册 handler。
+    (void)router_.dispatch(req, response);
     return response;
 }
 
 HttpResponse HttpServer::build_bad_request_response() const {
     return HttpResponse::plain_text(400, kBadRequestMessage, kBadRequestMessage);
-}
-
-HttpResponse HttpServer::build_not_found_response() const {
-    return HttpResponse::plain_text(404, kNotFoundMessage, kNotFoundMessage);
 }
 
 void HttpServer::finalize_http_response(HttpResponse& resp) const {
@@ -393,13 +298,16 @@ void HttpServer::send_response(const std::shared_ptr<TcpConnection>& conn,
     }
 
     if (state.tlsConnection) {
-        // HTTPS 场景下发送前统一加密，保持业务侧始终操作明文 HttpResponse。
-        const std::string encrypted = encrypt_tls_response(*state.tlsConnection, conn->get_fd(), response);
-        if (encrypted.empty()) {
+        // HTTPS 场景下发送前统一交给 TlsConnection 编码，保持业务侧始终操作明文 HttpResponse。
+        std::string encrypted;
+        if (!state.tlsConnection->write_plaintext(response, encrypted)) {
+            spdlog::error("HttpServer: TLS write failed for fd={}", conn->get_fd());
             return;
         }
 
-        conn->send(encrypted);
+        if (!encrypted.empty()) {
+            conn->send(encrypted);
+        }
         return;
     }
 
@@ -409,10 +317,6 @@ void HttpServer::send_response(const std::shared_ptr<TcpConnection>& conn,
     }
 
     conn->send(response);
-}
-
-void HttpServer::reset_http_context(HttpContext& ctx) const {
-    ctx.reset();
 }
 
 void HttpServer::remove_connection_state(int fd) {

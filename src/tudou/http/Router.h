@@ -14,17 +14,11 @@
 //     ├── ~Router()                              # [公有] 析构路由容器本身，不执行额外回收逻辑
 //     ├── dispatch(req, resp) const              # [公有] 分发总入口：精确匹配 -> 405 -> 前缀兜底 -> 404
 //     │   ├── find_exact_handler(req) const      # [私有] 先查 method + path 的精确路由
-//     │   ├── execute_handler(...) const         # [私有] 统一执行命中的处理器
 //     │   ├── find_allowed_methods(path) const   # [私有] 查询该路径允许的方法集合
 //     │   ├── write_method_not_allowed_response(...) const  # [私有] 生成 405 响应
-//     │   │   └── fill_default_method_not_allowed_response(...) const  # [私有] 默认 405 模板
-//     │   │       ├── fill_plain_text_response(...)        # [私有] 复用纯文本响应骨架
-//     │   │       └── format_allow_header(...) const       # [私有] 生成 Allow 头
+//     │   │   └── format_allow_header(...) const       # [私有] 生成 Allow 头
 //     │   ├── find_prefix_handler(path) const    # [私有] 按注册顺序查前缀兜底路由
-//     │   │   └── starts_with(text, prefix)      # [私有] 判断当前路径是否命中某个前缀
 //     │   └── write_not_found_response(req, resp) const    # [私有] 生成 404 响应
-//     │       └── fill_default_not_found_response(resp) const  # [私有] 默认 404 模板
-//     │           └── fill_plain_text_response(...)        # [私有] 复用纯文本响应骨架
 //     ├── add_route(method, path, handler)       # [公有] 注册精确路由并同步允许方法索引
 //     ├── add_get_route(path, handler)           # [公有] GET 精确路由快捷入口
 //     ├── add_post_route(path, handler)          # [公有] POST 精确路由快捷入口
@@ -91,22 +85,16 @@ private:
     };
 
     const Handler* find_exact_handler(const HttpRequest& req) const;
-    void execute_handler(const Handler& handler, const HttpRequest& req, HttpResponse& resp) const;
 
     const AllowedMethods* find_allowed_methods(const std::string& path) const;
     void write_method_not_allowed_response(
         const HttpRequest& req,
         const AllowedMethods& allowedMethods,
         HttpResponse& resp) const;
-    void fill_default_method_not_allowed_response(
-        const AllowedMethods& allowedMethods,
-        HttpResponse& resp) const;
     std::string format_allow_header(const AllowedMethods& allowedMethods) const; // 生成 Allow 头内容。
 
     const Handler* find_prefix_handler(const std::string& path) const;
-    static bool starts_with(const std::string& text, const std::string& prefix);
     void write_not_found_response(const HttpRequest& req, HttpResponse& resp) const;
-    void fill_default_not_found_response(HttpResponse& resp) const;
 
 private:
     std::unordered_map<RouteKey, Handler, RouteKeyHash> exactRoutes_; // 精确路由表，使用 method + path 锁定唯一处理器。

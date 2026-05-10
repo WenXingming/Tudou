@@ -17,7 +17,6 @@
 class HttpServer;
 class HttpRequest;
 class HttpResponse;
-class Router;
 
 class StaticFileHttpServer {
 public:
@@ -34,7 +33,6 @@ private:
 
     StaticFileServerConfig cfg_;
     std::unique_ptr<HttpServer> httpServer_;
-    std::unique_ptr<Router> router_;
 
     struct CacheEntry {
         std::string content;

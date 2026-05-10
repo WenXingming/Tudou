@@ -18,7 +18,6 @@
 #include "tudou/http/HttpServer.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
-#include "tudou/router/Router.h"
 #include "spdlog/spdlog.h"
 
 namespace {
@@ -81,8 +80,8 @@ std::string guess_content_type(const std::string& filepath) {
 void set_method_not_allowed(HttpResponse& resp) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(405, "Method Not Allowed");
-    resp.add_header("Content-Type", "text/plain; charset=utf-8");
-    resp.add_header("Allow", "GET, HEAD");
+    resp.set_header("Content-Type", "text/plain; charset=utf-8");
+    resp.set_header("Allow", "GET, HEAD");
     resp.set_body("Method Not Allowed");
     resp.set_close_connection(true);
 }
@@ -90,7 +89,7 @@ void set_method_not_allowed(HttpResponse& resp) {
 void set_not_found(HttpResponse& resp) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(404, "Not Found");
-    resp.add_header("Content-Type", "text/plain; charset=utf-8");
+    resp.set_header("Content-Type", "text/plain; charset=utf-8");
     resp.set_body("Not Found");
     resp.set_close_connection(true);
 }
@@ -98,13 +97,13 @@ void set_not_found(HttpResponse& resp) {
 void set_head_ok(HttpResponse& resp, const std::string& contentType, std::time_t mtime, long long size) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(200, "OK");
-    resp.add_header("Content-Type", contentType);
-    resp.add_header("Content-Length", std::to_string(size));
+    resp.set_header("Content-Type", contentType);
+    resp.set_header("Content-Length", std::to_string(size));
     const std::string lastModified = format_http_date_rfc1123(mtime);
     if (!lastModified.empty()) {
-        resp.add_header("Last-Modified", lastModified);
+        resp.set_header("Last-Modified", lastModified);
     }
-    resp.add_header("Connection", "Keep-Alive");
+    resp.set_header("Connection", "Keep-Alive");
     resp.set_body("");
     resp.set_close_connection(false);
 }
@@ -112,9 +111,9 @@ void set_head_ok(HttpResponse& resp, const std::string& contentType, std::time_t
 void set_file_ok(HttpResponse& resp, const std::string& contentType, const std::string& body) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(200, "OK");
-    resp.add_header("Content-Type", contentType);
-    resp.add_header("Content-Length", std::to_string(body.size()));
-    resp.add_header("Connection", "Keep-Alive");
+    resp.set_header("Content-Type", contentType);
+    resp.set_header("Content-Length", std::to_string(body.size()));
+    resp.set_header("Connection", "Keep-Alive");
     resp.set_body(body);
     resp.set_close_connection(false);
 }
@@ -127,15 +126,10 @@ void set_file_ok(HttpResponse& resp, const std::string& contentType, const std::
 
 StaticFileHttpServer::StaticFileHttpServer(StaticFileServerConfig cfg)
     : cfg_(std::move(cfg))
-    , httpServer_(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum))
-    , router_(new Router()) {
+    , httpServer_(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum)) {
 
-    router_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
+    httpServer_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
         on_http_request(req, resp);
-        });
-
-    httpServer_->set_http_callback([this](const HttpRequest& req, HttpResponse& resp) {
-        router_->dispatch(req, resp);
         });
 }
 
