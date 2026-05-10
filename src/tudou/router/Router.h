@@ -101,11 +101,6 @@ private:
     void fill_default_method_not_allowed_response(
         const AllowedMethods& allowedMethods,
         HttpResponse& resp) const;
-    static void fill_plain_text_response(
-        int statusCode,
-        const std::string& reasonPhrase,
-        const std::string& body,
-        HttpResponse& resp);
     std::string format_allow_header(const AllowedMethods& allowedMethods) const; // 生成 Allow 头内容。
 
     const Handler* find_prefix_handler(const std::string& path) const;

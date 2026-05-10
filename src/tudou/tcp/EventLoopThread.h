@@ -40,7 +40,6 @@ public:
 
 private:
     void thread_func(); // 后台线程主干：创建 EventLoop、通知主线程、驱动 loop、清理。
-    void signal_loop_ready(); // 通过条件变量通知主线程 EventLoop 已创建完成。
     void wait_for_loop();
 
 private:
@@ -49,8 +48,6 @@ private:
 
     std::mutex loopMutex_; // 保护 loop_ 并与 condition_ 配对使用（condition_.wait 要求锁的就是保护共享状态的这把锁）。
     std::condition_variable condition_; // 等待 loop_ 创建完成的条件变量。
-
-    bool started_; // 是否已经启动过后台线程。
 
     ThreadInitCallback initCallback_; // EventLoop 创建后、进入 loop 前执行的初始化回调。
 };

@@ -16,10 +16,10 @@
 //     │   └── remove_in_register()                 # [私有] 从 Poller 中删除当前 fd（不再调用 ::close）
 //     ├── handle_events()                          # [公有] Channel 唯一事件入口，先做 tie 保活再分发
 //     │   └── handle_events_with_guard()           # [私有] 按“关/错/读/写”优先级回放事件
-//     │       ├── handle_close_callback()          # [私有] EPOLLHUP 且无读事件时优先走关闭回调
-//     │       ├── handle_error_callback()          # [私有] EPOLLERR 直接转错误回调
-//     │       ├── handle_read_callback()           # [私有] EPOLLIN/EPOLLPRI 触发读回调
-//     │       └── handle_write_callback()          # [私有] EPOLLOUT 触发写回调
+//     │       ├── handle_close_callback()          # [私有] EPOLLHUP 且无读事件时优先走关闭回调（若已注册）
+//     │       ├── handle_error_callback()          # [私有] EPOLLERR 直接转错误回调（若已注册）
+//     │       ├── handle_read_callback()           # [私有] EPOLLIN/EPOLLPRI 触发读回调（读回调仍是必选）
+//     │       └── handle_write_callback()          # [私有] EPOLLOUT 触发写回调（若已注册）
 //     ├── enable_reading()                         # [公有] 打开读事件关注
 //     │   └── update_in_register()                 # [私有] 把新 events_ 同步到 Poller
 //     ├── enable_writing()                         # [公有] 打开写事件关注
@@ -107,7 +107,7 @@ private:
     bool isTied_; // 是否已启用 tie 机制。
 
     EventCallback readCallback_; // 读事件回调。
-    EventCallback writeCallback_; // 写事件回调。
-    EventCallback closeCallback_; // 关闭事件回调。
-    EventCallback errorCallback_; // 错误事件回调。
+    EventCallback writeCallback_; // 写事件回调，可选。
+    EventCallback closeCallback_; // 关闭事件回调，可选。
+    EventCallback errorCallback_; // 错误事件回调，可选。
 };

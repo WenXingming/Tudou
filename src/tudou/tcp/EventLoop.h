@@ -11,10 +11,8 @@
 //     ├── ~EventLoop()                             # [公有] 析构：校验线程归属，显式销毁 TimerQueue/wakeupChannel 并关闭 wakeupFd
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
-//     ├── loop(timeoutMs)                          # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
+//     ├── loop()                                   # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
 //     │   └── do_pending_functors()                # [私有] 固定走“摘队列 -> 顺序执行”路径
-//     │       ├── take_pending_functors()          # [私有] 摘出当前批次待执行任务
-//     │       └── execute_pending_functors(...)    # [私有] 顺序执行本轮 functor
 //     ├── run_in_loop(cb)                          # [公有] 同线程直执，异线程转为异步投递
 //     │   └── queue_in_loop(cb)                    # [公有] 入队并按需唤醒所属 loop 线程
 //     │       └── wakeup()                         # [私有] 跨线程投递或重入投递时打断阻塞 poll
@@ -78,8 +76,6 @@ private:
     void wakeup(); // 通过 eventfd 打断阻塞中的 poll。
     void on_read(); // 消费 wakeupFd_ 事件，避免重复通知。
     void do_pending_functors(); // 执行当前批次待处理任务。
-    FunctorQueue take_pending_functors();
-    void execute_pending_functors(FunctorQueue& functors);
 
 private:
     thread_local static EventLoop* loopInthisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查

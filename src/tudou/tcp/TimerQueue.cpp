@@ -58,7 +58,7 @@ TimerQueue::~TimerQueue() {
 }
 
 TimerId TimerQueue::add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval) {
-    TimerId id = TimerId(nextTimerId_++);
+    TimerId id = TimerId(nextTimerId_.fetch_add(1, std::memory_order_relaxed));
     auto timer = std::make_shared<Timer>(id, callback, when, interval);
 
     // 索引修改统一回到 EventLoop 线程执行，避免对双索引额外加锁。
@@ -77,7 +77,6 @@ void TimerQueue::erase_timer(TimerId timerId) {
         [this, timerId]() {
             auto it = timersById_.find(timerId);
             if (it == timersById_.end()) {
-                spdlog::warn("TimerQueue::erase_timer(): timerId {} not found", timerId.value());
                 return;
             }
 
@@ -94,26 +93,15 @@ void TimerQueue::on_timerfd_read() {
     read_timerfd(timerFd_);
 
     const Timestamp now = std::chrono::steady_clock::now();
-    const TimerList expiredTimers = collect_expired_timers(now);
+    std::vector<std::shared_ptr<Timer>> expiredTimers;
 
-    execute_expired_timers(expiredTimers, now);
-    sync_timerfd();
-}
-
-TimerQueue::TimerList TimerQueue::collect_expired_timers(Timestamp now) {
-    TimerList expiredTimers;
-
-    // timersByExpire_ 按到期时间升序，从头遍历直到遇到未到期的
+    // timersByExpire_ 按到期时间升序，从头遍历直到遇到未到期的。
     auto it = timersByExpire_.begin();
     while (it != timersByExpire_.end() && it->first.first <= now) {
         expiredTimers.push_back(it->second);
-        it = timersByExpire_.erase(it); // 先从主索引移除，按需在 execute 中重新插入
+        it = timersByExpire_.erase(it);
     }
 
-    return expiredTimers;
-}
-
-void TimerQueue::execute_expired_timers(const TimerList& expiredTimers, Timestamp now) {
     for (const auto& timer : expiredTimers) {
         timer->run();
 
@@ -131,6 +119,8 @@ void TimerQueue::execute_expired_timers(const TimerList& expiredTimers, Timestam
         timer->restart(now);
         timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
     }
+
+    sync_timerfd();
 }
 
 void TimerQueue::sync_timerfd() {

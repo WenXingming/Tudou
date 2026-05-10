@@ -15,15 +15,24 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
+std::shared_ptr<TcpConnection> TcpConnection::create(EventLoop* loop,
+    Socket connSocket,
+    const InetAddress& localAddr,
+    const InetAddress& peerAddr) {
+    std::shared_ptr<TcpConnection> conn(new TcpConnection(loop, std::move(connSocket), localAddr, peerAddr));
+    conn->activate();
+    return conn;
+}
+
 TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr) :
     loop_(loop),
     connSocket_(std::move(connSocket)),
     channel_(std::make_unique<Channel>(loop, connSocket_.fd())),
     localAddr_(localAddr),
     peerAddr_(peerAddr),
-    highWaterMark_(64 * 1024 * 1024),
     readBuffer_(std::make_unique<Buffer>()),
     writeBuffer_(std::make_unique<Buffer>()),
+    highWaterMark_(64 * 1024 * 1024),
     messageCallback_(nullptr),
     closeCallback_(nullptr),
     errorCallback_(nullptr),
@@ -34,20 +43,41 @@ TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddre
     channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
-    channel_->enable_reading();
 }
 
 TcpConnection::~TcpConnection() {
     spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", connSocket_.fd());
 }
 
-void TcpConnection::send(const std::string& msg) {
+void TcpConnection::activate() {
     assert(loop_->is_in_loop_thread());
+    channel_->tie_to_object(shared_from_this());
+    channel_->enable_reading();
+}
+
+void TcpConnection::send(const std::string& msg) {
+    if (!loop_->is_in_loop_thread()) {
+        std::shared_ptr<TcpConnection> self = shared_from_this();
+        loop_->queue_in_loop([self, msg]() {
+            self->send_in_loop(msg);
+            });
+        return;
+    }
+
+    send_in_loop(msg);
+}
+
+void TcpConnection::send_in_loop(const std::string& msg) {
+    assert(loop_->is_in_loop_thread());
+    if (isClosed_) {
+        return;
+    }
 
     const size_t oldLen = writeBuffer_->readable_bytes();
     writeBuffer_->write_to_buffer(msg);
     const size_t newLen = writeBuffer_->readable_bytes();
 
+    // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
     if (highWaterMarkCallback_ && oldLen < highWaterMark_ && newLen >= highWaterMark_) {
         handle_high_water_mark_callback();
     }
@@ -89,11 +119,19 @@ void TcpConnection::set_high_water_mark_callback(HighWaterMarkCallback cb, size_
     highWaterMark_ = highWaterMark;
 }
 
-void TcpConnection::tie_to_object(const std::shared_ptr<void>& obj) {
-    channel_->tie_to_object(obj);
+void TcpConnection::force_close() {
+    if (!loop_->is_in_loop_thread()) {
+        std::shared_ptr<TcpConnection> self = shared_from_this();
+        loop_->queue_in_loop([self]() {
+            self->force_close_in_loop();
+            });
+        return;
+    }
+
+    force_close_in_loop();
 }
 
-void TcpConnection::force_close() {
+void TcpConnection::force_close_in_loop() {
     assert(loop_->is_in_loop_thread());
     close_connection(*channel_);
 }
@@ -170,7 +208,7 @@ void TcpConnection::close_connection(Channel& channel) {
 
     isClosed_ = true;
     channel.disable_all();
-    handle_close_callback();
+    handle_close_callback(); // TcpServer 删除连接析构 TcpConnection 对象，TcpConnection 自动管理 Socket、Channel 等资源的生命周期，保证资源正确释放。特别是 Channel 的析构会自动从 Poller 注销，避免悬挂事件。
 }
 
 void TcpConnection::handle_close_callback() {

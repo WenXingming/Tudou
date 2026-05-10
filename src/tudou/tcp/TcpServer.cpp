@@ -7,9 +7,11 @@
 
 #include <cassert>
 #include <cerrno>
+#include <chrono>
 #include <functional>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
 #include "base/InetAddress.h"
@@ -23,17 +25,17 @@
 
 namespace {
 
-constexpr size_t kDefaultHighWaterMark = 64 * 1024 * 1024;
+constexpr size_t kDefaultHighWaterMark = 64 * 1024 * 1024; // 64 MB
 
 } // namespace
 
 TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
-    loopThreadPool_(std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", ioLoopNum)),
+    loopThreadPool_(nullptr),
+    ioLoopNum_(ioLoopNum),
     ip_(std::move(ip)),
     port_(port),
     acceptor_(nullptr),
     connections_(),
-    connectionHeartbeats_(),
     connectionsMutex_(),
     connectionCallback_(nullptr),
     messageCallback_(nullptr),
@@ -51,6 +53,8 @@ TcpServer::~TcpServer() {
 void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
 
+    assert(loopThreadPool_ == nullptr);
+    loopThreadPool_ = std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", static_cast<int>(ioLoopNum_));
     loopThreadPool_->start();
     EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
 
@@ -61,6 +65,10 @@ void TcpServer::start() {
         });
 
     mainLoop.loop();
+
+    shutdown_connections();
+    acceptor_.reset();
+    loopThreadPool_.reset();
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -119,22 +127,22 @@ void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     auto connSocketPtr = std::make_shared<Socket>(std::move(connSocket));
     // 将新连接的 Socket 所有权转移到 ioLoop 线程，ioLoop 线程负责创建 TcpConnection 和 Channel，并管理其生命周期。
     ioLoop->run_in_loop([this, connSocketPtr, ioLoop, peerAddr, fd]() {
-        const auto conn = create_connection(*ioLoop, std::move(*connSocketPtr), peerAddr, fd);
+        const auto conn = create_connection(*ioLoop, std::move(*connSocketPtr), peerAddr);
+        if (!connectionCallback_) {
+            spdlog::warn("TcpServer::on_connect(). connectionCallback is nullptr, fd: {}", fd);
+            return;
+        }
 
-        handle_connection_callback(conn);
+        connectionCallback_(conn);
         });
 }
 
 std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
     Socket connSocket,
-    const InetAddress& peerAddr,
-    int fd) {
+    const InetAddress& peerAddr) {
     const InetAddress localAddr = connSocket.local_address();
-    auto conn = std::make_shared<TcpConnection>(&ioLoop, std::move(connSocket), localAddr, peerAddr);
-
-    // Channel tie 延迟到此处：TcpConnection 构造时 shared_from_this() 不可用，
-    // 必须由 TcpServer 在 shared_ptr 管理对象后建立 weak tie，防止回调期间 owner 被销毁。
-    conn->tie_to_object(conn); // 将 TcpConnection 的 shared_ptr 传入自身，建立弱引用，防止回调期间被销毁
+    auto conn = TcpConnection::create(&ioLoop, std::move(connSocket), localAddr, peerAddr);
+    const int fd = conn->get_fd();
 
     // 配置 TCP 选项，开启 TCP_NODELAY 和 TCP keepalive。
     conn->set_tcp_no_delay(true);
@@ -150,32 +158,29 @@ std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
 
     if (errorCallback_) {
         conn->set_error_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
-            handle_error_callback(activeConn);
+            errorCallback_(activeConn);
             });
     }
 
     if (writeCompleteCallback_) {
         conn->set_write_complete_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
-            handle_write_complete_callback(activeConn);
+            writeCompleteCallback_(activeConn);
             });
     }
 
     if (highWaterMarkCallback_) {
         conn->set_high_water_mark_callback([this](const std::shared_ptr<TcpConnection>& activeConn) {
-            handle_high_water_mark_callback(activeConn);
+            highWaterMarkCallback_(activeConn);
             }, highWaterMark_);
     }
 
     // 根据服务器级默认配置，为这条连接按需创建独立的空闲检测器。
     std::shared_ptr<ConnectionHeartbeat> heartbeat = create_connection_heartbeat(conn);
 
-    // 连接表和心跳表共用 fd 作为索引；两者统一由 TcpServer 在关闭路径上清理。
+    // 连接和该连接的可选心跳策略一起注册和清理，避免生命周期分散到多张表。
     {
         std::lock_guard<std::mutex> lock(connectionsMutex_);
-        connections_[fd] = conn;
-        if (heartbeat) {
-            connectionHeartbeats_[fd] = heartbeat;
-        }
+        connections_[fd] = ConnectionEntry{ conn, heartbeat };
     }
 
     if (heartbeat) {
@@ -196,19 +201,47 @@ std::shared_ptr<ConnectionHeartbeat> TcpServer::create_connection_heartbeat(cons
         connectionHeartbeatOptions_.idleTimeoutSeconds);
 }
 
-
-void TcpServer::handle_connection_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->connectionCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_connection_callback(). connectionCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->connectionCallback_(conn);
-}
-
 void TcpServer::on_message(const std::shared_ptr<TcpConnection>& conn) {
     // 任何成功上浮到 TcpServer 的读事件都视为连接仍然活跃，因此先刷新空闲窗口再继续协议分发。
     refresh_connection_heartbeat(conn);
-    handle_message_callback(conn);
+    if (!messageCallback_) {
+        spdlog::warn("TcpServer::on_message(). messageCallback is nullptr, fd: {}", conn ? conn->get_fd() : -1);
+        return;
+    }
+
+    messageCallback_(conn);
+}
+
+void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
+    remove_connection(conn);
+    if (!closeCallback_) {
+        spdlog::warn("TcpServer::on_close(). closeCallback is nullptr, fd: {}", conn ? conn->get_fd() : -1);
+        return;
+    }
+
+    closeCallback_(conn);
+}
+
+void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
+    assert(conn->get_loop()->is_in_loop_thread()); // 理论上应该总在 ioLoop 线程调用，assert 快速 Debug 代码可能的错误
+
+    const int fd = conn->get_fd();
+    std::shared_ptr<ConnectionHeartbeat> heartbeat;
+    {
+        std::lock_guard<std::mutex> lock(connectionsMutex_);
+        auto it = connections_.find(fd);
+        if (it == connections_.end()) {
+            spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
+        }
+        else {
+            heartbeat = it->second.heartbeat;
+            connections_.erase(it);
+        }
+    }
+
+    if (heartbeat) {
+        heartbeat->stop();
+    }
 }
 
 void TcpServer::refresh_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn) {
@@ -219,9 +252,9 @@ void TcpServer::refresh_connection_heartbeat(const std::shared_ptr<TcpConnection
     std::shared_ptr<ConnectionHeartbeat> heartbeat;
     {
         std::lock_guard<std::mutex> lock(connectionsMutex_);
-        auto it = connectionHeartbeats_.find(conn->get_fd());
-        if (it != connectionHeartbeats_.end()) {
-            heartbeat = it->second;
+        auto it = connections_.find(conn->get_fd());
+        if (it != connections_.end()) {
+            heartbeat = it->second.heartbeat;
         }
     }
 
@@ -230,69 +263,29 @@ void TcpServer::refresh_connection_heartbeat(const std::shared_ptr<TcpConnection
     }
 }
 
-void TcpServer::handle_message_callback(const std::shared_ptr<TcpConnection>& conn) {
-    assert(this->messageCallback_ != nullptr);
-    this->messageCallback_(conn);
-}
-
-void TcpServer::on_close(const std::shared_ptr<TcpConnection>& conn) {
-    remove_connection(conn);
-    handle_close_callback(conn);
-}
-
-void TcpServer::remove_connection(const std::shared_ptr<TcpConnection>& conn) {
-    assert(conn->get_loop()->is_in_loop_thread()); // 理论上应该总在 ioLoop 线程调用，assert 快速 Debug 代码可能的错误
-
-    const int fd = conn->get_fd();
-    std::shared_ptr<ConnectionHeartbeat> heartbeat;
+void TcpServer::shutdown_connections() {
+    std::vector<std::shared_ptr<TcpConnection>> activeConnections;
     {
         std::lock_guard<std::mutex> lock(connectionsMutex_);
-        size_t erased = connections_.erase(fd); // 若找不到 fd 则 erase 返回 0，调用者可据此判断是否成功删除连接
-        if (erased == 0) {
-            spdlog::error("TcpServer::remove_connection(). connection not found, fd: {}", fd);
-        }
-
-        // 先从映射表摘掉，再在锁外 stop，避免定时器取消逻辑把临界区拖长。
-        auto heartbeatIt = connectionHeartbeats_.find(fd);
-        if (heartbeatIt != connectionHeartbeats_.end()) {
-            heartbeat = heartbeatIt->second;
-            connectionHeartbeats_.erase(heartbeatIt);
+        activeConnections.reserve(connections_.size());
+        for (const auto& entry : connections_) {
+            if (entry.second.connection) {
+                activeConnections.push_back(entry.second.connection);
+            }
         }
     }
 
-    if (heartbeat) {
-        heartbeat->stop();
+    for (const auto& conn : activeConnections) {
+        conn->force_close();
     }
-}
 
-void TcpServer::handle_close_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->closeCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_close_callback(). closeCallback is nullptr, fd: {}", conn->get_fd());
-        return;
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lock(connectionsMutex_);
+            if (connections_.empty()) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    this->closeCallback_(conn);
-}
-
-void TcpServer::handle_error_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->errorCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_error_callback(). errorCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->errorCallback_(conn);
-}
-
-void TcpServer::handle_write_complete_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->writeCompleteCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->writeCompleteCallback_(conn);
-}
-
-void TcpServer::handle_high_water_mark_callback(const std::shared_ptr<TcpConnection>& conn) {
-    if (this->highWaterMarkCallback_ == nullptr) {
-        spdlog::warn("TcpServer::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", conn->get_fd());
-        return;
-    }
-    this->highWaterMarkCallback_(conn);
 }

@@ -6,9 +6,9 @@
 #include "Buffer.h"
 
 #include <algorithm>
+#include <cstring>
 #include <errno.h>
 #include <cassert>
-#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -29,9 +29,7 @@ Buffer::Buffer(size_t initialSize) :
     assert(prependable_bytes() == kCheapPrepend_);
 }
 
-Buffer::~Buffer() {
-
-}
+Buffer::~Buffer() = default;
 
 std::string Buffer::read_from_buffer(size_t len) {
     const size_t readableBytes = readable_bytes();
@@ -141,7 +139,8 @@ void Buffer::make_space(size_t len) {
     }
 
     const size_t readableBytes = readable_bytes();
-    std::copy(buffer_.begin() + readIndex_, buffer_.begin() + writeIndex_, buffer_.begin() + kCheapPrepend_);
+    // 这里源和目标区域可能重叠，必须使用 memmove 而不是 std::copy。
+    std::memmove(buffer_.data() + kCheapPrepend_, readable_start_ptr(), readableBytes);
     readIndex_ = kCheapPrepend_;
     writeIndex_ = readIndex_ + readableBytes;
 }

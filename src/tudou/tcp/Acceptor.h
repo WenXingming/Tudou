@@ -12,9 +12,6 @@
 //     │   ├── on_read(channel)                    # [私有] 监听 socket 可读时的 accept 入口
 //     │   │   ├── Socket::accept(&peerAddr)       # [Socket] accept4 返回新 Socket
 //     │   │   └── handle_connect_callback(...)     # [私有] 触发上层 newConnectCallback_
-//     │   ├── on_error(channel)                   # [私有] 监听 fd 错误分支，仅做诊断
-//     │   ├── on_close(channel)                   # [私有] 监听 fd 异常关闭分支
-//     │   └── on_write(channel)                   # [私有] 监听 fd 异常写事件分支
 //     ├── ~Acceptor()                             # [公有] 析构：listenSocket_ 和 channel_ 按序销毁
 //     ├── set_connect_callback(cb)                # [公有] 注册 accept 成功后的上行发布回调
 //     └── get_listen_fd() const                   # [公有] 返回监听 fd
@@ -45,9 +42,6 @@ public:
     int get_listen_fd() const;
 
 private:
-    void on_error(Channel& channel);
-    void on_close(Channel& channel);
-    void on_write(Channel& channel);
     void on_read(Channel& channel);          // 监听 fd 可读后的统一接入入口。
     void handle_connect_callback(Socket connSocket, const InetAddress& peerAddr);
 

@@ -40,6 +40,10 @@ public:
     HttpResponse();
     ~HttpResponse() = default;
 
+    static HttpResponse plain_text(int statusCode,
+        const std::string& statusMessage,
+        const std::string& body);
+
     std::string package_to_string() const; // 将当前响应对象序列化为完整 HTTP 报文。
 
     void set_http_version(const std::string& version) { httpVersion_ = version; }

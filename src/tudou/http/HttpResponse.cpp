@@ -9,6 +9,10 @@ namespace {
 
 constexpr char kConnectionHeader[] = "Connection";
 constexpr char kCloseConnectionValue[] = "close";
+constexpr char kHttpVersion[] = "HTTP/1.1";
+constexpr char kContentTypeHeader[] = "Content-Type";
+constexpr char kContentLengthHeader[] = "Content-Length";
+constexpr char kPlainTextContentType[] = "text/plain";
 
 } // namespace
 
@@ -20,6 +24,19 @@ HttpResponse::HttpResponse() :
     body_(),
     closeConnection_(false) {
 
+}
+
+HttpResponse HttpResponse::plain_text(int statusCode,
+    const std::string& statusMessage,
+    const std::string& body) {
+    HttpResponse response;
+    response.set_http_version(kHttpVersion);
+    response.set_status(statusCode, statusMessage);
+    response.set_body(body);
+    response.set_header(kContentTypeHeader, kPlainTextContentType);
+    response.set_header(kContentLengthHeader, std::to_string(body.size()));
+    response.set_close_connection(true);
+    return response;
 }
 
 void HttpResponse::set_header(const std::string& field, const std::string& value) {

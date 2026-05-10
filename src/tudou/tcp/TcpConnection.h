@@ -6,7 +6,9 @@
 //
 // TcpConnection.h
 // └── TcpConnection
-//     ├── TcpConnection(loop, connSocket, localAddr, peerAddr)  # [公有] 构造：接管 Socket，绑定 Channel 回调并开启读
+//     ├── create(loop, connSocket, localAddr, peerAddr)      # [公有] 构造并完成激活，隐藏 tie 细节
+//     │   ├── TcpConnection(loop, connSocket, localAddr, peerAddr)  # [私有] 接管 Socket，绑定 Channel 回调
+//     │   └── activate()                               # [私有] 在 shared_ptr 生效后建立 tie 并开启读
 //     │   ├── on_read(channel)                       # [私有] 读事件主干：读数据、判 EOF、判错误
 //     │   │   ├── handle_message_callback()          # [私有] 把消息事件抛给上层
 //     │   │   ├── handle_error_callback()            # [私有] 通知上层错误
@@ -23,12 +25,12 @@
 //     │       ├── handle_error_callback()            # [私有] 向上转发错误
 //     │       └── close_connection(channel)          # [私有] 与 read/write 错误共用收尾
 //     ├── ~TcpConnection()                       # [公有] 析构：connSocket_ 自动关闭 fd
-//     ├── send(msg)                              # [公有] 统一发送入口，先入写缓冲再注册写事件
-//     │   └── handle_high_water_mark_callback()  # [私有] 越过高水位阈值时上报背压
+//     ├── send(msg)                              # [公有] 线程安全发送入口，必要时投递回所属 EventLoop
+//     │   └── send_in_loop(msg)                  # [私有] 先入写缓冲再注册写事件
+//     │       └── handle_high_water_mark_callback()  # [私有] 越过高水位阈值时上报背压
 //     ├── receive()                              # [公有] 拉取并清空当前读缓冲中的应用层数据
-//     ├── tie_to_object(obj)                    # [公有] 暴露 Channel tie 给 TcpServer（shared_from_this 在构造时不可用）
 //     ├── force_close()                          # [公有] 主动关闭连接，供上层策略对象调用
-//     │   └── close_connection(*channel_)        # [私有] 与被动关闭共用收尾路径
+//     │   └── force_close_in_loop()              # [私有] 与被动关闭共用收尾路径
 //     ├── set_message_callback(cb)               # [公有] 注册消息回调
 //     ├── set_close_callback(cb)                 # [公有] 注册关闭回调
 //     ├── set_error_callback(cb)                 # [公有] 注册错误回调
@@ -65,7 +67,11 @@ public:
     using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
     using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
 
-    TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
+    static std::shared_ptr<TcpConnection> create(EventLoop* loop,
+        Socket connSocket,
+        const InetAddress& localAddr,
+        const InetAddress& peerAddr);
+
     ~TcpConnection();
 
     void send(const std::string& msg);
@@ -80,9 +86,6 @@ public:
     void set_write_complete_callback(WriteCompleteCallback cb);
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark);
 
-    // shared_from_this() 不能在构造函数里调用，因此 Channel tie 必须延迟到 shared_ptr 管理该对象之后，
-    // 由 TcpServer 在 on_connect 中调用。这是 Channel 细节向上泄漏到 TcpServer 的原因。
-    void tie_to_object(const std::shared_ptr<void>& obj);
     void force_close();
 
     EventLoop* get_loop() const { return loop_; }
@@ -93,10 +96,15 @@ public:
     size_t get_high_water_mark() const { return highWaterMark_; }
 
 private:
+    TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
+    void activate();
+
+    void send_in_loop(const std::string& msg);
     void on_read(Channel& channel);
     void handle_message_callback();
     void on_write(Channel& channel);
     void handle_write_complete_callback();
+    void force_close_in_loop();
     void on_close(Channel& channel);
     void close_connection(Channel& channel);
     void handle_close_callback();
@@ -112,10 +120,10 @@ private:
     InetAddress localAddr_; // 本地地址快照。
     InetAddress peerAddr_;  // 对端地址快照。
 
-    size_t highWaterMark_; // 发送缓冲高水位阈值（字节）。
-
     std::unique_ptr<Buffer> readBuffer_;  // 应用层读缓冲。
     std::unique_ptr<Buffer> writeBuffer_; // 应用层写缓冲。
+
+    size_t highWaterMark_; // 发送缓冲高水位阈值（字节）。
 
     MessageCallback messageCallback_;               // 消息到达时触发（必选）。
     CloseCallback closeCallback_;                   // 连接关闭时触发（必选）。

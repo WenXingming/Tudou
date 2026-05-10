@@ -42,6 +42,26 @@ TEST(EventLoopTest, QueueInLoopFromAnotherThreadWakesLoop) {
     EXPECT_TRUE(executed.load());
 }
 
+TEST(EventLoopTest, RunAfterFromAnotherThreadSchedulesTimer) {
+    EventLoop loop(20);
+    std::atomic<bool> fired{ false };
+
+    std::thread worker([&]() {
+        loop.run_after(0.01, [&]() {
+            fired = true;
+            loop.quit();
+            });
+        });
+
+    loop.run_after(0.2, [&]() {
+        loop.quit();
+        });
+    loop.loop();
+    worker.join();
+
+    EXPECT_TRUE(fired.load());
+}
+
 TEST(EventLoopTest, RunEveryCanCancelRepeatingTimer) {
     EventLoop loop(20);
     int count = 0;

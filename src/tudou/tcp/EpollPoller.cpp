@@ -38,33 +38,31 @@ std::vector<Channel*> EpollPoller::poll(int timeoutMs) {
 void EpollPoller::update_channel(Channel* channel) {
     assert(loop_->is_in_loop_thread());
 
-    int fd = channel->get_fd();
-    uint32_t events = channel->get_events();
+    const int fd = channel->get_fd();
+    const uint32_t events = channel->get_events();
 
     struct epoll_event ev;
-    memset(&ev, 0, sizeof(ev));
+    std::memset(&ev, 0, sizeof(ev));
     ev.events = events;
-    ev.data.fd = fd;
-    // 注意：epoll_event.data 是 union，data.fd 和 data.ptr 不能同时使用。
-    // 当前使用 data.fd + channels_ hash map 查找 Channel*；若改用 data.ptr
-    // 可省去一次哈希查找，但需要去掉 data.fd 的赋值。保持现状以简化调试。
+    ev.data.ptr = channel; // 注意：epoll_event.data 是 union，data.fd 和 data.ptr 不能同时使用
 
-    auto findIt = channels_.find(fd);
-    if (findIt == channels_.end()) {
+    const auto findIt = channels_.find(fd);
+    const int operation = (findIt == channels_.end()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
+    if (operation == EPOLL_CTL_ADD) {
         channels_[fd] = channel;
-        int epollCtlRet = epoll_ctl(epollFd_, EPOLL_CTL_ADD, ev.data.fd, &ev);
-        if (epollCtlRet != 0) {
-            spdlog::error("epoll_ctl ADD failed, fd={}, events={}, errno={} ({})", fd, events, errno, strerror(errno));
-            assert(false);
-        }
     }
     else {
-        assert(channels_[fd] == channel);
-        int epollCtlRet = epoll_ctl(epollFd_, EPOLL_CTL_MOD, ev.data.fd, &ev);
-        if (epollCtlRet != 0) {
-            spdlog::error("epoll_ctl MOD failed, fd={}, events={}, errno={} ({})", fd, events, errno, strerror(errno));
-            assert(false);
-        }
+        assert(findIt->second == channel);
+    }
+
+    if (::epoll_ctl(epollFd_, operation, fd, &ev) != 0) {
+        spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
+            operation == EPOLL_CTL_ADD ? "ADD" : "MOD",
+            fd,
+            events,
+            errno,
+            strerror(errno));
+        assert(false);
     }
 }
 
@@ -84,8 +82,8 @@ void EpollPoller::remove_channel(Channel* channel) {
 bool EpollPoller::has_channel(Channel* channel) const {
     assert(loop_->is_in_loop_thread());
 
-    int fd = channel->get_fd();
-    auto findIt = channels_.find(fd);
+    const int fd = channel->get_fd();
+    const auto findIt = channels_.find(fd);
     if (findIt == channels_.end()) {
         return false;
     }
@@ -112,10 +110,8 @@ std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
     activeChannels.reserve(numReady);
 
     for (int i = 0; i < numReady; ++i) {
-        int fd = eventList_[i].data.fd;
-        auto it = channels_.find(fd);
-        assert(it != channels_.end()); // epoll 与 channels_ 必须同步
-        Channel* channel = it->second;
+        auto* channel = static_cast<Channel*>(eventList_[i].data.ptr);
+        assert(channel != nullptr);
         channel->set_revents(eventList_[i].events);
         activeChannels.push_back(channel);
     }

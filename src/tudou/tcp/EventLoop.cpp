@@ -19,7 +19,7 @@ thread_local EventLoop* EventLoop::loopInthisThread = nullptr;
 EventLoop::EventLoop(int pollTimeoutMs) :
     threadId_(std::this_thread::get_id()),
     pollTimeoutMs_(pollTimeoutMs),
-    poller_(std::make_unique<EpollPoller>(this)),
+    poller_(nullptr),
     isLooping_(false),
     isQuit_(false),
     wakeupFd_(-1),
@@ -28,6 +28,14 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     isCallingPendingFunctors_(false),
     pendingFunctorsMutex_(),
     timerQueue_(nullptr) {
+
+    // 先校验线程归属约束，再创建底层资源，避免在非法构造路径上先注册 fd。
+    if (loopInthisThread != nullptr) {
+        spdlog::critical("Cannot create more than one EventLoop per thread");
+        assert(false);
+    }
+    loopInthisThread = this;
+    poller_ = std::make_unique<EpollPoller>(this);
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
     wakeupFd_ = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -40,13 +48,6 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     wakeupChannel_->enable_reading();
 
     timerQueue_ = std::make_unique<TimerQueue>(this);
-
-    // 确保每个线程最多拥有一个 EventLoop 实例，强制执行 one loop per thread 约束。
-    if (loopInthisThread != nullptr) {
-        spdlog::critical("Cannot create more than one EventLoop per thread");
-        assert(false);
-    }
-    loopInthisThread = this;
 }
 
 EventLoop::~EventLoop() {
@@ -125,7 +126,7 @@ void EventLoop::queue_in_loop(const Functor& cb) {
     }
 
     {
-        std::unique_lock<std::mutex> lock(pendingFunctorsMutex_);
+        std::lock_guard<std::mutex> lock(pendingFunctorsMutex_);
         pendingFunctors_.push(cb);
     }
 
@@ -154,8 +155,7 @@ TimerId EventLoop::run_every(double intervalSeconds, const Functor& cb) {
         interval = std::chrono::milliseconds(1);
     }
     auto when = std::chrono::steady_clock::now() + interval;
-    TimerId timerId = timerQueue_->add_timer(cb, when, interval);
-    return timerId;
+    return timerQueue_->add_timer(cb, when, interval);
 }
 
 void EventLoop::cancel(TimerId timerId) {
@@ -183,21 +183,13 @@ void EventLoop::on_read() {
 
 void EventLoop::do_pending_functors() {
     // 任务执行路径固定为“摘队列 -> 顺序执行”，避免锁与回调逻辑交织。
-    FunctorQueue functors = take_pending_functors();
-    execute_pending_functors(functors);
-}
-
-EventLoop::FunctorQueue EventLoop::take_pending_functors() {
     FunctorQueue functors;
     isCallingPendingFunctors_ = true;
     {
-        std::unique_lock<std::mutex> lock(pendingFunctorsMutex_);
+        std::lock_guard<std::mutex> lock(pendingFunctorsMutex_);
         functors.swap(pendingFunctors_);
     }
-    return functors;
-}
 
-void EventLoop::execute_pending_functors(FunctorQueue& functors) {
     while (!functors.empty()) {
         // 这里必须做值拷贝；front() 返回的引用在 pop() 后会立即悬空。
         Functor functor = functors.front();

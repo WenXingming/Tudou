@@ -11,7 +11,7 @@
 
 InetAddress::InetAddress(const std::string& ip, uint16_t port) {
     // 构造流程按固定顺序线性展开，保证 family、port、ip 的写入语义一眼可见。
-    address_ = create_empty_address();
+    address_ = sockaddr_in{};
     assign_family(address_);
     assign_port(address_, port);
     assign_ip(address_, ip);
@@ -39,12 +39,9 @@ uint16_t InetAddress::get_port() const {
 
 std::string InetAddress::get_ip_port() const {
     // 组合日志与调试输出时复用统一格式，避免不同调用点各自拼接出不一致的文本。
-    return format_ip_port(to_ip_string(address_), read_port(address_));
-}
-
-sockaddr_in InetAddress::create_empty_address() {
-    // 先得到一个零值结构，避免任何字段带着未定义内容进入后续系统调用。
-    return sockaddr_in{};
+    std::ostringstream endpoint;
+    endpoint << to_ip_string(address_) << ":" << read_port(address_);
+    return endpoint.str();
 }
 
 void InetAddress::assign_family(sockaddr_in& address) {
@@ -85,11 +82,4 @@ std::string InetAddress::to_ip_string(const sockaddr_in& address) {
 uint16_t InetAddress::read_port(const sockaddr_in& address) {
     // 成员内部保存的是网络字节序端口，这里是唯一的对外解码出口。
     return ntohs(address.sin_port);
-}
-
-std::string InetAddress::format_ip_port(const std::string& ip, uint16_t port) {
-    // 把 endpoint 展示规则固化在值对象内部，避免日志、调试和业务输出出现多份拼接实现。
-    std::ostringstream endpoint;
-    endpoint << ip << ":" << port;
-    return endpoint.str();
 }

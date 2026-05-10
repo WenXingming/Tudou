@@ -3,8 +3,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include "base/InetAddress.h"
 #include "tudou/tcp/EventLoop.h"
@@ -16,7 +18,7 @@ namespace {
 std::shared_ptr<TcpConnection> make_connection(EventLoop& loop, int fd) {
     InetAddress localAddr("127.0.0.1", 8080);
     InetAddress peerAddr("127.0.0.1", 8081);
-    return std::make_shared<TcpConnection>(&loop, Socket(fd), localAddr, peerAddr);
+    return TcpConnection::create(&loop, Socket(fd), localAddr, peerAddr);
 }
 
 } // namespace
@@ -34,7 +36,6 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
         loop.quit();
         });
     conn->set_close_callback([](const std::shared_ptr<TcpConnection>&) {});
-    conn->tie_to_object(conn);
 
     ASSERT_EQ(::write(fds[1], "hello", 5), 5);
 
@@ -60,12 +61,40 @@ TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) 
     conn->set_high_water_mark_callback([&](const std::shared_ptr<TcpConnection>&) {
         highWaterMarkReached = true;
         }, 4);
-    conn->tie_to_object(conn);
 
     conn->send("hello");
 
     EXPECT_TRUE(highWaterMarkReached);
     EXPECT_EQ(conn->get_write_buffer_size(), 5U);
+
+    ::close(fds[1]);
+}
+
+TEST(TcpConnectionTest, SendFromAnotherThreadIsQueuedBackToLoop) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    EventLoop loop(20);
+    auto conn = make_connection(loop, fds[0]);
+    std::atomic<bool> highWaterMarkReached{ false };
+
+    conn->set_close_callback([](const std::shared_ptr<TcpConnection>&) {});
+    conn->set_high_water_mark_callback([&](const std::shared_ptr<TcpConnection>&) {
+        highWaterMarkReached = true;
+        loop.quit();
+        }, 1);
+
+    std::thread worker([conn]() {
+        conn->send("hello");
+        });
+
+    loop.run_after(0.2, [&]() {
+        loop.quit();
+        });
+    loop.loop();
+    worker.join();
+
+    EXPECT_TRUE(highWaterMarkReached.load());
 
     ::close(fds[1]);
 }

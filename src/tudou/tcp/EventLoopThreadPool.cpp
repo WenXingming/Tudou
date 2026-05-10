@@ -33,7 +33,7 @@ void EventLoopThreadPool::start() {
 
 void EventLoopThreadPool::create_main_loop() {
     // 在当前线程创建主 EventLoop（也就是说主 loop 跑在调用 start() 的线程上）
-    mainLoop_.reset(new EventLoop());
+    mainLoop_ = std::make_unique<EventLoop>();
 
     // 单线程模式下，main loop 兼任 IO loop，需要执行 initCallback。
     if (numThreads_ == 0 && initCallback_) {

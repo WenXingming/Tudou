@@ -56,3 +56,15 @@ TEST(HttpResponseTest, PackageToStringReflectsCloseConnectionContract) {
     EXPECT_NE(packaged.find("Connection: close\r\n"), std::string::npos);
     EXPECT_NE(packaged.find("\r\n\r\ndone"), std::string::npos);
 }
+
+TEST(HttpResponseTest, PlainTextFactoryBuildsDefaultErrorShape) {
+    HttpResponse response = HttpResponse::plain_text(404, "Not Found", "Not Found");
+
+    EXPECT_EQ(response.get_http_version(), "HTTP/1.1");
+    EXPECT_EQ(response.get_status_code(), 404);
+    EXPECT_EQ(response.get_status_message(), "Not Found");
+    EXPECT_EQ(response.get_body(), "Not Found");
+    EXPECT_EQ(find_header(response, "Content-Type"), "text/plain");
+    EXPECT_EQ(find_header(response, "Content-Length"), std::to_string(response.get_body().size()));
+    EXPECT_TRUE(response.get_close_connection());
+}

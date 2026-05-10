@@ -35,6 +35,9 @@ public:
     void refresh();
 
 private:
+    void start_in_loop();
+    void stop_in_loop();
+    void refresh_in_loop();
     void check_timeout();
     bool is_timeout(std::chrono::steady_clock::time_point now) const;
 

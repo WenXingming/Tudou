@@ -21,9 +21,6 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
     // 监听 socket 就绪后再挂接 Channel，保证回调只面对可用的 listen fd
     channel_ = std::make_unique<Channel>(loop_, listenSocket_.fd());
     channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
-    channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
-    channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
-    channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->enable_reading();
 }
 
@@ -36,19 +33,6 @@ void Acceptor::set_connect_callback(NewConnectCallback cb) {
 
 int Acceptor::get_listen_fd() const {
     return listenSocket_.fd();
-}
-
-void Acceptor::on_error(Channel& channel) {
-    spdlog::error("Acceptor: listenFd {} error", channel.get_fd());
-}
-
-void Acceptor::on_close(Channel& channel) {
-    spdlog::error("Acceptor: listenFd {} closed unexpectedly", channel.get_fd());
-    assert(false);
-}
-
-void Acceptor::on_write(Channel& channel) {
-    spdlog::error("Acceptor: unexpected write event on listenFd {}", channel.get_fd());
 }
 
 void Acceptor::on_read(Channel& channel) {

@@ -157,16 +157,22 @@ void Channel::handle_read_callback() {
 }
 
 void Channel::handle_write_callback() {
-    assert(writeCallback_ != nullptr);
+    if (!writeCallback_) {
+        return;
+    }
     writeCallback_(*this);
 }
 
 void Channel::handle_close_callback() {
-    assert(closeCallback_ != nullptr);
+    if (!closeCallback_) {
+        return;
+    }
     closeCallback_(*this);
 }
 
 void Channel::handle_error_callback() {
-    assert(errorCallback_ != nullptr);
+    if (!errorCallback_) {
+        return;
+    }
     errorCallback_(*this);
 }

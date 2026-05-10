@@ -7,7 +7,6 @@
 // InetAddress.h
 // └── InetAddress
 //     ├── InetAddress(ip, port)                  # [公有] 从 IPv4 文本和端口构造地址对象
-//     │   ├── create_empty_address()             # [私有] 生成零值 sockaddr_in
 //     │   ├── assign_family(address)             # [私有] 固定 AF_INET
 //     │   ├── assign_port(address, port)         # [私有] 写入网络字节序端口
 //     │   └── assign_ip(address, ip)             # [私有] 解析并校验 IPv4 文本地址
@@ -23,8 +22,7 @@
 //     │   └── read_port(address)                 # [私有] 还原端口字节序
 //     ├── get_ip_port() const                    # [公有] 输出 ip:port 组合字符串
 //     │   ├── to_ip_string(address)              # [私有] 获取文本 IP
-//     │   ├── read_port(address)                 # [私有] 获取主机字节序端口
-//     │   └── format_ip_port(ip, port)           # [私有] 统一格式化 endpoint
+//     │   └── read_port(address)                 # [私有] 获取主机字节序端口
 // ============================================================================
 
 #pragma once
@@ -48,14 +46,12 @@ public:
     std::string get_ip_port() const; // 输出统一格式的 ip:port 文本。
 
 private:
-    static sockaddr_in create_empty_address();
     static void assign_family(sockaddr_in& address);
     static void assign_port(sockaddr_in& address, uint16_t port);
     static void assign_ip(sockaddr_in& address, const std::string& ip);
     static void ensure_ipv4_family(const sockaddr_in& address);
     static std::string to_ip_string(const sockaddr_in& address);
     static uint16_t read_port(const sockaddr_in& address);
-    static std::string format_ip_port(const std::string& ip, uint16_t port);
 
 private:
     sockaddr_in address_; // 以网络字节序保存的 IPv4 地址契约，屏蔽调用方对底层结构体细节的直接操作。

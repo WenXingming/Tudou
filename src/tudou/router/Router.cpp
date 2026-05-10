@@ -123,26 +123,12 @@ void Router::fill_default_method_not_allowed_response(
     const AllowedMethods& allowedMethods,
     HttpResponse& resp) const {
     // 先构造统一的纯文本骨架，再按 405 语义补充 Allow 头，避免模板散落到多个分支。
-    fill_plain_text_response(405, "Method Not Allowed", "Method Not Allowed", resp);
+    resp = HttpResponse::plain_text(405, "Method Not Allowed", "Method Not Allowed");
 
     const std::string allowHeader = format_allow_header(allowedMethods);
     if (!allowHeader.empty()) {
         resp.add_header("Allow", allowHeader);
     }
-}
-
-void Router::fill_plain_text_response(
-    int statusCode,
-    const std::string& reasonPhrase,
-    const std::string& body,
-    HttpResponse& resp) {
-    // 404 与 405 共用同一份纯文本响应模板，保证默认错误响应契约一致。
-    resp.set_http_version("HTTP/1.1");
-    resp.set_status(statusCode, reasonPhrase);
-    resp.set_body(body);
-    resp.add_header("Content-Type", "text/plain");
-    resp.add_header("Content-Length", std::to_string(body.size()));
-    resp.set_close_connection(true);
 }
 
 std::string Router::format_allow_header(const AllowedMethods& allowedMethods) const {
@@ -198,5 +184,5 @@ void Router::write_not_found_response(const HttpRequest& req, HttpResponse& resp
 }
 
 void Router::fill_default_not_found_response(HttpResponse& resp) const {
-    fill_plain_text_response(404, "Not Found", "Not Found", resp);
+    resp = HttpResponse::plain_text(404, "Not Found", "Not Found");
 }
