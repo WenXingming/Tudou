@@ -78,11 +78,6 @@ flowchart TD
     HttpReq["HttpRequest / HttpResponse"]
     TlsConn["TlsConnection / SslContext"]
     Router2["Router 路由分发"]
-
-    HttpSrv --> HttpCtx
-    HttpSrv --> TlsConn
-    HttpCtx --> HttpReq
-    HttpSrv --> Router2
   end
 
   subgraph NetLayer ["TCP 网络层 (TCP Layer)"]
@@ -92,11 +87,6 @@ flowchart TD
     TcpConn["TcpConnection\n连接管理"]
     Buffer2["Buffer\n读写缓冲区"]
     Heartbeat2["ConnectionHeartbeat\n心跳机制"]
-
-    TcpSrv -->|接受新连接| Acceptor2
-    TcpSrv -->|创建 & 管理| TcpConn
-    TcpConn -->|数据缓冲| Buffer2
-    TcpConn -->|超时检查| Heartbeat2
   end
 
   subgraph ReactorLayer ["Reactor 事件分发层 (Reactor Layer)"]
@@ -107,25 +97,14 @@ flowchart TD
     Poller2["EpollPoller\nI/O 多路复用"]
     Channel2["Channel\n事件分发"]
     TimerQ["TimerQueue / Timer\n定时任务"]
-
-    ThreadPool --> MainLoop2
-    ThreadPool -->|分配连接| SubLoop
-    MainLoop2 --> Poller2
-    SubLoop --> Poller2
-    Poller2 -->|触发事件| Channel2
-    SubLoop --> TimerQ
   end
 
   subgraph OS_Kernel ["操作系统层 (OS Kernel)"]
-    direction LR
+    direction TB
     Epoll["epoll\nepoll_wait()"]
     Socket["socket API\naccept / read / write"]
     EventFd["eventfd\n跨线程唤醒"]
     TimerFd["timerfd\n定时触发"]
-
-    Epoll -.-> Socket
-    Epoll -.-> EventFd
-    Epoll -.-> TimerFd
   end
 
   AppBusiness ==>|注册回调 & 业务处理| HttpLayer
