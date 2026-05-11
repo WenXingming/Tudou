@@ -26,16 +26,16 @@ Channel::Channel(EventLoop* loop, int fd)
     , closeCallback_(nullptr)
     , errorCallback_(nullptr) {
 
-    // 构造时立即注册到 Poller，保证 fd 和 Channel 生命周期严格同步
+    // 构造时立即注册到 Poller，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
     assert(loop_->is_in_loop_thread());
     update_in_register();
 }
 
 Channel::~Channel() {
+    // 析构时立即从 Poller 注销，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
     assert(loop_->is_in_loop_thread());
     disable_all();
     remove_in_register();
-    // fd 生命周期由持有者（Socket 或显式 close）管理，Channel 不再负责关闭。
 }
 
 void Channel::set_read_callback(EventCallback cb) {
