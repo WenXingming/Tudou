@@ -26,7 +26,7 @@ flowchart TD
 
     subgraph AppBusiness ["应用业务层 (App Layer)"]
         direction LR
-        App["用户应用\n(FileLinkServer / StarMind)"]
+        App["用户应用\n(StaticFileHttpServer / FileLinkServer / StarMind)"]
         UserCallbacks["业务回调\nonConnection()\nonMessage()\nonRequest()"]
         App --> UserCallbacks
     end
