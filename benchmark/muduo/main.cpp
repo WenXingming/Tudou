@@ -2,11 +2,10 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <mutex>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 
+#include <boost/any.hpp>
 #include <muduo/base/Logging.h>
 #include <muduo/net/Buffer.h>
 #include <muduo/net/EventLoop.h>
@@ -73,38 +72,24 @@ public:
     void start() {
         server_.start();
     }
-
 private:
     void on_connection(const muduo::net::TcpConnectionPtr& conn) {
         if (conn->connected()) {
-            return;
+            conn->setContext(std::string());
         }
-
-        std::lock_guard<std::mutex> lock(pendingMutex_);
-        pendingRequests_.erase(conn->name());
     }
 
     void on_message(const muduo::net::TcpConnectionPtr& conn, muduo::net::Buffer* buffer) {
-        std::size_t responseCount = 0;
-        {
-            std::lock_guard<std::mutex> lock(pendingMutex_);
-            std::string& pending = pendingRequests_[conn->name()];
-            pending.append(buffer->retrieveAllAsString());
-            responseCount = consume_complete_requests(pending);
-            if (pending.empty()) {
-                pendingRequests_.erase(conn->name());
-            }
-        }
+        std::string* pending = boost::any_cast<std::string>(conn->getMutableContext());
+        pending->append(buffer->retrieveAllAsString());
+        std::size_t responseCount = consume_complete_requests(*pending);
 
         while (responseCount-- > 0) {
             conn->send(kHelloResponse);
         }
     }
-
 private:
     muduo::net::TcpServer server_;
-    std::unordered_map<std::string, std::string> pendingRequests_;
-    std::mutex pendingMutex_;
 };
 
 int main(int argc, char* argv[]) {

@@ -51,6 +51,8 @@ std::size_t consume_complete_requests(std::string& pending) {
     return requestCount;
 }
 
+thread_local std::unordered_map<ConnectionId, std::string> t_pendingRequests;
+
 } // namespace
 
 class TudouHelloBenchmarkServer {
@@ -74,14 +76,11 @@ public:
 private:
     void on_message(ConnectionId id, const std::string& data) {
         std::size_t responseCount = 0;
-        {
-            std::lock_guard<std::mutex> lock(pendingMutex_);
-            std::string& pending = pendingRequests_[id];
-            pending.append(data);
-            responseCount = consume_complete_requests(pending);
-            if (pending.empty()) {
-                pendingRequests_.erase(id);
-            }
+        std::string& pending = t_pendingRequests[id];
+        pending.append(data);
+        responseCount = consume_complete_requests(pending);
+        if (pending.empty()) {
+            t_pendingRequests.erase(id);
         }
 
         while (responseCount-- > 0) {
@@ -92,14 +91,11 @@ private:
     }
 
     void on_close(ConnectionId id) {
-        std::lock_guard<std::mutex> lock(pendingMutex_);
-        pendingRequests_.erase(id);
+        t_pendingRequests.erase(id);
     }
 
 private:
     TcpServer server_;
-    std::unordered_map<ConnectionId, std::string> pendingRequests_;
-    std::mutex pendingMutex_;
 };
 
 int main(int argc, char* argv[]) {
