@@ -6,13 +6,8 @@
 #include "TcpServer.h"
 
 #include <cassert>
-#include <cerrno>
 #include <chrono>
-#include <functional>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 #include "base/InetAddress.h"
@@ -36,9 +31,8 @@ TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
     ip_(std::move(ip)),
     port_(port),
     acceptor_(nullptr),
-    connections_(),
-    connectionsMutex_(),
-    nextConnectionId_(1),
+    connectionRecordsByLoop_(),
+    activeConnectionCount_(0),
     state_(ServerState::Created),
     connectionCallback_(nullptr),
     messageCallback_(nullptr),
@@ -57,13 +51,11 @@ void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
 
     assert(loopThreadPool_ == nullptr);
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        state_ = ServerState::Running;
-    }
-
     loopThreadPool_ = std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", static_cast<int>(ioLoopNum_));
     loopThreadPool_->start();
+    initialize_connection_records(loopThreadPool_->get_all_loops());
+    state_.store(ServerState::Running);
+
     EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
 
     InetAddress listenAddr(ip_, port_);
@@ -77,69 +69,24 @@ void TcpServer::start() {
     shutdown_connections();
     acceptor_.reset();
     loopThreadPool_.reset();
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        state_ = ServerState::Stopped;
-    }
+    connectionRecordsByLoop_.clear();
+    state_.store(ServerState::Stopped);
 }
 
 void TcpServer::stop() {
+    ServerState expected = ServerState::Running;
+    if (!state_.compare_exchange_strong(expected, ServerState::Draining)) {
+        return;
+    }
+
     EventLoop* mainLoop = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        if (state_ != ServerState::Running || !loopThreadPool_) {
-            return;
-        }
-        state_ = ServerState::Draining;
+    if (loopThreadPool_) {
         mainLoop = loopThreadPool_->get_main_loop();
     }
 
     if (mainLoop) {
         mainLoop->quit();
     }
-}
-
-bool TcpServer::send(ConnectionId id, const std::string& data) {
-    std::shared_ptr<TcpConnection> conn;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        if (state_ != ServerState::Running) {
-            return false;
-        }
-
-        auto it = connections_.find(id);
-        if (it == connections_.end() || it->second.state != ConnectionRecordState::Active) {
-            return false;
-        }
-        conn = it->second.connection;
-    }
-
-    if (!conn) {
-        return false;
-    }
-
-    conn->send(data);
-    return true;
-}
-
-bool TcpServer::force_close(ConnectionId id) {
-    std::shared_ptr<TcpConnection> conn;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        auto it = connections_.find(id);
-        if (it == connections_.end()) {
-            return false;
-        }
-        it->second.state = ConnectionRecordState::Closing;
-        conn = it->second.connection;
-    }
-
-    if (!conn) {
-        return false;
-    }
-
-    conn->force_close();
-    return true;
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -183,6 +130,26 @@ void TcpServer::set_connection_heartbeat(double checkIntervalSeconds, double idl
     connectionHeartbeatOptions_.idleTimeoutSeconds = idleTimeoutSeconds;
 }
 
+void TcpServer::initialize_connection_records(const std::vector<EventLoop*>& loops) {
+    assert(connectionRecordsByLoop_.empty());
+    assert(!loops.empty());
+
+    connectionRecordsByLoop_.reserve(loops.size());
+    for (size_t index = 0; index < loops.size(); ++index) {
+        assert(loops[index] != nullptr);
+        connectionRecordsByLoop_.emplace(loops[index], ConnectionRecords());
+    }
+}
+
+TcpServer::ConnectionRecords* TcpServer::connection_records_for_loop(EventLoop* loop) {
+    auto it = connectionRecordsByLoop_.find(loop);
+    if (it == connectionRecordsByLoop_.end()) {
+        return nullptr;
+    }
+
+    return &it->second;
+}
+
 void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     EventLoop* mainLoop = loopThreadPool_->get_main_loop();
     assert(mainLoop != nullptr);
@@ -191,30 +158,26 @@ void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     const int fd = connSocket.fd();
     spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), fd);
 
-    ConnectionId id = 0;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        if (state_ != ServerState::Running) {
-            // connSocket 仍持有刚 accept 到的 fd；提前返回会通过 Socket 析构关闭它。
-            return;
-        }
-        id = nextConnectionId_++;
+    if (state_.load() != ServerState::Running) {
+        // connSocket 仍持有刚 accept 到的 fd；提前返回会通过 Socket 析构关闭它。
+        return;
     }
 
     EventLoop* ioLoop = loopThreadPool_->get_next_loop();
     assert(ioLoop != nullptr);
+    assert(connection_records_for_loop(ioLoop) != nullptr);
 
     // Socket 是 move-only 类型，用 shared_ptr 包装使 lambda 可拷贝以适配 std::function。
     auto connSocketPtr = std::make_shared<Socket>(std::move(connSocket));
     // 将新连接的 Socket 所有权转移到 ioLoop 线程，ioLoop 线程负责创建 TcpConnection 和 Channel，并管理其生命周期。
-    ioLoop->run_in_loop([this, connSocketPtr, ioLoop, peerAddr, fd, id]() {
-        const auto conn = create_connection(*ioLoop, std::move(*connSocketPtr), peerAddr, id);
+    ioLoop->run_in_loop([this, connSocketPtr, ioLoop, peerAddr, fd]() {
+        const auto conn = create_connection(*ioLoop, std::move(*connSocketPtr), peerAddr);
         if (!conn) {
             return;
         }
 
         if (connectionCallback_) {
-            connectionCallback_(id);
+            connectionCallback_(conn);
             return;
         }
 
@@ -222,66 +185,62 @@ void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
         });
 }
 
-std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
+TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     Socket connSocket,
-    const InetAddress& peerAddr,
-    ConnectionId id) {
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        if (state_ != ServerState::Running) {
-            // connSocket 还未移交给 TcpConnection；返回时 Socket 析构会关闭 fd。
-            return nullptr;
-        }
+    const InetAddress& peerAddr) {
+    assert(ioLoop.is_in_loop_thread());
+    ConnectionRecords* localRecords = connection_records_for_loop(&ioLoop);
+    assert(localRecords != nullptr);
+
+    if (state_.load() != ServerState::Running) {
+        // connSocket 还未移交给 TcpConnection；返回时 Socket 析构会关闭 fd。
+        return nullptr;
     }
 
     const InetAddress localAddr = connSocket.local_address();
     auto conn = TcpConnection::create(&ioLoop, std::move(connSocket), localAddr, peerAddr);
-    const int fd = conn->get_fd();
 
     // 配置 TCP 选项，开启 TCP_NODELAY 和 TCP keepalive。
     conn->set_tcp_no_delay(true);
     conn->set_keep_alive(true);
 
     // 配置 TcpConnection 回调，全部转发到 TcpServer 以统一管理。
-    conn->set_message_callback([this, id](const std::shared_ptr<TcpConnection>& activeConn) {
-        on_message(id, activeConn);
+    conn->set_message_callback([this](const TcpConnectionPtr& activeConn) {
+        on_message(activeConn);
         });
-    conn->set_close_callback([this, id](const std::shared_ptr<TcpConnection>& activeConn) {
-        on_close(id, activeConn);
+    conn->set_close_callback([this](const TcpConnectionPtr& activeConn) {
+        on_close(activeConn);
         });
 
     if (errorCallback_) {
-        conn->set_error_callback([this, id](const std::shared_ptr<TcpConnection>& activeConn) {
-            (void)activeConn;
-            errorCallback_(id);
+        conn->set_error_callback([this](const TcpConnectionPtr& activeConn) {
+            errorCallback_(activeConn);
             });
     }
 
     if (writeCompleteCallback_) {
-        conn->set_write_complete_callback([this, id](const std::shared_ptr<TcpConnection>& activeConn) {
-            (void)activeConn;
-            writeCompleteCallback_(id);
+        conn->set_write_complete_callback([this](const TcpConnectionPtr& activeConn) {
+            writeCompleteCallback_(activeConn);
             });
     }
 
     if (highWaterMarkCallback_) {
-        conn->set_high_water_mark_callback([this, id](const std::shared_ptr<TcpConnection>& activeConn) {
-            highWaterMarkCallback_(id, activeConn->get_write_buffer_size());
+        conn->set_high_water_mark_callback([this](const TcpConnectionPtr& activeConn) {
+            highWaterMarkCallback_(activeConn, activeConn->get_write_buffer_size());
             }, highWaterMark_);
     }
 
     // 根据服务器级默认配置，为这条连接按需创建独立的空闲检测器。
     std::shared_ptr<ConnectionHeartbeat> heartbeat = create_connection_heartbeat(conn);
 
-    // 连接和该连接的可选心跳策略一起注册和清理，避免生命周期分散到多张表。
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        if (state_ != ServerState::Running) {
-            // conn 持有 Socket/Channel；丢弃 shared_ptr 会按 RAII 收口底层 fd。
-            return nullptr;
-        }
-        connections_[id] = ConnectionRecord{ id, fd, conn, heartbeat, ConnectionRecordState::Active };
+    if (state_.load() != ServerState::Running) {
+        // conn 持有 Socket/Channel；丢弃 shared_ptr 会按 RAII 收口底层 fd。
+        return nullptr;
     }
+
+    // 连接和该连接的可选心跳策略一起注册和清理，真实连接表只由所属 loop 线程访问。
+    (*localRecords)[conn.get()] = ConnectionRecord{ conn, heartbeat };
+    activeConnectionCount_.fetch_add(1);
 
     if (heartbeat) {
         heartbeat->start();
@@ -290,7 +249,7 @@ std::shared_ptr<TcpConnection> TcpServer::create_connection(EventLoop& ioLoop,
     return conn;
 }
 
-std::shared_ptr<ConnectionHeartbeat> TcpServer::create_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn) const {
+std::shared_ptr<ConnectionHeartbeat> TcpServer::create_connection_heartbeat(const TcpConnectionPtr& conn) const {
     if (!connectionHeartbeatOptions_.enabled) {
         return nullptr;
     }
@@ -301,42 +260,43 @@ std::shared_ptr<ConnectionHeartbeat> TcpServer::create_connection_heartbeat(cons
         connectionHeartbeatOptions_.idleTimeoutSeconds);
 }
 
-void TcpServer::on_message(ConnectionId id, const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::on_message(const TcpConnectionPtr& conn) {
     // 任何成功上浮到 TcpServer 的读事件都视为连接仍然活跃，因此先刷新空闲窗口再继续协议分发。
-    refresh_connection_heartbeat(id);
+    refresh_connection_heartbeat(conn);
     if (messageCallback_) {
-        messageCallback_(id, conn ? conn->receive() : std::string());
+        messageCallback_(conn, conn ? conn->receive() : std::string());
         return;
     }
 
     spdlog::warn("TcpServer::on_message(). messageCallback is nullptr, fd: {}", conn ? conn->get_fd() : -1);
 }
 
-void TcpServer::on_close(ConnectionId id, const std::shared_ptr<TcpConnection>& conn) {
-    remove_connection(id, conn);
+void TcpServer::on_close(const TcpConnectionPtr& conn) {
+    remove_connection(conn);
     if (closeCallback_) {
-        closeCallback_(id);
+        closeCallback_(conn);
         return;
     }
 
     spdlog::warn("TcpServer::on_close(). closeCallback is nullptr, fd: {}", conn ? conn->get_fd() : -1);
 }
 
-void TcpServer::remove_connection(ConnectionId id, const std::shared_ptr<TcpConnection>& conn) {
+void TcpServer::remove_connection(const TcpConnectionPtr& conn) {
     assert(conn->get_loop()->is_in_loop_thread()); // 理论上应该总在 ioLoop 线程调用，assert 快速 Debug 代码可能的错误
 
     const int fd = conn->get_fd();
+    ConnectionRecords* localRecords = connection_records_for_loop(conn->get_loop());
+    assert(localRecords != nullptr);
+
     std::shared_ptr<ConnectionHeartbeat> heartbeat;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        auto it = connections_.find(id);
-        if (it == connections_.end()) {
-            spdlog::error("TcpServer::remove_connection(). connection not found, id={}, fd={}", id, fd);
-        }
-        else {
-            heartbeat = it->second.heartbeat;
-            connections_.erase(it);
-        }
+    auto it = localRecords->find(conn.get());
+    if (it == localRecords->end()) {
+        spdlog::error("TcpServer::remove_connection(). connection not found, fd={}", fd);
+    }
+    else {
+        heartbeat = it->second.heartbeat;
+        localRecords->erase(it);
+        activeConnectionCount_.fetch_sub(1);
     }
 
     if (heartbeat) {
@@ -344,14 +304,20 @@ void TcpServer::remove_connection(ConnectionId id, const std::shared_ptr<TcpConn
     }
 }
 
-void TcpServer::refresh_connection_heartbeat(ConnectionId id) {
+void TcpServer::refresh_connection_heartbeat(const TcpConnectionPtr& conn) {
+    if (!connectionHeartbeatOptions_.enabled) {
+        return;
+    }
+
+    assert(conn);
+    assert(conn->get_loop()->is_in_loop_thread());
+    ConnectionRecords* localRecords = connection_records_for_loop(conn->get_loop());
+    assert(localRecords != nullptr);
+
     std::shared_ptr<ConnectionHeartbeat> heartbeat;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        auto it = connections_.find(id);
-        if (it != connections_.end()) {
-            heartbeat = it->second.heartbeat;
-        }
+    auto it = localRecords->find(conn.get());
+    if (it != localRecords->end()) {
+        heartbeat = it->second.heartbeat;
     }
 
     if (heartbeat) {
@@ -360,30 +326,28 @@ void TcpServer::refresh_connection_heartbeat(ConnectionId id) {
 }
 
 void TcpServer::shutdown_connections() {
-    std::vector<std::shared_ptr<TcpConnection>> activeConnections;
-    {
-        std::lock_guard<std::mutex> lock(connectionsMutex_);
-        state_ = ServerState::Draining;
-        activeConnections.reserve(connections_.size());
-        for (auto& entry : connections_) {
-            if (entry.second.connection) {
-                activeConnections.push_back(entry.second.connection);
+    state_.store(ServerState::Draining);
+    for (auto& entry : connectionRecordsByLoop_) {
+        EventLoop* loop = entry.first;
+        ConnectionRecords& localRecords = entry.second;
+        loop->run_in_loop([&localRecords]() {
+            std::vector<TcpConnectionPtr> activeConnections;
+            activeConnections.reserve(localRecords.size());
+            for (auto& localEntry : localRecords) {
+                if (localEntry.second.connection) {
+                    activeConnections.push_back(localEntry.second.connection);
+                }
             }
-            entry.second.state = ConnectionRecordState::Closing;
-        }
+
+            for (const auto& conn : activeConnections) {
+                conn->force_close();
+            }
+
+            activeConnections.clear();
+            });
     }
 
-    for (const auto& conn : activeConnections) {
-        conn->force_close();
-    }
-
-    while (true) {
-        {
-            std::lock_guard<std::mutex> lock(connectionsMutex_);
-            if (connections_.empty()) {
-                break;
-            }
-        }
+    while (activeConnectionCount_.load() != 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }

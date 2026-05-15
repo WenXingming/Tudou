@@ -78,17 +78,6 @@ std::thread start_watchdog(TcpServer& server, std::atomic<bool>& serverDone) {
         });
 }
 
-ConnectionId wait_for_connection_id(const std::atomic<ConnectionId>& id) {
-    for (int retry = 0; retry < 100; ++retry) {
-        const ConnectionId current = id.load();
-        if (current != 0) {
-            return current;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    return 0;
-}
-
 std::string read_with_retry(int fd) {
     char buffer[1024];
     for (int retry = 0; retry < 200; ++retry) {
@@ -117,12 +106,12 @@ TEST(TcpServerTest, ConnectionLifecycleCallbacksFireInSingleThreadMode) {
     std::atomic<bool> connected{ false };
     std::atomic<bool> closed{ false };
 
-    server.set_connection_callback([&](ConnectionId id) {
-        EXPECT_NE(id, 0U);
+    server.set_connection_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
         connected = true;
         });
-    server.set_close_callback([&](ConnectionId id) {
-        EXPECT_NE(id, 0U);
+    server.set_close_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
         closed = true;
         server.stop();
         });
@@ -153,8 +142,8 @@ TEST(TcpServerTest, StopExitsStartFromConnectionCallback) {
     std::atomic<bool> connected{ false };
     std::atomic<bool> serverDone{ false };
 
-    server.set_connection_callback([&](ConnectionId id) {
-        EXPECT_NE(id, 0U);
+    server.set_connection_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
         connected = true;
         server.stop();
         });
@@ -176,41 +165,6 @@ TEST(TcpServerTest, StopExitsStartFromConnectionCallback) {
     EXPECT_TRUE(serverDone.load());
 }
 
-TEST(TcpServerTest, InvalidConnectionIdOperationsReturnFalseWhileRunning) {
-    const uint16_t port = reserve_free_port();
-    ASSERT_NE(port, 0);
-
-    TcpServer server("127.0.0.1", port, 0);
-    std::atomic<ConnectionId> connectedId{ 0 };
-    std::atomic<bool> serverDone{ false };
-
-    server.set_connection_callback([&](ConnectionId id) {
-        connectedId = id;
-        });
-    server.set_close_callback([&](ConnectionId) {
-        server.stop();
-        });
-
-    std::thread serverThread([&]() {
-        server.start();
-        serverDone = true;
-        });
-    std::thread watchdog = start_watchdog(server, serverDone);
-
-    const int clientFd = connect_with_retry(port);
-    ASSERT_GE(clientFd, 0);
-    const ConnectionId id = wait_for_connection_id(connectedId);
-    EXPECT_NE(id, 0U);
-    EXPECT_FALSE(server.send(id + 1, "bad"));
-    EXPECT_FALSE(server.force_close(id + 1));
-
-    ASSERT_EQ(::close(clientFd), 0);
-    serverThread.join();
-    watchdog.join();
-
-    EXPECT_TRUE(serverDone.load());
-}
-
 TEST(TcpServerTest, SendWritesDataToClient) {
     const uint16_t port = reserve_free_port();
     ASSERT_NE(port, 0);
@@ -220,11 +174,13 @@ TEST(TcpServerTest, SendWritesDataToClient) {
     std::atomic<bool> writeComplete{ false };
     std::atomic<bool> serverDone{ false };
 
-    server.set_connection_callback([&](ConnectionId id) {
-        sendAccepted = server.send(id, "hello");
+    server.set_connection_callback([&](const TcpConnectionPtr& conn) {
+        ASSERT_NE(conn, nullptr);
+        conn->send("hello");
+        sendAccepted = true;
         });
-    server.set_write_complete_callback([&](ConnectionId id) {
-        EXPECT_NE(id, 0U);
+    server.set_write_complete_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
         writeComplete = true;
         server.stop();
         });
@@ -250,20 +206,71 @@ TEST(TcpServerTest, SendWritesDataToClient) {
     EXPECT_TRUE(serverDone.load());
 }
 
-TEST(TcpServerTest, ClosingConnectionRejectsSend) {
+TEST(TcpServerTest, SendFromMessageCallbackWorksInMultiThreadMode) {
+    const uint16_t port = reserve_free_port();
+    ASSERT_NE(port, 0);
+
+    TcpServer server("127.0.0.1", port, 2);
+    std::atomic<bool> messageSeen{ false };
+    std::atomic<bool> sendAccepted{ false };
+    std::atomic<bool> writeComplete{ false };
+    std::atomic<bool> serverDone{ false };
+
+    server.set_connection_callback([](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
+        });
+    server.set_message_callback([&](const TcpConnectionPtr& conn, const std::string& data) {
+        ASSERT_NE(conn, nullptr);
+        EXPECT_EQ(data, "ping");
+        messageSeen = true;
+        conn->send("pong");
+        sendAccepted = true;
+        });
+    server.set_write_complete_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
+        writeComplete = true;
+        server.stop();
+        });
+
+    std::thread serverThread([&]() {
+        server.start();
+        serverDone = true;
+        });
+    std::thread watchdog = start_watchdog(server, serverDone);
+
+    const int clientFd = connect_with_retry(port);
+    ASSERT_GE(clientFd, 0);
+    ASSERT_EQ(::write(clientFd, "ping", 4), 4);
+
+    const std::string response = read_with_retry(clientFd);
+    EXPECT_EQ(response, "pong");
+    ASSERT_EQ(::close(clientFd), 0);
+
+    serverThread.join();
+    watchdog.join();
+
+    EXPECT_TRUE(messageSeen.load());
+    EXPECT_TRUE(sendAccepted.load());
+    EXPECT_TRUE(writeComplete.load());
+    EXPECT_TRUE(serverDone.load());
+}
+
+TEST(TcpServerTest, ForceCloseFromConnectionCallbackClosesConnection) {
     const uint16_t port = reserve_free_port();
     ASSERT_NE(port, 0);
 
     TcpServer server("127.0.0.1", port, 0);
-    std::atomic<ConnectionId> connectedId{ 0 };
+    std::atomic<bool> connected{ false };
     std::atomic<bool> closed{ false };
     std::atomic<bool> serverDone{ false };
 
-    server.set_connection_callback([&](ConnectionId id) {
-        connectedId = id;
+    server.set_connection_callback([&](const TcpConnectionPtr& conn) {
+        ASSERT_NE(conn, nullptr);
+        connected = true;
+        conn->force_close();
         });
-    server.set_close_callback([&](ConnectionId id) {
-        EXPECT_NE(id, 0U);
+    server.set_close_callback([&](const TcpConnectionPtr& conn) {
+        EXPECT_NE(conn, nullptr);
         closed = true;
         server.stop();
         });
@@ -276,15 +283,12 @@ TEST(TcpServerTest, ClosingConnectionRejectsSend) {
 
     const int clientFd = connect_with_retry(port);
     ASSERT_GE(clientFd, 0);
-    const ConnectionId id = wait_for_connection_id(connectedId);
-    EXPECT_NE(id, 0U);
-    EXPECT_TRUE(server.force_close(id));
-    EXPECT_FALSE(server.send(id, "late"));
     ASSERT_EQ(::close(clientFd), 0);
 
     serverThread.join();
     watchdog.join();
 
+    EXPECT_TRUE(connected.load());
     EXPECT_TRUE(closed.load());
     EXPECT_TRUE(serverDone.load());
 }

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstring>
+#include <unistd.h>
 
 #include "spdlog/spdlog.h"
 
@@ -74,7 +75,31 @@ void TcpConnection::send_in_loop(const std::string& msg) {
     }
 
     const size_t oldLen = writeBuffer_->readable_bytes();
-    writeBuffer_->write_to_buffer(msg);
+    // 小响应且缓冲为空时尝试直接写，减少数据拷贝和系统调用开销。只有当写入全部数据时才算成功，否则走缓冲机制。
+    size_t writtenLen = 0;
+    if (oldLen == 0 && !channel_->is_writing()) {
+        const ssize_t n = ::write(connSocket_.fd(), msg.data(), msg.size());
+        if (n >= 0) {
+            writtenLen = static_cast<size_t>(n);
+            if (writtenLen == msg.size()) {
+                if (writeCompleteCallback_) {
+                    auto self = shared_from_this();
+                    loop_->queue_in_loop([self]() {
+                        self->handle_write_complete_callback();
+                        });
+                }
+                return;
+            }
+        }
+        else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            spdlog::error("TcpConnection::send_in_loop() failed, errno={} ({})", errno, strerror(errno));
+            handle_error_callback();
+            close_connection(*channel_);
+            return;
+        }
+    }
+
+    writeBuffer_->write_to_buffer(msg.data() + writtenLen, msg.size() - writtenLen);
     const size_t newLen = writeBuffer_->readable_bytes();
 
     // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
@@ -241,5 +266,4 @@ void TcpConnection::handle_high_water_mark_callback() {
 
     highWaterMarkCallback_(shared_from_this());
 }
-
 

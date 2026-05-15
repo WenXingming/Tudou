@@ -27,18 +27,18 @@ StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const 
     int ioLoopNum = threadNum; // IO 线程数量，0 表示不启用 IO 线程池，所有连接都在主线程（监听线程）处理
     tcpServer.reset(new TcpServer(this->ip, this->port, ioLoopNum));
     tcpServer->set_connection_callback(
-        [this](ConnectionId id) {
-            on_connect(id);
+        [this](const TcpConnectionPtr& conn) {
+            on_connect(conn);
         }
     );
     tcpServer->set_message_callback(
-        [this](ConnectionId id, const std::string& data) {
-            on_message(id, data);
+        [this](const TcpConnectionPtr& conn, const std::string& data) {
+            on_message(conn, data);
         }
     );
     tcpServer->set_close_callback(
-        [this](ConnectionId id) {
-            on_close(id);
+        [this](const TcpConnectionPtr& conn) {
+            on_close(conn);
         }
     );
 
@@ -51,11 +51,11 @@ void StaticFileTcpServer::start() {
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（从 HttpServer 中构造 HttpContext 等）
-void StaticFileTcpServer::on_connect(ConnectionId id) {
-    spdlog::info("StaticFileTcpServer::on_connect(): New connection established. id: {}", id);
+void StaticFileTcpServer::on_connect(const TcpConnectionPtr& conn) {
+    spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", conn ? conn->get_fd() : -1);
 }
 
-void StaticFileTcpServer::on_message(ConnectionId id, const std::string& message) {
+void StaticFileTcpServer::on_message(const TcpConnectionPtr& conn, const std::string& message) {
     // 1. 接收数据
     std::string data = receive_data(message);
     // 2. 解析数据
@@ -65,12 +65,12 @@ void StaticFileTcpServer::on_message(ConnectionId id, const std::string& message
     // 4. 构造响应报文
     std::string response = package_response_data(body);
     // 5. 发送响应
-    send_data(id, response);
+    send_data(conn, response);
 }
 
 // 没有做任何处理，仅打印日志。使用到 HttpServer 时可能需要设置真正的回调逻辑（清理 HttpContext 等）
-void StaticFileTcpServer::on_close(ConnectionId id) {
-    spdlog::info("Connection closed. id: {}", id);
+void StaticFileTcpServer::on_close(const TcpConnectionPtr& conn) {
+    spdlog::info("Connection closed. fd: {}", conn ? conn->get_fd() : -1);
 }
 
 std::string StaticFileTcpServer::receive_data(const std::string& data) {
@@ -86,7 +86,7 @@ std::string StaticFileTcpServer::parse_received_data(const std::string& data) {
 
 std::string StaticFileTcpServer::process_data(const std::string& request) {
     // 3. 业务逻辑处理。应该根据解析得到的 request 内容进行相应的业务逻辑处理，返回业务逻辑处理后，要发送的响应体内容。下面这两个简单示例都没有根据 request 内容进行处理，实际应用中应该根据 request 内容来决定如何处理：
-    //  - 简单业务逻辑就是直接 echo 回去：tcpServer->send(id, msg);
+    //  - 简单业务逻辑就是直接 echo 回去：conn->send(msg);
     //  - 或者返回一个固定的 html 页面内容：
 
     return std::string("Hello, world"); // 测试用，不从硬盘读取文件，避免 IO 操作影响性能测试结果。不过测试结果看起来速度还是差不多
@@ -121,8 +121,10 @@ std::string StaticFileTcpServer::package_response_data(const std::string& body) 
 }
 
 // 5. 发送响应
-void StaticFileTcpServer::send_data(ConnectionId id, const std::string& response) {
-    if (!tcpServer->send(id, response)) {
-        spdlog::warn("StaticFileTcpServer::send_data(): connection no longer active. id: {}", id);
+void StaticFileTcpServer::send_data(const TcpConnectionPtr& conn, const std::string& response) {
+    if (!conn) {
+        return;
     }
+
+    conn->send(response);
 }

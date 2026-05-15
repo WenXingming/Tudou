@@ -74,3 +74,22 @@ Running 5s test @ http://0.0.0.0:8080
 Requests/sec: 509454.65
 Transfer/sec:     49.07MB
 ```
+
+无锁增加性能：
+
+```bash
+wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t10 -c1000 -d5s --latency http://0.0.0.0:8080
+Running 5s test @ http://0.0.0.0:8080
+  10 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.43ms  521.71us  34.82ms   89.62%
+    Req/Sec    69.34k     4.91k   82.87k    72.00%
+  Latency Distribution
+     50%    1.50ms
+     75%    1.59ms
+     90%    1.66ms
+     99%    3.03ms
+  3449246 requests in 5.03s, 332.24MB read
+Requests/sec: 686075.51
+Transfer/sec:     66.08MB
+```

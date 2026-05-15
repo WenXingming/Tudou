@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <cerrno>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <thread>
@@ -21,11 +23,27 @@ std::shared_ptr<TcpConnection> make_connection(EventLoop& loop, int fd) {
     return TcpConnection::create(&loop, Socket(fd), localAddr, peerAddr);
 }
 
+void fill_send_buffer_until_would_block(int fd) {
+    std::string data(4096, 'x');
+    while (true) {
+        const ssize_t n = ::write(fd, data.data(), data.size());
+        if (n > 0) {
+            continue;
+        }
+        if (n == 0) {
+            FAIL() << "write returned 0 while filling socket buffer";
+            return;
+        }
+        ASSERT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK) << strerror(errno);
+        return;
+    }
+}
+
 } // namespace
 
 TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
     int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
 
     EventLoop loop(50);
     auto conn = make_connection(loop, fds[0]);
@@ -51,7 +69,7 @@ TEST(TcpConnectionTest, MessageCallbackCanConsumeInboundData) {
 
 TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) {
     int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
 
     EventLoop loop;
     auto conn = make_connection(loop, fds[0]);
@@ -62,6 +80,7 @@ TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) 
         highWaterMarkReached = true;
         }, 4);
 
+    fill_send_buffer_until_would_block(fds[0]);
     conn->send("hello");
 
     EXPECT_TRUE(highWaterMarkReached);
@@ -72,7 +91,7 @@ TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) 
 
 TEST(TcpConnectionTest, SendFromAnotherThreadIsQueuedBackToLoop) {
     int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
 
     EventLoop loop(20);
     auto conn = make_connection(loop, fds[0]);
@@ -84,6 +103,7 @@ TEST(TcpConnectionTest, SendFromAnotherThreadIsQueuedBackToLoop) {
         loop.quit();
         }, 1);
 
+    fill_send_buffer_until_would_block(fds[0]);
     std::thread worker([conn]() {
         conn->send("hello");
         });

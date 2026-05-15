@@ -2,9 +2,9 @@
  * @file StaticFileTcpServer.h
  * @brief 发送文件的 TCP 服务器示例
  * @details 得益于 Tudou 框架的模块化设计，实现一个发送文件的 TCP 服务器变得非常简单。只需持有 Tudou 提供的 TcpServer 类，并设置相应的回调函数即可完成文件发送功能。TcpServer 的回调函数如下：
- * - 连接建立回调: on_connect(int fd)
- * - 消息接收回调: on_message(int fd, const std::string& msg)。 在消息接收回调中，我们可以进行业务逻辑编写，例如读取指定文件的内容，并将其作为响应发送回客户端。
- * - 连接关闭回调: on_close(int fd)
+ * - 连接建立回调: on_connect(conn)
+ * - 消息接收回调: on_message(conn, const std::string& msg)。 在消息接收回调中，我们可以进行业务逻辑编写，例如读取指定文件的内容，并将其作为响应发送回客户端。
+ * - 连接关闭回调: on_close(conn)
  *
  * @author wenxingming
  * @date 2025-11-27
@@ -42,9 +42,9 @@ public:
     void start();
 
 private:
-    void on_connect(ConnectionId id);
-    void on_message(ConnectionId id, const std::string& data);
-    void on_close(ConnectionId id);
+    void on_connect(const TcpConnectionPtr& conn);
+    void on_message(const TcpConnectionPtr& conn, const std::string& data);
+    void on_close(const TcpConnectionPtr& conn);
 
     /*
         on_message 的辅助函数。按理说我们的整个流程分为五步：
@@ -52,16 +52,11 @@ private:
             2. 解析数据
             3. 业务逻辑处理
             4. 构造响应报文
-            5. 发送响应：通过 TcpServer::send(ConnectionId, data) 发送数据
-
-        on_message 函数的参数是 ConnectionId 和消息内容，业务层不再直接持有 TcpConnection。
-        这样设计的优点：
-        1. 职责清晰：TcpServer 统一判断 ConnectionId 是否仍然有效
-        2. 生命周期更稳：业务层不会长期保存 TcpConnection 本体
-    */
+            5. 发送响应：通过当前 TcpConnection 发送数据
+     */
     std::string receive_data(const std::string& data);
     std::string parse_received_data(const std::string& data);
     std::string process_data(const std::string& request);
     std::string package_response_data(const std::string& body);
-    void send_data(ConnectionId id, const std::string& response);
+    void send_data(const TcpConnectionPtr& conn, const std::string& response);
 };

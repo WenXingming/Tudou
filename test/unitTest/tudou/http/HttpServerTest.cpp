@@ -24,17 +24,6 @@ std::shared_ptr<TcpConnection> make_connection(EventLoop& loop, int fd) {
     return TcpConnection::create(&loop, Socket(fd), localAddr, peerAddr);
 }
 
-void register_connection(HttpServer& server, ConnectionId id, const std::shared_ptr<TcpConnection>& conn) {
-    server.tcpServer_->state_ = TcpServer::ServerState::Running;
-    server.tcpServer_->connections_[id] = TcpServer::ConnectionRecord{
-        id,
-        conn->get_fd(),
-        conn,
-        nullptr,
-        TcpServer::ConnectionRecordState::Active
-    };
-}
-
 std::string read_available(int fd) {
     char buffer[1024];
     const ssize_t nread = ::read(fd, buffer, sizeof(buffer));
@@ -54,18 +43,17 @@ TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesConnectionState) {
     EventLoop loop;
     HttpServer server("127.0.0.1", 8080, 0);
     auto conn = make_connection(loop, fds[0]);
-    const ConnectionId id = 1;
 
-    server.on_connect(id);
+    server.on_connect(conn);
 
     ASSERT_EQ(server.connectionStates_.size(), 1U);
-    const auto stateIt = server.connectionStates_.find(id);
+    const auto stateIt = server.connectionStates_.find(conn.get());
     ASSERT_NE(stateIt, server.connectionStates_.end());
     ASSERT_NE(stateIt->second, nullptr);
     EXPECT_EQ(stateIt->second->tlsConnection, nullptr);
 
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(id);
+        server.on_close(conn);
         });
     conn->force_close();
 
@@ -81,7 +69,6 @@ TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsRes
     EventLoop loop(20);
     HttpServer server("127.0.0.1", 8080, 0);
     auto conn = make_connection(loop, fds[0]);
-    const ConnectionId id = 1;
     bool routeCalled = false;
 
     server.add_get_route("/hello", [&](const HttpRequest& request, HttpResponse& response) {
@@ -91,17 +78,16 @@ TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsRes
         response.set_body("ok");
         response.set_header("Content-Type", "text/plain");
         });
-    server.on_connect(id);
-    register_connection(server, id, conn);
+    server.on_connect(conn);
 
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(id, activeConn->receive());
+        server.on_message(activeConn, activeConn->receive());
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();
         });
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(id);
+        server.on_close(conn);
         });
 
     const std::string request =
@@ -135,18 +121,16 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
     EventLoop loop(20);
     HttpServer server("127.0.0.1", 8080, 0);
     auto conn = make_connection(loop, fds[0]);
-    const ConnectionId id = 1;
 
-    server.on_connect(id);
-    register_connection(server, id, conn);
+    server.on_connect(conn);
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(id, activeConn->receive());
+        server.on_message(activeConn, activeConn->receive());
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();
         });
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(id);
+        server.on_close(conn);
         });
 
     const std::string request =
@@ -166,7 +150,7 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
     EXPECT_NE(response.find("Content-Length: 11\r\n"), std::string::npos);
     EXPECT_NE(response.find("\r\n\r\nBad Request"), std::string::npos);
 
-    const auto stateIt = server.connectionStates_.find(id);
+    const auto stateIt = server.connectionStates_.find(conn.get());
     ASSERT_NE(stateIt, server.connectionStates_.end());
     ASSERT_NE(stateIt->second, nullptr);
     EXPECT_TRUE(stateIt->second->httpContext.get_request().get_path().empty());

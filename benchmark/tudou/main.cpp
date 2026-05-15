@@ -2,7 +2,6 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -51,7 +50,7 @@ std::size_t consume_complete_requests(std::string& pending) {
     return requestCount;
 }
 
-thread_local std::unordered_map<ConnectionId, std::string> t_pendingRequests;
+thread_local std::unordered_map<TcpConnection*, std::string> t_pendingRequests;
 
 } // namespace
 
@@ -59,14 +58,14 @@ class TudouHelloBenchmarkServer {
 public:
     TudouHelloBenchmarkServer(uint16_t port, int ioThreads)
         : server_(kListenIp, port, ioThreads) {
-        server_.set_connection_callback([](ConnectionId) {});
-        server_.set_message_callback([this](ConnectionId id, const std::string& data) {
-            on_message(id, data);
+        server_.set_connection_callback([](const TcpConnectionPtr&) {});
+        server_.set_message_callback([this](const TcpConnectionPtr& conn, const std::string& data) {
+            on_message(conn, data);
             });
-        server_.set_close_callback([this](ConnectionId id) {
-            on_close(id);
+        server_.set_close_callback([this](const TcpConnectionPtr& conn) {
+            on_close(conn);
             });
-        server_.set_write_complete_callback([](ConnectionId) {});
+        server_.set_write_complete_callback([](const TcpConnectionPtr&) {});
     }
 
     void start() {
@@ -74,24 +73,22 @@ public:
     }
 
 private:
-    void on_message(ConnectionId id, const std::string& data) {
+    void on_message(const TcpConnectionPtr& conn, const std::string& data) {
         std::size_t responseCount = 0;
-        std::string& pending = t_pendingRequests[id];
+        std::string& pending = t_pendingRequests[conn.get()];
         pending.append(data);
         responseCount = consume_complete_requests(pending);
         if (pending.empty()) {
-            t_pendingRequests.erase(id);
+            t_pendingRequests.erase(conn.get());
         }
 
         while (responseCount-- > 0) {
-            if (!server_.send(id, kHelloResponse)) {
-                break;
-            }
+            conn->send(kHelloResponse);
         }
     }
 
-    void on_close(ConnectionId id) {
-        t_pendingRequests.erase(id);
+    void on_close(const TcpConnectionPtr& conn) {
+        t_pendingRequests.erase(conn.get());
     }
 
 private:

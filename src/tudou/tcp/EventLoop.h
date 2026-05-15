@@ -60,6 +60,7 @@ public:
     bool has_channel(Channel* channel) const;
     void quit();
     bool is_in_loop_thread() const;
+    static EventLoop* current_loop();
     void run_in_loop(const Functor& cb); // 同线程直执，跨线程转入 pending queue。
     void queue_in_loop(const Functor& cb); // 异步投递任务，必要时唤醒阻塞中的 poll。
 

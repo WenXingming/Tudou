@@ -106,6 +106,10 @@ bool EventLoop::is_in_loop_thread() const {
     return threadId_ == std::this_thread::get_id();
 }
 
+EventLoop* EventLoop::current_loop() {
+    return loopInthisThread;
+}
+
 void EventLoop::run_in_loop(const Functor& cb) {
     if (!cb) {
         spdlog::error("EventLoop::run_in_loop() received empty functor");

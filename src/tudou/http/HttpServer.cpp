@@ -92,59 +92,59 @@ bool HttpServer::is_ssl_enabled() const {
     return sslContext_ && sslContext_->is_initialized();
 }
 
-void HttpServer::on_message(ConnectionId id, const std::string& receivedData) {
-    std::shared_ptr<ConnectionState> state = find_connection_state(id);
+void HttpServer::on_message(const TcpConnectionPtr& conn, const std::string& receivedData) {
+    std::shared_ptr<ConnectionState> state = find_connection_state(conn);
     if (!state) {
         return;
     }
 
     std::string payload;
-    if (!read_request_payload(id, receivedData, *state, payload)) {
+    if (!read_request_payload(conn, receivedData, *state, payload)) {
         return;
     }
 
     // 主线只保留“收数据 -> 解析 -> 分支响应”三个步骤，避免 TLS/状态仓库细节打断阅读。
     switch (state->httpContext.parse(payload.data(), payload.size())) {
     case HttpContext::ParseResult::NeedMoreData:
-        log_incomplete_request(id);
+        log_incomplete_request(conn);
         return;
     case HttpContext::ParseResult::Rejected:
-        reject_bad_request(id, *state);
+        reject_bad_request(conn, *state);
         return;
     case HttpContext::ParseResult::Complete:
-        reply_complete_request(id, *state);
+        reply_complete_request(conn, *state);
         return;
     }
 }
 
 void HttpServer::bind_tcp_callbacks() {
     // 事件回调只负责把 TcpServer 事件转发到 HTTP 门面，不再在 lambda 里编排业务细节。
-    tcpServer_->set_connection_callback([this](ConnectionId id) {
-        on_connect(id);
+    tcpServer_->set_connection_callback([this](const TcpConnectionPtr& conn) {
+        on_connect(conn);
         });
-    tcpServer_->set_message_callback([this](ConnectionId id, const std::string& receivedData) {
-        on_message(id, receivedData);
+    tcpServer_->set_message_callback([this](const TcpConnectionPtr& conn, const std::string& receivedData) {
+        on_message(conn, receivedData);
         });
-    tcpServer_->set_close_callback([this](ConnectionId id) {
-        on_close(id);
+    tcpServer_->set_close_callback([this](const TcpConnectionPtr& conn) {
+        on_close(conn);
         });
 }
 
-void HttpServer::on_connect(ConnectionId id) {
-    std::shared_ptr<ConnectionState> state = create_connection_state(id);
+void HttpServer::on_connect(const TcpConnectionPtr& conn) {
+    std::shared_ptr<ConnectionState> state = create_connection_state(conn);
 
     {
         std::lock_guard<std::mutex> lock(contextsMutex_);
-        if (connectionStates_.find(id) != connectionStates_.end()) {
-            spdlog::warn("HttpServer: ConnectionState already exists for id={}, overwriting.", id);
+        if (connectionStates_.find(conn.get()) != connectionStates_.end()) {
+            spdlog::warn("HttpServer: ConnectionState already exists for fd={}, overwriting.", conn ? conn->get_fd() : -1);
         }
-        connectionStates_[id] = std::move(state);
+        connectionStates_[conn.get()] = std::move(state);
     }
 
-    spdlog::debug("HttpServer: New connection established, id={}", id);
+    spdlog::debug("HttpServer: New connection established, fd={}", conn ? conn->get_fd() : -1);
 }
 
-std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state(ConnectionId id) const {
+std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state(const TcpConnectionPtr& conn) const {
     auto state = std::make_shared<ConnectionState>();
 
     if (!sslContext_) {
@@ -153,21 +153,21 @@ std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state
 
     SSL* ssl = sslContext_->create_ssl();
     if (!ssl) {
-        spdlog::error("HttpServer: Failed to create SSL for id={}", id);
+        spdlog::error("HttpServer: Failed to create SSL for fd={}", conn ? conn->get_fd() : -1);
         return state;
     }
 
-    spdlog::debug("HttpServer: TlsConnection created for id={}", id);
+    spdlog::debug("HttpServer: TlsConnection created for fd={}", conn ? conn->get_fd() : -1);
     state->tlsConnection = std::make_unique<TlsConnection>(ssl);
     return state;
 }
 
-void HttpServer::on_close(ConnectionId id) {
-    remove_connection_state(id);
-    spdlog::debug("HttpServer: Connection closed, id={}", id);
+void HttpServer::on_close(const TcpConnectionPtr& conn) {
+    remove_connection_state(conn);
+    spdlog::debug("HttpServer: Connection closed, fd={}", conn ? conn->get_fd() : -1);
 }
 
-bool HttpServer::read_request_payload(ConnectionId id,
+bool HttpServer::read_request_payload(const TcpConnectionPtr& conn,
     const std::string& receivedData,
     ConnectionState& state,
     std::string& payload) const {
@@ -184,11 +184,11 @@ bool HttpServer::read_request_payload(ConnectionId id,
             state.tlsConnection->read_plaintext(receivedData, plaintext, outboundCiphertext);
 
         if (!outboundCiphertext.empty()) {
-            (void)tcpServer_->send(id, outboundCiphertext);
+            conn->send(outboundCiphertext);
         }
 
         if (tlsResult == TlsConnection::ReadResult::Error) {
-            spdlog::error("HttpServer: TLS read failed for id={}", id);
+            spdlog::error("HttpServer: TLS read failed for fd={}", conn ? conn->get_fd() : -1);
             return false;
         }
 
@@ -201,7 +201,7 @@ bool HttpServer::read_request_payload(ConnectionId id,
     }
 
     if (is_ssl_enabled()) {
-        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, id={}", id);
+        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
         return false;
     }
 
@@ -209,30 +209,30 @@ bool HttpServer::read_request_payload(ConnectionId id,
     return true;
 }
 
-std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(ConnectionId id) {
+std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(const TcpConnectionPtr& conn) {
     std::lock_guard<std::mutex> lock(contextsMutex_);
-    const auto it = connectionStates_.find(id);
+    const auto it = connectionStates_.find(conn.get());
     if (it == connectionStates_.end()) {
-        spdlog::error("HttpServer: No ConnectionState found for id={}", id);
+        spdlog::error("HttpServer: No ConnectionState found for fd={}", conn ? conn->get_fd() : -1);
         return nullptr;
     }
 
     return it->second;
 }
 
-void HttpServer::log_incomplete_request(ConnectionId id) const {
-    spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, id={}", id);
+void HttpServer::log_incomplete_request(const TcpConnectionPtr& conn) const {
+    spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, fd={}", conn ? conn->get_fd() : -1);
 }
 
-void HttpServer::reject_bad_request(ConnectionId id,
+void HttpServer::reject_bad_request(const TcpConnectionPtr& conn,
     ConnectionState& state) {
-    send_http_response(id, state, build_bad_request_response());
+    send_http_response(conn, state, build_bad_request_response());
     state.httpContext.reset();
 }
 
-void HttpServer::reply_complete_request(ConnectionId id,
+void HttpServer::reply_complete_request(const TcpConnectionPtr& conn,
     ConnectionState& state) {
-    send_http_response(id, state, build_http_response(state.httpContext.get_request()));
+    send_http_response(conn, state, build_http_response(state.httpContext.get_request()));
     state.httpContext.reset();
 }
 
@@ -258,44 +258,44 @@ std::string HttpServer::serialize_response(const HttpResponse& resp) const {
     return resp.package_to_string();
 }
 
-void HttpServer::send_http_response(ConnectionId id,
+void HttpServer::send_http_response(const TcpConnectionPtr& conn,
     const ConnectionState& state,
     HttpResponse resp) {
     // 响应在发送前统一补齐协议默认头，避免业务回调遗漏网络层必需字段。
     finalize_http_response(resp);
-    send_response(id, state, serialize_response(resp));
+    send_response(conn, state, serialize_response(resp));
 }
 
-void HttpServer::send_response(ConnectionId id,
+void HttpServer::send_response(const TcpConnectionPtr& conn,
     const ConnectionState& state,
     const std::string& response) {
     if (state.tlsConnection) {
         // HTTPS 场景下发送前统一交给 TlsConnection 编码，保持业务侧始终操作明文 HttpResponse。
         std::string encrypted;
         if (!state.tlsConnection->write_plaintext(response, encrypted)) {
-            spdlog::error("HttpServer: TLS write failed for id={}", id);
+            spdlog::error("HttpServer: TLS write failed for fd={}", conn ? conn->get_fd() : -1);
             return;
         }
 
         if (!encrypted.empty()) {
-            (void)tcpServer_->send(id, encrypted);
+            conn->send(encrypted);
         }
         return;
     }
 
     if (is_ssl_enabled()) {
-        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, id={}", id);
+        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
         return;
     }
 
-    (void)tcpServer_->send(id, response);
+    conn->send(response);
 }
 
-void HttpServer::remove_connection_state(ConnectionId id) {
+void HttpServer::remove_connection_state(const TcpConnectionPtr& conn) {
     std::lock_guard<std::mutex> lock(contextsMutex_);
-    const auto it = connectionStates_.find(id);
+    const auto it = connectionStates_.find(conn.get());
     if (it == connectionStates_.end()) {
-        spdlog::warn("HttpServer: No ConnectionState found for id={} on close.", id);
+        spdlog::warn("HttpServer: No ConnectionState found for fd={} on close.", conn ? conn->get_fd() : -1);
         return;
     }
 

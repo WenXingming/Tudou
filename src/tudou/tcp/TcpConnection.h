@@ -57,17 +57,20 @@
 #include "Socket.h"
 
 class EventLoop;
+class TcpConnection;
+
+using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
 
 // TcpConnection 是面向连接的会话门面，通过 Socket 持有连接 fd 所有权。
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 public:
-    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using ErrorCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using MessageCallback = std::function<void(const TcpConnectionPtr&)>;
+    using CloseCallback = std::function<void(const TcpConnectionPtr&)>;
+    using ErrorCallback = std::function<void(const TcpConnectionPtr&)>;
+    using WriteCompleteCallback = std::function<void(const TcpConnectionPtr&)>;
+    using HighWaterMarkCallback = std::function<void(const TcpConnectionPtr&)>;
 
-    static std::shared_ptr<TcpConnection> create(EventLoop* loop,
+    static TcpConnectionPtr create(EventLoop* loop,
         Socket connSocket,
         const InetAddress& localAddr,
         const InetAddress& peerAddr);
