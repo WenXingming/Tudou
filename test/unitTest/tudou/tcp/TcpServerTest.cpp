@@ -219,8 +219,9 @@ TEST(TcpServerTest, SendFromMessageCallbackWorksInMultiThreadMode) {
     server.set_connection_callback([](const TcpConnectionPtr& conn) {
         EXPECT_NE(conn, nullptr);
         });
-    server.set_message_callback([&](const TcpConnectionPtr& conn, const std::string& data) {
+    server.set_message_callback([&](const TcpConnectionPtr& conn) {
         ASSERT_NE(conn, nullptr);
+        const std::string data = conn->receive();
         EXPECT_EQ(data, "ping");
         messageSeen = true;
         conn->send("pong");

@@ -54,7 +54,7 @@ class Socket;
 class TcpServer {
 public:
     using ConnectionCallback = std::function<void(const TcpConnectionPtr&)>;
-    using MessageCallback = std::function<void(const TcpConnectionPtr&, const std::string&)>;
+    using MessageCallback = std::function<void(const TcpConnectionPtr&)>;
     using CloseCallback = std::function<void(const TcpConnectionPtr&)>;
     using ErrorCallback = std::function<void(const TcpConnectionPtr&)>;
     using WriteCompleteCallback = std::function<void(const TcpConnectionPtr&)>;
@@ -67,7 +67,7 @@ public:
     void stop();
 
     void set_connection_callback(ConnectionCallback cb);
-    void set_message_callback(MessageCallback cb);
+    void set_message_callback(MessageCallback cb); // 回调如需消费本次读到的数据，可自行调用 conn->receive()。
     void set_close_callback(CloseCallback cb);
     void set_error_callback(ErrorCallback cb);
     void set_write_complete_callback(WriteCompleteCallback cb);
@@ -98,7 +98,6 @@ private:
     };
 
     using ConnectionRecords = std::unordered_map<TcpConnection*, ConnectionRecord>;
-    using ConnectionRecordsByLoop = std::unordered_map<EventLoop*, ConnectionRecords>;
 
     // 新连接装配总入口，接收 Socket 所有权。
     void on_connect(Socket connSocket, const InetAddress& peerAddr);
@@ -124,8 +123,8 @@ private:
     std::string ip_;
     uint16_t port_;
     std::unique_ptr<Acceptor> acceptor_;
-    ConnectionRecordsByLoop connectionRecordsByLoop_;
-    std::atomic<size_t> activeConnectionCount_; // 只用于 shutdown 等待 owner loop 清空连接。
+    std::unordered_map<EventLoop*, ConnectionRecords> connectionRecordsByLoop_;
+    std::atomic<size_t> activeConnectionCount_; // 只用于 shutdown 触发所有连接关闭后同步等待所有连接销毁完成
     std::atomic<ServerState> state_;
 
     ConnectionCallback connectionCallback_;

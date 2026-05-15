@@ -32,8 +32,8 @@ StaticFileTcpServer::StaticFileTcpServer(std::string _ip, uint16_t _port, const 
         }
     );
     tcpServer->set_message_callback(
-        [this](const TcpConnectionPtr& conn, const std::string& data) {
-            on_message(conn, data);
+        [this](const TcpConnectionPtr& conn) {
+            on_message(conn);
         }
     );
     tcpServer->set_close_callback(
@@ -55,9 +55,9 @@ void StaticFileTcpServer::on_connect(const TcpConnectionPtr& conn) {
     spdlog::info("StaticFileTcpServer::on_connect(): New connection established. fd: {}", conn ? conn->get_fd() : -1);
 }
 
-void StaticFileTcpServer::on_message(const TcpConnectionPtr& conn, const std::string& message) {
+void StaticFileTcpServer::on_message(const TcpConnectionPtr& conn) {
     // 1. 接收数据
-    std::string data = receive_data(message);
+    std::string data = receive_data(conn);
     // 2. 解析数据
     std::string request = parse_received_data(data);
     // 3. 业务逻辑处理
@@ -73,9 +73,9 @@ void StaticFileTcpServer::on_close(const TcpConnectionPtr& conn) {
     spdlog::info("Connection closed. fd: {}", conn ? conn->get_fd() : -1);
 }
 
-std::string StaticFileTcpServer::receive_data(const std::string& data) {
-    // 1. 接收数据。TcpServer 已经从 TcpConnection 的 readBuffer 中读取出本次消息。
-    return data;
+std::string StaticFileTcpServer::receive_data(const TcpConnectionPtr& conn) {
+    // 1. 接收数据。应用层按需从 TcpConnection 的读缓冲中取出本次消息。
+    return conn ? conn->receive() : std::string();
 }
 
 std::string StaticFileTcpServer::parse_received_data(const std::string& data) {

@@ -43,18 +43,18 @@ public:
 
 private:
     void on_connect(const TcpConnectionPtr& conn);
-    void on_message(const TcpConnectionPtr& conn, const std::string& data);
+    void on_message(const TcpConnectionPtr& conn);
     void on_close(const TcpConnectionPtr& conn);
 
     /*
         on_message 的辅助函数。按理说我们的整个流程分为五步：
-            1. 接收数据：TcpServer 在回调前从 TcpConnection 的 readBuffer 中读取数据
+                1. 接收数据：回调中从 TcpConnection 的 readBuffer 中读取数据
             2. 解析数据
             3. 业务逻辑处理
             4. 构造响应报文
             5. 发送响应：通过当前 TcpConnection 发送数据
      */
-    std::string receive_data(const std::string& data);
+    std::string receive_data(const TcpConnectionPtr& conn);
     std::string parse_received_data(const std::string& data);
     std::string process_data(const std::string& request);
     std::string package_response_data(const std::string& body);

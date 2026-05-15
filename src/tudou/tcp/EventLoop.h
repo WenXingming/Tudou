@@ -12,6 +12,7 @@
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
 //     ├── loop()                                   # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
+//     │   ├── current_time() const                 # [公有] 返回本轮事件分发缓存时间，供热路径复用
 //     │   └── do_pending_functors()                # [私有] 固定走“摘队列 -> 顺序执行”路径
 //     ├── run_in_loop(cb)                          # [公有] 同线程直执，异线程转为异步投递
 //     │   └── queue_in_loop(cb)                    # [公有] 入队并按需唤醒所属 loop 线程
@@ -66,6 +67,7 @@ public:
 
     using Timestamp = std::chrono::steady_clock::time_point;
 
+    Timestamp current_time() const; // 返回当前 loop 线程缓存的“本轮 now”，避免热路径重复取时钟。
     TimerId run_at(Timestamp when, const Functor& cb); // 在指定时间点执行一次性定时任务。
     TimerId run_after(double delaySeconds, const Functor& cb); // 注册一次性定时任务。
     TimerId run_every(double intervalSeconds, const Functor& cb); // 注册周期定时任务。
@@ -84,6 +86,7 @@ private:
 
     const int pollTimeoutMs_;
     std::unique_ptr<EpollPoller> poller_; // 当前线程的 Poller 实现。
+    Timestamp currentTime_; // 本轮 loop 已缓存的 steady_clock 时间；只在所属线程读取和更新。
 
     std::atomic<bool> isLooping_; // 当前事件循环是否处于运行状态。
     std::atomic<bool> isQuit_; // 当前事件循环是否收到退出请求。

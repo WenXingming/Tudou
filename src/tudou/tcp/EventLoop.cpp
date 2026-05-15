@@ -20,6 +20,7 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     threadId_(std::this_thread::get_id()),
     pollTimeoutMs_(pollTimeoutMs),
     poller_(nullptr),
+    currentTime_(std::chrono::steady_clock::now()),
     isLooping_(false),
     isQuit_(false),
     wakeupFd_(-1),
@@ -75,6 +76,8 @@ void EventLoop::loop() {
             channel->handle_events();
         }
         do_pending_functors();
+
+        currentTime_ = std::chrono::steady_clock::now();
     }
     isLooping_ = false;
 }
@@ -138,6 +141,11 @@ void EventLoop::queue_in_loop(const Functor& cb) {
     if (!is_in_loop_thread() || isCallingPendingFunctors_) {
         wakeup();
     }
+}
+
+EventLoop::Timestamp EventLoop::current_time() const {
+    assert(is_in_loop_thread());
+    return currentTime_;
 }
 
 TimerId EventLoop::run_at(Timestamp when, const Functor& cb) {

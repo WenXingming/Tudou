@@ -524,7 +524,7 @@ sequenceDiagram
     TcpConnection ->> TcpConnection: readBuffer.read_from_fd()
     TcpConnection ->> TcpConnection: handle_message()
     TcpConnection ->> TcpServer: messageCallback(conn)
-    TcpServer ->> App: messageCallback(conn)  // 上层处理业务 / HTTP 请求
+    TcpServer ->> App: messageCallback(conn)  // 上层如需消费本次数据，自行调用 conn->receive()
 
     %% 上层发送响应：从 App 的 send 调用触发到底层写 fd
 

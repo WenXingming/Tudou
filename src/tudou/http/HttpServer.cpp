@@ -92,7 +92,8 @@ bool HttpServer::is_ssl_enabled() const {
     return sslContext_ && sslContext_->is_initialized();
 }
 
-void HttpServer::on_message(const TcpConnectionPtr& conn, const std::string& receivedData) {
+void HttpServer::on_message(const TcpConnectionPtr& conn) {
+    const std::string receivedData = conn ? conn->receive() : std::string();
     std::shared_ptr<ConnectionState> state = find_connection_state(conn);
     if (!state) {
         return;
@@ -122,8 +123,8 @@ void HttpServer::bind_tcp_callbacks() {
     tcpServer_->set_connection_callback([this](const TcpConnectionPtr& conn) {
         on_connect(conn);
         });
-    tcpServer_->set_message_callback([this](const TcpConnectionPtr& conn, const std::string& receivedData) {
-        on_message(conn, receivedData);
+    tcpServer_->set_message_callback([this](const TcpConnectionPtr& conn) {
+        on_message(conn);
         });
     tcpServer_->set_close_callback([this](const TcpConnectionPtr& conn) {
         on_close(conn);

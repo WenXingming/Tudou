@@ -166,7 +166,7 @@ flowchart LR
 
 ## 性能测试 📈
 
-以下是仓库当前记录的 `wrk` 压测结果，测试对象为静态文件服务场景，运行环境如下：
+以下是仓库当前记录的 `wrk` 压测结果，测试对象为 hello benchmark 内存响应场景，运行环境如下：
 
 - CPU：Intel(R) Xeon(R) Silver 4214R CPU (12 Cores, 24 Threads)
 - RAM：64 GB
@@ -182,35 +182,54 @@ git clone https://github.com/wg/wrk.git
 cd wrk && make -j12
 ```
 
-测试过程：
+测试过程（具体测试过程在 [assest](./assets) 目录下有详细记录）：
 
 ```bash
-wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t6 -c600 -d60s --latency http://0.0.0.0:8080
-Running 1m test @ http://0.0.0.0:8080
-  6 threads and 600 connections
+(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t10 -c200 -d10s --latency http://0.0.0.0:8080
+Running 10s test @ http://0.0.0.0:8080
+  10 threads and 200 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   556.19us  171.24us   5.19ms   79.65%
-    Req/Sec    95.55k     9.06k  136.48k    86.06%
+    Latency   144.58us  148.74us   6.88ms   97.98%
+    Req/Sec    87.88k     7.18k  133.57k    92.05%
   Latency Distribution
-     50%  535.00us
-     75%  568.00us
-     90%  639.00us
-     99%    1.13ms
-  34228589 requests in 1.00m, 3.67GB read
-Requests/sec: 570232.21
-Transfer/sec:     62.54MB
+     50%  114.00us
+     75%  140.00us
+     90%  227.00us
+     99%  418.00us
+  8797363 requests in 10.10s, 847.37MB read
+Requests/sec: 871058.98
+Transfer/sec:     83.90MB
 ```
 
 性能摘要：
 
 | 场景 | 压测参数 | 对象 | 平均延迟 | Requests/sec | Transfer/sec |
 | --- | --- | --- | --- | --- | --- |
-| 单 Reactor | 1 线程 / 200 连接 | Tudou | 0.98 ms | 104632.12 | 11.48 MB |
-| 单 Reactor | 1 线程 / 200 连接 | muduo `hello_http_server` | 646.29 us | 158856.96 | 41.36 MB |
-| 多 Reactor | 6 线程 / 600 连接 | Tudou（1 main loop + 16 io loop） | 556.19 us | 570232.21 | 62.54 MB |
-| 多 Reactor | 6 线程 / 600 连接 | muduo `hello_http_server`（1 main loop + 16 io loop） | 488.00 us | 626380.28 | 163.08 MB |
+| 单 Reactor | 1 线程 / 200 连接 | Tudou | 1.71ms | 133001.24 | 12.81MB |
+| 单 Reactor | 1 线程 / 200 连接 | muduo `hello_http_server` | 1.44 ms | 134009.31 | 12.91 MB |
+| 多 Reactor | 10 线程 / 10 * 200 连接 | Tudou（1 main loop + 10 io loop） | 144.58 us | 871058.98 | 83.90 MB |
+| 多 Reactor | 10 线程 / 10 * 200 连接 | muduo `hello_http_server`（1 main loop + 10 io loop） | 179.99 us | 902394.26 | 86.92 MB |
 
-这些数据说明 Tudou 已经具备不错的并发处理能力；同时也说明，与 muduo 对比仍有优化空间，尤其是在静态文件服务场景下的吞吐与尾延迟方面。
+这些数据说明 Tudou 已经具备不错的并发处理能力，并且已经和知名网络库 muduo 处于同一数量级；后续会尝试继续优化性能。
+
+除此之外，为了测试 HTTP 解析能力，我们还编写了 HTTP Benchmark，使用 `wrk` 发送不同大小的 HTTP 请求，测试 `HttpServer` 的解析性能；结果显示 Tudou 的 HTTP 解析能力也非常强劲，在 TCP 的基础上基本没有丢失性能。HTTP 测试结果如下：
+
+```bash
+(base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t10 -c200 -d10s --latency http://0.0.0.0:8080
+Running 10s test @ http://0.0.0.0:8080
+  10 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   209.55us   95.02us   3.25ms   71.71%
+    Req/Sec    84.55k     4.99k  110.20k    81.83%
+  Latency Distribution
+     50%  200.00us
+     75%  236.00us
+     90%  351.00us
+     99%  460.00us
+  8469861 requests in 10.10s, 621.97MB read
+Requests/sec: 838612.80
+Transfer/sec:     61.58MB
+```
 
 <a id="快速开始"></a>
 

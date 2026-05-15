@@ -59,13 +59,12 @@ public:
     TudouHelloBenchmarkServer(uint16_t port, int ioThreads)
         : server_(kListenIp, port, ioThreads) {
         server_.set_connection_callback([](const TcpConnectionPtr&) {});
-        server_.set_message_callback([this](const TcpConnectionPtr& conn, const std::string& data) {
-            on_message(conn, data);
+        server_.set_message_callback([this](const TcpConnectionPtr& conn) {
+            on_message(conn);
             });
         server_.set_close_callback([this](const TcpConnectionPtr& conn) {
             on_close(conn);
             });
-        server_.set_write_complete_callback([](const TcpConnectionPtr&) {});
     }
 
     void start() {
@@ -73,7 +72,8 @@ public:
     }
 
 private:
-    void on_message(const TcpConnectionPtr& conn, const std::string& data) {
+    void on_message(const TcpConnectionPtr& conn) {
+        const std::string data = conn ? conn->receive() : std::string();
         std::size_t responseCount = 0;
         std::string& pending = t_pendingRequests[conn.get()];
         pending.append(data);

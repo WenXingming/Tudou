@@ -81,7 +81,7 @@ TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsRes
     server.on_connect(conn);
 
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(activeConn, activeConn->receive());
+        server.on_message(activeConn);
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();
@@ -124,7 +124,7 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
 
     server.on_connect(conn);
     conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(activeConn, activeConn->receive());
+        server.on_message(activeConn);
         });
     conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
         loop.quit();

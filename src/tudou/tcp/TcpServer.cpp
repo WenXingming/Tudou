@@ -264,7 +264,7 @@ void TcpServer::on_message(const TcpConnectionPtr& conn) {
     // 任何成功上浮到 TcpServer 的读事件都视为连接仍然活跃，因此先刷新空闲窗口再继续协议分发。
     refresh_connection_heartbeat(conn);
     if (messageCallback_) {
-        messageCallback_(conn, conn ? conn->receive() : std::string());
+        messageCallback_(conn);
         return;
     }
 

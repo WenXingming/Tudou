@@ -10,7 +10,7 @@
 //     │   └── bind_tcp_callbacks()               # [私有] 绑定连接/消息/关闭事件
 //     │       ├── on_connect(conn)               # [私有] 创建并登记连接级状态
 //     │       │   └── create_connection_state(conn) const # [私有] 创建 HttpContext 与可选 TLS 状态
-//     │       ├── on_message(conn, data)         # [私有] 处理一次消息到达
+//     │       ├── on_message(conn)               # [私有] 处理一次消息到达，并按需从 conn 读取数据
 //     │       │   ├── find_connection_state(conn) # [私有] 查找连接级状态
 //     │       │   ├── read_request_payload(conn, data, state, payload) # [私有] 归一化本次 HTTP 明文
 //     │       │   ├── log_incomplete_request(conn) # [私有] 记录等待更多数据
@@ -91,7 +91,7 @@ private:
 
     void bind_tcp_callbacks();
     void on_connect(const TcpConnectionPtr& conn);
-    void on_message(const TcpConnectionPtr& conn, const std::string& receivedData);
+    void on_message(const TcpConnectionPtr& conn);
     std::shared_ptr<ConnectionState> create_connection_state(const TcpConnectionPtr& conn) const;
     void on_close(const TcpConnectionPtr& conn);
     bool read_request_payload(
