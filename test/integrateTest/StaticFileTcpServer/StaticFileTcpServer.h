@@ -17,9 +17,9 @@
 #include <string>
 #include <cstdint>
 
+#include "tudou/tcp/TcpServer.h"
+
 class EventLoop;
-class TcpServer;
-class TcpConnection;
 
 class StaticFileTcpServer {
 private:
@@ -42,28 +42,26 @@ public:
     void start();
 
 private:
-    void on_connect(const std::shared_ptr<TcpConnection>& conn);
-    void on_message(const std::shared_ptr<TcpConnection>& conn);
-    void on_close(const std::shared_ptr<TcpConnection>& conn);
+    void on_connect(ConnectionId id);
+    void on_message(ConnectionId id, const std::string& data);
+    void on_close(ConnectionId id);
 
     /*
         on_message 的辅助函数。按理说我们的整个流程分为五步：
-            1. 接收数据：通过 conn->receive() 从 TcpConnection 的 readBuffer 中读取数据
+            1. 接收数据：TcpServer 在回调前从 TcpConnection 的 readBuffer 中读取数据
             2. 解析数据
             3. 业务逻辑处理
             4. 构造响应报文
-            5. 发送响应：通过 conn->send() 发送数据
+            5. 发送响应：通过 TcpServer::send(ConnectionId, data) 发送数据
 
-        on_message 函数的参数是 TcpConnection 对象指针，业务层通过该对象的接口进行通信。
+        on_message 函数的参数是 ConnectionId 和消息内容，业务层不再直接持有 TcpConnection。
         这样设计的优点：
-        1. 职责清晰：TcpConnection 封装了连接和数据，业务层通过它的接口获取数据
-        2. 接口统一：所有操作（send(), receive(), get_fd() 等）都通过 conn 对象
-        3. 灵活性好：业务层可以决定读多少、何时读
-        4. 性能更好：避免不必要的字符串拷贝
+        1. 职责清晰：TcpServer 统一判断 ConnectionId 是否仍然有效
+        2. 生命周期更稳：业务层不会长期保存 TcpConnection 本体
     */
-    std::string receive_data(const std::shared_ptr<TcpConnection>& conn);
+    std::string receive_data(const std::string& data);
     std::string parse_received_data(const std::string& data);
     std::string process_data(const std::string& request);
     std::string package_response_data(const std::string& body);
-    void send_data(const std::shared_ptr<TcpConnection>& conn, const std::string& response);
+    void send_data(ConnectionId id, const std::string& response);
 };

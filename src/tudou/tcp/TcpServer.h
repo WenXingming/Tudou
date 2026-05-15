@@ -10,13 +10,16 @@
 //     ├── ~TcpServer()                            # [公有] 析构：资源由成员对象统一回收
 //     ├── start()                                 # [公有] 启动线程池、创建 Acceptor 并进入主事件循环
 //     │   └── on_connect(connSocket, peerAddr)    # [私有] 绑定为 Acceptor 的新连接回调
-//     │       └── create_connection(...)          # [私有] 创建 TcpConnection、配置 socket 选项、绑定回调、存入连接表
+//     │       └── create_connection(...)          # [私有] 创建 TcpConnection、配置 socket 选项、绑定回调、按 ConnectionId 存入连接表
 //     │           ├── create_connection_heartbeat(conn) const # [私有] 按需实例化空闲检测策略对象
-//     │           ├── on_message(conn)            # [私有] 消息事件先刷新心跳再向上转发
-//     │           │   └── refresh_connection_heartbeat(conn) # [私有] 更新连接最后活跃时间
-//     │           └── on_close(conn)              # [私有] 关闭主干：先删连接，再通知业务层
-//     │               └── remove_connection(conn) # [私有] 从连接表中移除并停止该连接的心跳定时器
+//     │           ├── on_message(id, conn)        # [私有] 消息事件先刷新心跳再向上转发
+//     │           │   └── refresh_connection_heartbeat(id) # [私有] 更新连接最后活跃时间
+//     │           └── on_close(id, conn)          # [私有] 关闭主干：先删连接，再通知业务层
+//     │               └── remove_connection(id, conn) # [私有] 从连接表中移除并停止该连接的心跳定时器
 //     │   └── shutdown_connections()              # [私有] 退出主循环后主动收口剩余连接，再销毁线程绑定资源
+//     ├── send(id, data)                          # [公有] 按 ConnectionId 发送数据
+//     ├── force_close(id)                         # [公有] 按 ConnectionId 主动关闭连接
+//     ├── stop()                                  # [公有] 请求主 EventLoop 退出
 //     ├── set_connection_callback(cb)             # [公有] 注册建连回调
 //     ├── set_message_callback(cb)                # [公有] 注册消息回调
 //     ├── set_close_callback(cb)                  # [公有] 注册关闭回调
@@ -39,29 +42,33 @@
 #include <string>
 #include <unordered_map>
 
-#include "base/InetAddress.h"
-#include "EventLoopThreadPool.h"
-#include "Socket.h"
-
 class Acceptor;
 class ConnectionHeartbeat;
 class EventLoop;
+class EventLoopThreadPool;
+class InetAddress;
+class Socket;
 class TcpConnection;
+
+using ConnectionId = uint64_t;
 
 // TcpServer 是 TCP 层的门面，负责把"接收连接"压平成"选择线程、装配连接、注册连接、通知上层"的单向流程。
 class TcpServer {
 public:
-    using ConnectionCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using MessageCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using CloseCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using ErrorCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using WriteCompleteCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
-    using HighWaterMarkCallback = std::function<void(const std::shared_ptr<TcpConnection>&)>;
+    using ConnectionCallback = std::function<void(ConnectionId)>;
+    using MessageCallback = std::function<void(ConnectionId, const std::string&)>;
+    using CloseCallback = std::function<void(ConnectionId)>;
+    using ErrorCallback = std::function<void(ConnectionId)>;
+    using WriteCompleteCallback = std::function<void(ConnectionId)>;
+    using HighWaterMarkCallback = std::function<void(ConnectionId, size_t)>;
 
     TcpServer(std::string ip, uint16_t port, size_t ioLoopNum = 0);
     ~TcpServer();
 
     void start();
+    void stop();
+    bool send(ConnectionId id, const std::string& data);
+    bool force_close(ConnectionId id);
 
     void set_connection_callback(ConnectionCallback cb);
     void set_message_callback(MessageCallback cb);
@@ -78,22 +85,38 @@ public:
 private:
     // 新连接装配总入口，接收 Socket 所有权。
     void on_connect(Socket connSocket, const InetAddress& peerAddr);
-    void on_message(const std::shared_ptr<TcpConnection>& conn);
-    void on_close(const std::shared_ptr<TcpConnection>& conn);
+    void on_message(ConnectionId id, const std::shared_ptr<TcpConnection>& conn);
+    void on_close(ConnectionId id, const std::shared_ptr<TcpConnection>& conn);
 
     std::shared_ptr<TcpConnection> create_connection(EventLoop& ioLoop,
         Socket connSocket,
-        const InetAddress& peerAddr);
-    void remove_connection(const std::shared_ptr<TcpConnection>& conn);
+        const InetAddress& peerAddr,
+        ConnectionId id);
+    void remove_connection(ConnectionId id, const std::shared_ptr<TcpConnection>& conn);
 
     std::shared_ptr<ConnectionHeartbeat> create_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn) const;
-    void refresh_connection_heartbeat(const std::shared_ptr<TcpConnection>& conn);
+    void refresh_connection_heartbeat(ConnectionId id);
     void shutdown_connections();
 
 private:
-    struct ConnectionEntry {
+    enum class ServerState {
+        Created,
+        Running,
+        Draining,
+        Stopped
+    };
+
+    enum class ConnectionRecordState {
+        Active,
+        Closing
+    };
+
+    struct ConnectionRecord {
+        ConnectionId id = 0;
+        int fd = -1;
         std::shared_ptr<TcpConnection> connection;
         std::shared_ptr<ConnectionHeartbeat> heartbeat;
+        ConnectionRecordState state = ConnectionRecordState::Active;
     };
 
     struct ConnectionHeartbeatOptions {
@@ -108,8 +131,10 @@ private:
     std::string ip_;
     uint16_t port_;
     std::unique_ptr<Acceptor> acceptor_;
-    std::unordered_map<int, ConnectionEntry> connections_;
+    std::unordered_map<ConnectionId, ConnectionRecord> connections_;
     std::mutex connectionsMutex_;
+    ConnectionId nextConnectionId_;
+    ServerState state_;
 
     ConnectionCallback connectionCallback_;
     MessageCallback messageCallback_;
@@ -117,6 +142,7 @@ private:
     ErrorCallback errorCallback_;
     WriteCompleteCallback writeCompleteCallback_;
     HighWaterMarkCallback highWaterMarkCallback_;
+
     size_t highWaterMark_;
     ConnectionHeartbeatOptions connectionHeartbeatOptions_;
 };

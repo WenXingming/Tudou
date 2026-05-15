@@ -8,28 +8,28 @@
 // └── HttpServer
 //     ├── HttpServer(ip, port, threadNum)        # [公有] 构造服务器并绑定底层 TcpServer 回调
 //     │   └── bind_tcp_callbacks()               # [私有] 绑定连接/消息/关闭事件
-//     │       ├── on_connect(conn)               # [私有] 创建并登记连接级状态
-//     │       │   └── create_connection_state(fd) const  # [私有] 创建 HttpContext 与可选 TLS 状态
-//     │       ├── on_message(conn)               # [私有] 处理一次消息到达
-//     │       │   ├── find_connection_state(fd)  # [私有] 查找连接级状态
-//     │       │   ├── read_request_payload(conn, state, payload) # [私有] 读取本次 HTTP 明文
-//     │       │   ├── log_incomplete_request(fd) # [私有] 记录等待更多数据
-//     │       │   ├── reject_bad_request(conn, state) # [私有] 返回 400 并重置上下文
+//     │       ├── on_connect(id)                 # [私有] 创建并登记连接级状态
+//     │       │   └── create_connection_state(id) const  # [私有] 创建 HttpContext 与可选 TLS 状态
+//     │       ├── on_message(id, data)           # [私有] 处理一次消息到达
+//     │       │   ├── find_connection_state(id)  # [私有] 查找连接级状态
+//     │       │   ├── read_request_payload(id, data, state, payload) # [私有] 归一化本次 HTTP 明文
+//     │       │   ├── log_incomplete_request(id) # [私有] 记录等待更多数据
+//     │       │   ├── reject_bad_request(id, state) # [私有] 返回 400 并重置上下文
 //     │       │   │   ├── build_bad_request_response()   # [私有] 构建 400 响应
-//     │       │   │   ├── send_http_response(conn, state, resp) # [私有] 发送响应
+//     │       │   │   ├── send_http_response(id, state, resp) # [私有] 发送响应
 //     │       │   │   │   ├── finalize_http_response(resp) # [私有] 补齐协议头
 //     │       │   │   │   ├── serialize_response(resp)   # [私有] 序列化响应
-//     │       │   │   │   └── send_response(conn, state, data) # [私有] 发送明文或 TLS 密文
+//     │       │   │   │   └── send_response(id, state, data) # [私有] 发送明文或 TLS 密文
 //     │       │   │   └── HttpContext::reset()    # [私有] 清空本连接当前解析状态
-//     │       │   └── reply_complete_request(conn, state) # [私有] 路由分发并发送响应
+//     │       │   └── reply_complete_request(id, state) # [私有] 路由分发并发送响应
 //     │       │       ├── build_http_response(req)       # [私有] 交给内部 Router 填充响应
-//     │       │       ├── send_http_response(conn, state, resp) # [私有] 发送响应
+//     │       │       ├── send_http_response(id, state, resp) # [私有] 发送响应
 //     │       │       │   ├── finalize_http_response(resp) # [私有] 补齐协议头
 //     │       │       │   ├── serialize_response(resp)   # [私有] 序列化响应
-//     │       │       │   └── send_response(conn, state, data) # [私有] 发送明文或 TLS 密文
+//     │       │       │   └── send_response(id, state, data) # [私有] 发送明文或 TLS 密文
 //     │       │       └── HttpContext::reset()    # [私有] 清空本连接当前解析状态
-//     │       └── on_close(conn)                 # [私有] 清理连接级状态
-//     │           └── remove_connection_state(fd)  # [私有] 删除连接级状态
+//     │       └── on_close(id)                   # [私有] 清理连接级状态
+//     │           └── remove_connection_state(id) # [私有] 删除连接级状态
 //     ├── HttpServer(copy)                       # [公有] 删除拷贝语义
 //     ├── operator=(copy)                        # [公有] 删除拷贝赋值
 //     ├── ~HttpServer()                          # [公有] 默认析构
@@ -90,39 +90,40 @@ private:
     };
 
     void bind_tcp_callbacks();
-    void on_connect(const std::shared_ptr<TcpConnection>& conn);
-    void on_message(const std::shared_ptr<TcpConnection>& conn);
-    std::shared_ptr<ConnectionState> create_connection_state(int fd) const;
-    void on_close(const std::shared_ptr<TcpConnection>& conn);
+    void on_connect(ConnectionId id);
+    void on_message(ConnectionId id, const std::string& receivedData);
+    std::shared_ptr<ConnectionState> create_connection_state(ConnectionId id) const;
+    void on_close(ConnectionId id);
     bool read_request_payload(
-        const std::shared_ptr<TcpConnection>& conn,
+        ConnectionId id,
+        const std::string& receivedData,
         ConnectionState& state,
         std::string& payload) const; // 读取并归一化本次 HTTP 明文。
 
-    std::shared_ptr<ConnectionState> find_connection_state(int fd);
-    void log_incomplete_request(int fd) const;
-    void reject_bad_request(const std::shared_ptr<TcpConnection>& conn, ConnectionState& state);
-    void reply_complete_request(const std::shared_ptr<TcpConnection>& conn, ConnectionState& state);
+    std::shared_ptr<ConnectionState> find_connection_state(ConnectionId id);
+    void log_incomplete_request(ConnectionId id) const;
+    void reject_bad_request(ConnectionId id, ConnectionState& state);
+    void reply_complete_request(ConnectionId id, ConnectionState& state);
     HttpResponse build_http_response(const HttpRequest& req) const; // 调用内部路由器构建响应。
 
     HttpResponse build_bad_request_response() const;
     void finalize_http_response(HttpResponse& resp) const;
     std::string serialize_response(const HttpResponse& resp) const;
-    void send_http_response(const std::shared_ptr<TcpConnection>& conn,
+    void send_http_response(ConnectionId id,
         const ConnectionState& state,
         HttpResponse resp);
-    void send_response(const std::shared_ptr<TcpConnection>& conn,
+    void send_response(ConnectionId id,
         const ConnectionState& state,
         const std::string& response); // 发送明文或 TLS 密文。
 
-    void remove_connection_state(int fd);
+    void remove_connection_state(ConnectionId id);
 
 private:
     std::string ip_;                              // 服务监听 IP。
     uint16_t port_;                               // 服务监听端口。
     std::unique_ptr<TcpServer> tcpServer_;        // 底层 TCP 服务器门面。
 
-    std::unordered_map<int, std::shared_ptr<ConnectionState>> connectionStates_; // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
+    std::unordered_map<ConnectionId, std::shared_ptr<ConnectionState>> connectionStates_; // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
     std::mutex contextsMutex_;                                  // 保护连接级状态映射。
 
     Router router_;                               // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
