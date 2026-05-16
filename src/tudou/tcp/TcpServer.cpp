@@ -53,7 +53,14 @@ void TcpServer::start() {
     assert(loopThreadPool_ == nullptr);
     loopThreadPool_ = std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", static_cast<int>(ioLoopNum_));
     loopThreadPool_->start();
-    initialize_connection_records(loopThreadPool_->get_all_loops());
+    const std::vector<EventLoop*> loops = loopThreadPool_->get_all_loops();
+    assert(connectionRecordsByLoop_.empty());
+    assert(!loops.empty());
+    connectionRecordsByLoop_.reserve(loops.size());
+    for (EventLoop* loop : loops) {
+        assert(loop != nullptr);
+        connectionRecordsByLoop_.emplace(loop, ConnectionRecords());
+    }
     state_.store(ServerState::Running);
 
     EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
@@ -130,26 +137,6 @@ void TcpServer::set_connection_heartbeat(double checkIntervalSeconds, double idl
     connectionHeartbeatOptions_.idleTimeoutSeconds = idleTimeoutSeconds;
 }
 
-void TcpServer::initialize_connection_records(const std::vector<EventLoop*>& loops) {
-    assert(connectionRecordsByLoop_.empty());
-    assert(!loops.empty());
-
-    connectionRecordsByLoop_.reserve(loops.size());
-    for (size_t index = 0; index < loops.size(); ++index) {
-        assert(loops[index] != nullptr);
-        connectionRecordsByLoop_.emplace(loops[index], ConnectionRecords());
-    }
-}
-
-TcpServer::ConnectionRecords* TcpServer::connection_records_for_loop(EventLoop* loop) {
-    auto it = connectionRecordsByLoop_.find(loop);
-    if (it == connectionRecordsByLoop_.end()) {
-        return nullptr;
-    }
-
-    return &it->second;
-}
-
 void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     EventLoop* mainLoop = loopThreadPool_->get_main_loop();
     assert(mainLoop != nullptr);
@@ -165,7 +152,7 @@ void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
 
     EventLoop* ioLoop = loopThreadPool_->get_next_loop();
     assert(ioLoop != nullptr);
-    assert(connection_records_for_loop(ioLoop) != nullptr);
+    assert(connectionRecordsByLoop_.find(ioLoop) != connectionRecordsByLoop_.end());
 
     // Socket 是 move-only 类型，用 shared_ptr 包装使 lambda 可拷贝以适配 std::function。
     auto connSocketPtr = std::make_shared<Socket>(std::move(connSocket));
@@ -189,8 +176,9 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     Socket connSocket,
     const InetAddress& peerAddr) {
     assert(ioLoop.is_in_loop_thread());
-    ConnectionRecords* localRecords = connection_records_for_loop(&ioLoop);
-    assert(localRecords != nullptr);
+    auto recordsIt = connectionRecordsByLoop_.find(&ioLoop);
+    assert(recordsIt != connectionRecordsByLoop_.end());
+    ConnectionRecords& localRecords = recordsIt->second;
 
     if (state_.load() != ServerState::Running) {
         // connSocket 还未移交给 TcpConnection；返回时 Socket 析构会关闭 fd。
@@ -239,7 +227,7 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     }
 
     // 连接和该连接的可选心跳策略一起注册和清理，真实连接表只由所属 loop 线程访问。
-    (*localRecords)[conn.get()] = ConnectionRecord{ conn, heartbeat };
+    localRecords[conn.get()] = ConnectionRecord{ conn, heartbeat };
     activeConnectionCount_.fetch_add(1);
 
     if (heartbeat) {
@@ -285,17 +273,18 @@ void TcpServer::remove_connection(const TcpConnectionPtr& conn) {
     assert(conn->get_loop()->is_in_loop_thread()); // 理论上应该总在 ioLoop 线程调用，assert 快速 Debug 代码可能的错误
 
     const int fd = conn->get_fd();
-    ConnectionRecords* localRecords = connection_records_for_loop(conn->get_loop());
-    assert(localRecords != nullptr);
+    auto recordsIt = connectionRecordsByLoop_.find(conn->get_loop());
+    assert(recordsIt != connectionRecordsByLoop_.end());
+    ConnectionRecords& localRecords = recordsIt->second;
 
     std::shared_ptr<ConnectionHeartbeat> heartbeat;
-    auto it = localRecords->find(conn.get());
-    if (it == localRecords->end()) {
+    auto it = localRecords.find(conn.get());
+    if (it == localRecords.end()) {
         spdlog::error("TcpServer::remove_connection(). connection not found, fd={}", fd);
     }
     else {
         heartbeat = it->second.heartbeat;
-        localRecords->erase(it);
+        localRecords.erase(it);
         activeConnectionCount_.fetch_sub(1);
     }
 
@@ -311,12 +300,13 @@ void TcpServer::refresh_connection_heartbeat(const TcpConnectionPtr& conn) {
 
     assert(conn);
     assert(conn->get_loop()->is_in_loop_thread());
-    ConnectionRecords* localRecords = connection_records_for_loop(conn->get_loop());
-    assert(localRecords != nullptr);
+    auto recordsIt = connectionRecordsByLoop_.find(conn->get_loop());
+    assert(recordsIt != connectionRecordsByLoop_.end());
+    ConnectionRecords& localRecords = recordsIt->second;
 
     std::shared_ptr<ConnectionHeartbeat> heartbeat;
-    auto it = localRecords->find(conn.get());
-    if (it != localRecords->end()) {
+    auto it = localRecords.find(conn.get());
+    if (it != localRecords.end()) {
         heartbeat = it->second.heartbeat;
     }
 

@@ -111,6 +111,7 @@ void ConnectionHeartbeat::refresh_in_loop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
     lastActiveTime_ = loop_->current_time();
+    // lastActiveTime_ = std::chrono::steady_clock::now(); // 对比测试
 }
 
 void ConnectionHeartbeat::check_timeout() {

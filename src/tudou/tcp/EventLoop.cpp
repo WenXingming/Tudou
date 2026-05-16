@@ -72,12 +72,13 @@ void EventLoop::loop() {
     isLooping_ = true;
     while (!isQuit_) {
         auto activeChannels = poller_->poll(pollTimeoutMs_);
+
+        currentTime_ = std::chrono::steady_clock::now();
+
         for (Channel* channel : activeChannels) {
             channel->handle_events();
         }
         do_pending_functors();
-
-        currentTime_ = std::chrono::steady_clock::now();
     }
     isLooping_ = false;
 }

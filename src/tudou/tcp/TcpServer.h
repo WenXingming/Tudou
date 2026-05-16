@@ -109,9 +109,6 @@ private:
         const InetAddress& peerAddr);
     void remove_connection(const TcpConnectionPtr& conn);
 
-    void initialize_connection_records(const std::vector<EventLoop*>& loops);
-    ConnectionRecords* connection_records_for_loop(EventLoop* loop);
-
     std::shared_ptr<ConnectionHeartbeat> create_connection_heartbeat(const TcpConnectionPtr& conn) const;
     void refresh_connection_heartbeat(const TcpConnectionPtr& conn);
     void shutdown_connections();
