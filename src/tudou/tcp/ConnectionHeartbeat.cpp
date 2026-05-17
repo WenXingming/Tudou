@@ -56,7 +56,7 @@ void ConnectionHeartbeat::start_in_loop() {
         return;
     }
 
-    lastActiveTime_ = loop_->current_time();
+    lastActiveTime_ = std::chrono::steady_clock::now();
 
     std::weak_ptr<ConnectionHeartbeat> weakHeartbeat(shared_from_this());
     timerId_ = loop_->run_every(checkIntervalSeconds_, [weakHeartbeat]() {
@@ -110,8 +110,7 @@ void ConnectionHeartbeat::refresh() {
 void ConnectionHeartbeat::refresh_in_loop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
-    lastActiveTime_ = loop_->current_time();
-    // lastActiveTime_ = std::chrono::steady_clock::now(); // 对比测试
+    lastActiveTime_ = std::chrono::steady_clock::now();
 }
 
 void ConnectionHeartbeat::check_timeout() {
@@ -128,7 +127,7 @@ void ConnectionHeartbeat::check_timeout() {
         return;
     }
 
-    const auto now = loop_->current_time();
+    const auto now = std::chrono::steady_clock::now();
     if (!is_timeout(now)) {
         return;
     }

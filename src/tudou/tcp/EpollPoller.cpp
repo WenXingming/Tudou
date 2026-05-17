@@ -55,7 +55,8 @@ void EpollPoller::update_channel(Channel* channel) {
         assert(findIt->second == channel);
     }
 
-    if (::epoll_ctl(epollFd_, operation, fd, &ev) != 0) {
+    int epollCtlRet = epoll_ctl(epollFd_, operation, fd, &ev);
+    if (epollCtlRet != 0) {
         spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
             operation == EPOLL_CTL_ADD ? "ADD" : "MOD",
             fd,

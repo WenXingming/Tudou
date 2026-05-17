@@ -92,7 +92,7 @@ void TimerQueue::on_timerfd_read() {
     // 管道四步：消费 → 收集 → 执行 → 同步
     read_timerfd(timerFd_);
 
-    const Timestamp now = loop_->current_time();
+    const Timestamp now = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Timer>> expiredTimers;
 
     // timersByExpire_ 按到期时间升序，从头遍历直到遇到未到期的。

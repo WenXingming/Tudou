@@ -12,8 +12,7 @@
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
 //     ├── loop()                                   # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
-//     │   ├── current_time() const                 # [公有] 返回本轮事件分发缓存时间，供热路径复用
-//     │   └── do_pending_functors()                # [私有] 固定走“摘队列 -> 顺序执行”路径
+//     │   └── do_pending_functors()                # [私有] 固定走”摘队列 -> 顺序执行”路径
 //     ├── run_in_loop(cb)                          # [公有] 同线程直执，异线程转为异步投递
 //     │   └── queue_in_loop(cb)                    # [公有] 入队并按需唤醒所属 loop 线程
 //     │       └── wakeup()                         # [私有] 跨线程投递或重入投递时打断阻塞 poll
@@ -50,7 +49,7 @@ class EventLoop {
 public:
     using Functor = std::function<void()>;
 
-    EventLoop(int pollTimeoutMs = 10000);
+    explicit EventLoop(int pollTimeoutMs = 10000);
     ~EventLoop();
     EventLoop(const EventLoop&) = delete;
     EventLoop& operator=(const EventLoop&) = delete;
@@ -61,14 +60,10 @@ public:
     bool has_channel(Channel* channel) const;
     void quit();
     bool is_in_loop_thread() const;
-    static EventLoop* current_loop();
     void run_in_loop(const Functor& cb); // 同线程直执，跨线程转入 pending queue。
     void queue_in_loop(const Functor& cb); // 异步投递任务，必要时唤醒阻塞中的 poll。
 
-    using Timestamp = std::chrono::steady_clock::time_point;
-
-    Timestamp current_time() const; // 返回当前 loop 线程缓存的“本轮 now”，避免热路径重复取时钟。
-    TimerId run_at(Timestamp when, const Functor& cb); // 在指定时间点执行一次性定时任务。
+    TimerId run_at(std::chrono::steady_clock::time_point when, const Functor& cb); // 在指定时间点执行一次性定时任务。
     TimerId run_after(double delaySeconds, const Functor& cb); // 注册一次性定时任务。
     TimerId run_every(double intervalSeconds, const Functor& cb); // 注册周期定时任务。
     void cancel(TimerId timerId);
@@ -86,7 +81,6 @@ private:
 
     const int pollTimeoutMs_;
     std::unique_ptr<EpollPoller> poller_; // 当前线程的 Poller 实现。
-    Timestamp currentTime_; // 本轮 loop 已缓存的 steady_clock 时间；只在所属线程读取和更新。
 
     std::atomic<bool> isLooping_; // 当前事件循环是否处于运行状态。
     std::atomic<bool> isQuit_; // 当前事件循环是否收到退出请求。
@@ -95,8 +89,8 @@ private:
     std::unique_ptr<Channel> wakeupChannel_; // 负责监听 wakeupFd_ 可读事件的 Channel。
 
     FunctorQueue pendingFunctors_; // 待回到 EventLoop 线程执行的任务队列。
-    std::atomic<bool> isCallingPendingFunctors_; // 当前是否正在执行一批待处理任务。
     std::mutex pendingFunctorsMutex_; // 保护 pendingFunctors_ 的互斥锁。
+    std::atomic<bool> isCallingPendingFunctors_; // 当前是否正在执行一批待处理任务。
 
     std::unique_ptr<class TimerQueue> timerQueue_; // 负责所有定时任务的 timerfd 封装层。
 };

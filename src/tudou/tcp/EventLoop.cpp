@@ -20,14 +20,13 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     threadId_(std::this_thread::get_id()),
     pollTimeoutMs_(pollTimeoutMs),
     poller_(nullptr),
-    currentTime_(std::chrono::steady_clock::now()),
     isLooping_(false),
     isQuit_(false),
     wakeupFd_(-1),
     wakeupChannel_(nullptr),
     pendingFunctors_(),
-    isCallingPendingFunctors_(false),
     pendingFunctorsMutex_(),
+    isCallingPendingFunctors_(false),
     timerQueue_(nullptr) {
 
     // 先校验线程归属约束，再创建底层资源，避免在非法构造路径上先注册 fd。
@@ -73,8 +72,6 @@ void EventLoop::loop() {
     while (!isQuit_) {
         auto activeChannels = poller_->poll(pollTimeoutMs_);
 
-        currentTime_ = std::chrono::steady_clock::now();
-
         for (Channel* channel : activeChannels) {
             channel->handle_events();
         }
@@ -110,10 +107,6 @@ bool EventLoop::is_in_loop_thread() const {
     return threadId_ == std::this_thread::get_id();
 }
 
-EventLoop* EventLoop::current_loop() {
-    return loopInthisThread;
-}
-
 void EventLoop::run_in_loop(const Functor& cb) {
     if (!cb) {
         spdlog::error("EventLoop::run_in_loop() received empty functor");
@@ -144,12 +137,7 @@ void EventLoop::queue_in_loop(const Functor& cb) {
     }
 }
 
-EventLoop::Timestamp EventLoop::current_time() const {
-    assert(is_in_loop_thread());
-    return currentTime_;
-}
-
-TimerId EventLoop::run_at(Timestamp when, const Functor& cb) {
+TimerId EventLoop::run_at(std::chrono::steady_clock::time_point when, const Functor& cb) {
     return timerQueue_->add_timer(cb, when, std::chrono::milliseconds(0));
 }
 
