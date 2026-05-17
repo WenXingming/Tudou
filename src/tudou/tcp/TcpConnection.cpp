@@ -16,12 +16,14 @@
 #include "Channel.h"
 #include "EventLoop.h"
 
-std::shared_ptr<TcpConnection> TcpConnection::create(EventLoop* loop,
+std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop,
     Socket connSocket,
     const InetAddress& localAddr,
     const InetAddress& peerAddr) {
+
+    // tie 和 enable_reading 必须在 shared_ptr 创建之后：shared_from_this() 依赖 shared_ptr 控制块已就绪。
     std::shared_ptr<TcpConnection> conn(new TcpConnection(loop, std::move(connSocket), localAddr, peerAddr));
-    conn->activate();
+    conn->channel_->tie_to_object(conn);
     return conn;
 }
 
@@ -40,21 +42,18 @@ TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddre
     writeCompleteCallback_(nullptr),
     highWaterMarkCallback_(nullptr),
     isClosed_(false) {
+
     channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
     channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
+    channel_->enable_reading();
 }
 
 TcpConnection::~TcpConnection() {
     spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", connSocket_.fd());
 }
 
-void TcpConnection::activate() {
-    assert(loop_->is_in_loop_thread());
-    channel_->tie_to_object(shared_from_this());
-    channel_->enable_reading();
-}
 
 void TcpConnection::send(const std::string& msg) {
     if (!loop_->is_in_loop_thread()) {
@@ -74,40 +73,39 @@ void TcpConnection::send_in_loop(const std::string& msg) {
         return;
     }
 
-    const size_t oldLen = writeBuffer_->readable_bytes();
-    // 小响应且缓冲为空时尝试直接写，减少数据拷贝和系统调用开销。只有当写入全部数据时才算成功，否则走缓冲机制。
+    // 缓冲为空时尝试直接写，减少数据拷贝和系统调用开销。完整写入则直接完成，无需注册写事件；未完全写入则把剩余数据追加到缓冲区，并注册写事件以便后续发送。
     size_t writtenLen = 0;
+    const size_t oldLen = writeBuffer_->readable_bytes();
     if (oldLen == 0 && !channel_->is_writing()) {
         const ssize_t n = ::write(connSocket_.fd(), msg.data(), msg.size());
-        if (n >= 0) {
-            writtenLen = static_cast<size_t>(n);
-            if (writtenLen == msg.size()) {
-                if (writeCompleteCallback_) {
-                    auto self = shared_from_this();
-                    loop_->queue_in_loop([self]() {
-                        self->handle_write_complete_callback();
-                        });
-                }
-                return;
-            }
-        }
-        else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+
+        // 非瞬态写错误：记录日志并关闭连接
+        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             spdlog::error("TcpConnection::send_in_loop() failed, errno={} ({})", errno, strerror(errno));
             handle_error_callback();
             close_connection(*channel_);
             return;
         }
+
+        if (n >= 0) {
+            writtenLen = static_cast<size_t>(n);
+        }
+
+        // 判断是否完整写入。是：触发回调后直接返回，无需后续剩余数据追加到缓冲区
+        if (writtenLen == msg.size()) {
+            handle_write_complete_callback();
+            return;
+        }
     }
 
     writeBuffer_->write_to_buffer(msg.data() + writtenLen, msg.size() - writtenLen);
-    const size_t newLen = writeBuffer_->readable_bytes();
+    channel_->enable_writing();
 
     // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
+    const size_t newLen = writeBuffer_->readable_bytes();
     if (highWaterMarkCallback_ && oldLen < highWaterMark_ && newLen >= highWaterMark_) {
         handle_high_water_mark_callback();
     }
-
-    channel_->enable_writing();
 }
 
 std::string TcpConnection::receive() {

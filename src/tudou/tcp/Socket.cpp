@@ -73,13 +73,16 @@ Socket Socket::accept(sockaddr_in* peerAddr) const {
     sockaddr_in clientAddr{};
     socklen_t length = sizeof(clientAddr);
     const int connFd = ::accept4(sockFd_,
-                                  reinterpret_cast<sockaddr*>(&clientAddr),
-                                  &length,
-                                  SOCK_NONBLOCK | SOCK_CLOEXEC);
-    if (connFd >= 0 && peerAddr != nullptr) {
-        *peerAddr = clientAddr;
+        reinterpret_cast<sockaddr*>(&clientAddr),
+        &length,
+        SOCK_NONBLOCK | SOCK_CLOEXEC);
+    if (connFd < 0) {
+        spdlog::error("Socket::accept(): accept4() failed, errno={} ({})", errno, strerror(errno));
+        return Socket(-1);
     }
-    return Socket(connFd); // connFd 可能为 -1（瞬时错误），由调用方判断
+
+    if (peerAddr != nullptr) *peerAddr = clientAddr;
+    return Socket(connFd);
 }
 
 void Socket::set_reuse_addr(bool on) {

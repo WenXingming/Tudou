@@ -33,7 +33,7 @@ class Acceptor {
 public:
     using NewConnectCallback = std::function<void(Socket connSocket, const InetAddress& peerAddr)>;
 
-    Acceptor(EventLoop* loop, const InetAddress& listenAddr);
+    explicit Acceptor(EventLoop* loop, const InetAddress& listenAddr);
     Acceptor(const Acceptor&) = delete;
     Acceptor& operator=(const Acceptor&) = delete;
     ~Acceptor();

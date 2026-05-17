@@ -6,9 +6,7 @@
 //
 // TcpConnection.h
 // └── TcpConnection
-//     ├── create(loop, connSocket, localAddr, peerAddr)      # [公有] 构造并完成激活，隐藏 tie 细节
-//     │   ├── TcpConnection(loop, connSocket, localAddr, peerAddr)  # [私有] 接管 Socket，绑定 Channel 回调
-//     │   └── activate()                               # [私有] 在 shared_ptr 生效后建立 tie 并开启读
+//     ├── create_connection(loop, ...)                # [公有] 工厂：构造 + tie + enable_reading
 //     │   ├── on_read(channel)                       # [私有] 读事件主干：读数据、判 EOF、判错误
 //     │   │   ├── handle_message_callback()          # [私有] 把消息事件抛给上层
 //     │   │   ├── handle_error_callback()            # [私有] 通知上层错误
@@ -70,7 +68,11 @@ public:
     using WriteCompleteCallback = std::function<void(const TcpConnectionPtr&)>;
     using HighWaterMarkCallback = std::function<void(const TcpConnectionPtr&)>;
 
-    static TcpConnectionPtr create(EventLoop* loop,
+    // 工厂方法：TcpConnection 必须由 shared_ptr 管理（enable_shared_from_this），
+    // tie_to_object 依赖 shared_from_this()，必须在 shared_ptr 创建之后调用，
+    // 因此构造分两步：先 new + shared_ptr，再 tie + enable_reading。
+    // 工厂封装此顺序，避免调用方误用栈/裸指针构造。
+    static TcpConnectionPtr create_connection(EventLoop* loop,
         Socket connSocket,
         const InetAddress& localAddr,
         const InetAddress& peerAddr);
@@ -99,8 +101,7 @@ public:
     size_t get_high_water_mark() const { return highWaterMark_; }
 
 private:
-    TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
-    void activate();
+    explicit TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
 
     void send_in_loop(const std::string& msg);
     void on_read(Channel& channel);

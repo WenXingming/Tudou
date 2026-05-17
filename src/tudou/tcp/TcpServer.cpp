@@ -50,9 +50,12 @@ TcpServer::~TcpServer() {
 void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
 
+    // 创建并启动 IO 线程池，初始化 main loop 和 acceptor
     assert(loopThreadPool_ == nullptr);
     loopThreadPool_ = std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", static_cast<int>(ioLoopNum_));
     loopThreadPool_->start();
+
+    // 连接记录哈希表的外层以 EventLoop* 为键，start() 阶段一次性初始化完毕，运行期为纯只读结构，多线程并发查找（find）天然安全。
     const std::vector<EventLoop*> loops = loopThreadPool_->get_all_loops();
     assert(connectionRecordsByLoop_.empty());
     assert(!loops.empty());
@@ -63,8 +66,8 @@ void TcpServer::start() {
     }
     state_.store(ServerState::Running);
 
+    // 在 main loop 所在线程创建 acceptor，监听 fd 的事件回调由 main loop 调度执行，保证线程安全。
     EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
-
     InetAddress listenAddr(ip_, port_);
     acceptor_ = std::make_unique<Acceptor>(&mainLoop, listenAddr);
     acceptor_->set_connect_callback([this](Socket connSocket, const InetAddress& peerAddr) {
@@ -73,6 +76,7 @@ void TcpServer::start() {
 
     mainLoop.loop();
 
+    // main loop 收到 quit() 请求退出后，先进入 Draining 状态，停止接受新连接，等待所有现有连接关闭完成后真正停止。
     shutdown_connections();
     acceptor_.reset();
     loopThreadPool_.reset();
@@ -87,13 +91,17 @@ void TcpServer::stop() {
     }
 
     EventLoop* mainLoop = nullptr;
-    if (loopThreadPool_) {
-        mainLoop = loopThreadPool_->get_main_loop();
+    if (!loopThreadPool_) {
+        spdlog::critical("TcpServer::stop() called but loopThreadPool_ is nullptr");
+        return;
     }
+    mainLoop = loopThreadPool_->get_main_loop();
 
-    if (mainLoop) {
-        mainLoop->quit();
+    if (!mainLoop) {
+        spdlog::critical("TcpServer::stop() called but mainLoop is nullptr");
+        return;
     }
+    mainLoop->quit();
 }
 
 void TcpServer::set_connection_callback(ConnectionCallback cb) {
@@ -186,7 +194,7 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     }
 
     const InetAddress localAddr = connSocket.local_address();
-    auto conn = TcpConnection::create(&ioLoop, std::move(connSocket), localAddr, peerAddr);
+    auto conn = TcpConnection::create_connection(&ioLoop, std::move(connSocket), localAddr, peerAddr);
 
     // 配置 TCP 选项，开启 TCP_NODELAY 和 TCP keepalive。
     conn->set_tcp_no_delay(true);
@@ -316,6 +324,9 @@ void TcpServer::refresh_connection_heartbeat(const TcpConnectionPtr& conn) {
 }
 
 void TcpServer::shutdown_connections() {
+    // 关闭所有连接：向每个 IO loop 投递 force_close，然后忙等待直到 activeConnectionCount_ 归零。
+    // 调用时机：main loop 退出后，销毁线程池之前。
+
     state_.store(ServerState::Draining);
     for (auto& entry : connectionRecordsByLoop_) {
         EventLoop* loop = entry.first;

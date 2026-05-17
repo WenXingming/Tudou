@@ -20,7 +20,9 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr) :
 
     // 监听 socket 就绪后再挂接 Channel，保证回调只面对可用的 listen fd
     channel_ = std::make_unique<Channel>(loop_, listenSocket_.fd());
-    channel_->set_read_callback([this](Channel& ch) { on_read(ch); });
+    channel_->set_read_callback([this](Channel& ch) {
+        on_read(ch);
+        });
     channel_->enable_reading();
 }
 
@@ -40,10 +42,6 @@ void Acceptor::on_read(Channel& channel) {
     sockaddr_in clientAddr{};
     Socket connSocket = listenSocket_.accept(&clientAddr);
     if (connSocket.fd() < 0) {
-        // 瞬时错误无需诊断，直接忽略。
-        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-            spdlog::error("Acceptor::on_read(): accept error, errno: {}", errno);
-        }
         return;
     }
 
