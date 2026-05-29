@@ -235,7 +235,10 @@ void TcpConnection::close_connection(Channel& channel) {
 }
 
 void TcpConnection::handle_close_callback() {
-    assert(closeCallback_ != nullptr);
+    // shutdown 路径会提前清空 closeCallback_ 以阻断回调链，因此需要判空。
+    if (!closeCallback_) {
+        return;
+    }
 
     std::shared_ptr<TcpConnection> guardThis{ shared_from_this() };
     closeCallback_(guardThis);

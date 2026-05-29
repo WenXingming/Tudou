@@ -6,8 +6,6 @@
 #include "tudou/tcp/TcpServer.h"
 
 #include <cassert>
-#include <chrono>
-#include <thread>
 #include <vector>
 
 #include "base/InetAddress.h"
@@ -324,31 +322,46 @@ void TcpServer::refresh_connection_heartbeat(const TcpConnectionPtr& conn) {
 }
 
 void TcpServer::shutdown_connections() {
-    // 关闭所有连接：向每个 IO loop 投递 force_close，然后忙等待直到 activeConnectionCount_ 归零。
+    // 关闭所有连接：向每个 IO loop 投递清理任务，然后等待 activeConnectionCount_ 归零。
     // 调用时机：main loop 退出后，销毁线程池之前。
+    //
+    // 清理策略：lambda 分三步执行——
+    //   1. [锁内] 从 localRecords 中摘出所有连接并递减计数，纯内存操作，快进快出。
+    //   2. [锁外] 停心跳、清回调、force_close，涉及定时器取消和 socket I/O，不持有锁。
+    //   3. 通知主线程检查计数。
+    // 这样避免 force_close → on_close → remove_connection 回调链中的冗余查找与重复减计数。
 
     state_.store(ServerState::Draining);
     for (auto& entry : connectionRecordsByLoop_) {
         EventLoop* loop = entry.first;
         ConnectionRecords& localRecords = entry.second;
-        loop->run_in_loop([&localRecords]() {
-            std::vector<TcpConnectionPtr> activeConnections;
-            activeConnections.reserve(localRecords.size());
-            for (auto& localEntry : localRecords) {
-                if (localEntry.second.connection) {
-                    activeConnections.push_back(localEntry.second.connection);
+        loop->run_in_loop([this, &localRecords]() {
+            std::vector<ConnectionRecord> pending;
+            {
+                std::lock_guard<std::mutex> lock(shutdownMutex_);
+                pending.reserve(localRecords.size());
+                for (auto it = localRecords.begin(); it != localRecords.end(); it = localRecords.erase(it)) {
+                    activeConnectionCount_.fetch_sub(1);
+                    pending.push_back(std::move(it->second));
                 }
             }
+            shutdownCondition_.notify_one();
 
-            for (const auto& conn : activeConnections) {
-                conn->force_close();
+            for (auto& record : pending) {
+                if (record.heartbeat) {
+                    record.heartbeat->stop();
+                }
+                if (record.connection) {
+                    record.connection->set_close_callback(nullptr);
+                    record.connection->set_message_callback(nullptr);
+                    record.connection->force_close();
+                }
             }
-
-            activeConnections.clear();
             });
     }
 
-    while (activeConnectionCount_.load() != 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    std::unique_lock<std::mutex> lock(shutdownMutex_);
+    shutdownCondition_.wait(lock, [this]() {
+        return activeConnectionCount_.load() == 0;
+        });
 }
