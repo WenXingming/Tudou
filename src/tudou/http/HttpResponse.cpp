@@ -3,7 +3,7 @@
 // HTTP 响应 DTO 实现，线性执行“状态行 -> 头部 -> 空行 -> body”序列化。
 // ============================================================================
 
-#include "HttpResponse.h"
+#include "tudou/http/HttpResponse.h"
 
 namespace {
 

@@ -31,6 +31,9 @@ add_library(threadpool STATIC ${threadpool_source_files})
 # 编译 tudou 生成库
 file(GLOB tudou_source_files
     ${CMAKE_SOURCE_DIR}/src/base/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/tudou/reactor/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/tudou/timer/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/tudou/net/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/tcp/*.cpp
     ${CMAKE_SOURCE_DIR}/src/tudou/http/*.cpp
 )

@@ -3,7 +3,7 @@
 // HTTP 请求 DTO 实现，只处理字段读写与状态清空。
 // ============================================================================
 
-#include "HttpRequest.h"
+#include "tudou/http/HttpRequest.h"
 
 namespace {
 

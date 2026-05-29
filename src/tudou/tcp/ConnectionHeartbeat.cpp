@@ -3,15 +3,15 @@
 // 通用连接空闲检测实现，周期性检查空闲超时并在超时后关闭连接。
 // ============================================================================
 
-#include "ConnectionHeartbeat.h"
+#include "tudou/tcp/ConnectionHeartbeat.h"
 
 #include <cassert>
 #include <chrono>
 
 #include "spdlog/spdlog.h"
 
-#include "EventLoop.h"
-#include "TcpConnection.h"
+#include "tudou/reactor/EventLoop.h"
+#include "tudou/tcp/TcpConnection.h"
 
 ConnectionHeartbeat::ConnectionHeartbeat(const std::shared_ptr<TcpConnection>& conn,
     double checkIntervalSeconds,

@@ -50,9 +50,9 @@
 #include <string>
 
 #include "base/InetAddress.h"
-#include "Buffer.h"
-#include "Channel.h"
-#include "Socket.h"
+#include "tudou/net/Buffer.h"
+#include "tudou/reactor/Channel.h"
+#include "tudou/net/Socket.h"
 
 class EventLoop;
 class TcpConnection;

@@ -3,7 +3,7 @@
 // TcpServer 的实现：Socket 沿回调链传递到 TcpConnection，沿途配置 socket 选项。
 // ============================================================================
 
-#include "TcpServer.h"
+#include "tudou/tcp/TcpServer.h"
 
 #include <cassert>
 #include <chrono>
@@ -12,12 +12,12 @@
 
 #include "base/InetAddress.h"
 #include "spdlog/spdlog.h"
-#include "Acceptor.h"
-#include "ConnectionHeartbeat.h"
-#include "EventLoop.h"
-#include "TcpConnection.h"
-#include "EventLoopThread.h"
-#include "EventLoopThreadPool.h"
+#include "tudou/tcp/Acceptor.h"
+#include "tudou/tcp/ConnectionHeartbeat.h"
+#include "tudou/reactor/EventLoop.h"
+#include "tudou/tcp/TcpConnection.h"
+#include "tudou/reactor/EventLoopThread.h"
+#include "tudou/reactor/EventLoopThreadPool.h"
 
 namespace {
 

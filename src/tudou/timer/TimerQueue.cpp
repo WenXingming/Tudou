@@ -4,7 +4,7 @@
 // 所有索引操作均在 EventLoop 线程执行，无需加锁。
 // ============================================================================
 
-#include "TimerQueue.h"
+#include "tudou/timer/TimerQueue.h"
 
 #include <cassert>
 #include <cstring>
@@ -12,8 +12,8 @@
 #include <unistd.h>
 #include <vector>
 
-#include "Channel.h"
-#include "EventLoop.h"
+#include "tudou/reactor/Channel.h"
+#include "tudou/reactor/EventLoop.h"
 #include "spdlog/spdlog.h"
 
 namespace {

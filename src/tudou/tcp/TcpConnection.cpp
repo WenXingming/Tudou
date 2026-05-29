@@ -3,7 +3,7 @@
 // TcpConnection 的实现：Socket 接管 fd 所有权，连接只关心会话语义。
 // ============================================================================
 
-#include "TcpConnection.h"
+#include "tudou/tcp/TcpConnection.h"
 
 #include <cassert>
 #include <cerrno>
@@ -12,9 +12,9 @@
 
 #include "spdlog/spdlog.h"
 
-#include "Buffer.h"
-#include "Channel.h"
-#include "EventLoop.h"
+#include "tudou/net/Buffer.h"
+#include "tudou/reactor/Channel.h"
+#include "tudou/reactor/EventLoop.h"
 
 std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop,
     Socket connSocket,

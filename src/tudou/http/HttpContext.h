@@ -45,7 +45,7 @@
 
 #pragma once
 #include <string>
-#include "HttpRequest.h"
+#include "tudou/http/HttpRequest.h"
 #include "llhttp/llhttp.h"
 // 负责管理单连接 HTTP 解析状态，并以 parse() 作为唯一对外解析门面。
 class HttpContext {
