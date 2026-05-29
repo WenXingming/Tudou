@@ -60,7 +60,19 @@ void TcpConnection::send(const std::string& msg) {
         std::shared_ptr<TcpConnection> self = shared_from_this();
         loop_->queue_in_loop([self, msg]() {
             self->send_in_loop(msg);
-            });
+        });
+        return;
+    }
+
+    send_in_loop(msg);
+}
+
+void TcpConnection::send(std::string&& msg) {
+    if (!loop_->is_in_loop_thread()) {
+        std::shared_ptr<TcpConnection> self = shared_from_this();
+        loop_->queue_in_loop([self, msg = std::move(msg)]() {
+            self->send_in_loop(msg);
+        });
         return;
     }
 

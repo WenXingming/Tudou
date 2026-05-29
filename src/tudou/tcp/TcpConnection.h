@@ -80,6 +80,7 @@ public:
     ~TcpConnection();
 
     void send(const std::string& msg);
+    void send(std::string&& msg);
     std::string receive();
 
     void set_tcp_no_delay(bool on);
