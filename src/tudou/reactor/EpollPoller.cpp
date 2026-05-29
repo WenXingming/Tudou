@@ -28,11 +28,11 @@ EpollPoller::~EpollPoller() {
     assert(ret == 0);
 }
 
-std::vector<Channel*> EpollPoller::poll(int timeoutMs) {
+const std::vector<Channel*>& EpollPoller::poll(int timeoutMs) {
     const int numReady = get_ready_num(timeoutMs);
-    auto activeChannels = get_activate_channels(numReady);
+    collect_active_channels(numReady);
     resize_event_list(numReady);
-    return activeChannels; // NRVO，勿加 std::move
+    return activeChannels_;
 }
 
 void EpollPoller::update_channel(Channel* channel) {
@@ -106,17 +106,16 @@ int EpollPoller::get_ready_num(int timeoutMs) {
     return numReady;
 }
 
-std::vector<Channel*> EpollPoller::get_activate_channels(int numReady) {
-    std::vector<Channel*> activeChannels;
-    activeChannels.reserve(numReady);
+void EpollPoller::collect_active_channels(int numReady) {
+    activeChannels_.clear();
+    activeChannels_.reserve(numReady);
 
     for (int i = 0; i < numReady; ++i) {
         auto* channel = static_cast<Channel*>(eventList_[i].data.ptr);
         assert(channel != nullptr);
         channel->set_revents(eventList_[i].events);
-        activeChannels.push_back(channel);
+        activeChannels_.push_back(channel);
     }
-    return activeChannels; // NRVO，勿加 std::move
 }
 
 void EpollPoller::resize_event_list(int numReady) {

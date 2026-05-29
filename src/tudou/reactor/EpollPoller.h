@@ -10,7 +10,7 @@
 //     ├── ~EpollPoller()                          # [公有] 析构：关闭 epoll fd
 //     ├── poll(timeoutMs)                         # [公有] epoll 主干：等待、翻译、调节容量，返回活跃 Channel 列表
 //     │   ├── get_ready_num(timeoutMs)            # [私有] 调用 epoll_wait 拿到本轮就绪数
-//     │   ├── get_activate_channels(numReady)     # [私有] 把内核事件翻译成 Channel 列表
+//     │   ├── collect_active_channels(numReady)    # [私有] 从 epoll 结果中收集就绪 Channel 到成员变量
 //     │   └── resize_event_list(numReady)         # [私有] 按负载伸缩 epoll 结果缓冲区
 //     ├── update_channel(channel)                 # [公有] ADD/MOD 一个 Channel 到 epoll 注册表
 //     ├── remove_channel(channel)                 # [公有] DEL 一个 Channel 并同步移出 channels_
@@ -31,14 +31,14 @@ public:
     explicit EpollPoller(EventLoop* loop);
     ~EpollPoller();
 
-    std::vector<Channel*> poll(int timeoutMs); // epoll 主入口：等待、翻译、调节容量，返回活跃 Channel 列表。
+    const std::vector<Channel*>& poll(int timeoutMs); // epoll 主入口：等待、翻译、调节容量，返回就绪 Channel 列表引用。
     void update_channel(Channel* channel); // 把 Channel 的当前兴趣集同步到 epoll。
     void remove_channel(Channel* channel);
     bool has_channel(Channel* channel) const;
 
 private:
     int get_ready_num(int timeoutMs);
-    std::vector<Channel*> get_activate_channels(int numReady); // 回填 revents_ 并收集活跃 Channel。
+    void collect_active_channels(int numReady); // 从 epoll 结果中收集就绪 Channel 并回填 revents_。
     void resize_event_list(int numReady); // 按负载调节 eventList_ 容量。
 
 private:
@@ -49,4 +49,5 @@ private:
 
     const size_t initEventListSize_; // 初始事件列表容量。
     std::vector<epoll_event> eventList_; // epoll_wait 使用的结果缓冲区，后续按需扩容和缩容。
+    std::vector<Channel*> activeChannels_; // 每轮 poll 的就绪 Channel 列表，复用避免反复堆分配。
 };

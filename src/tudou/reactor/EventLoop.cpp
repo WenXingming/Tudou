@@ -62,7 +62,7 @@ void EventLoop::loop() {
 
     isLooping_ = true;
     while (!isQuit_) {
-        auto activeChannels = poller_->poll(pollTimeoutMs_);
+        const auto& activeChannels = poller_->poll(pollTimeoutMs_);
 
         for (Channel* channel : activeChannels) {
             channel->handle_events();

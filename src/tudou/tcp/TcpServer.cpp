@@ -198,7 +198,7 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     conn->set_tcp_no_delay(true);
     conn->set_keep_alive(true);
 
-    // 配置 TcpConnection 回调，全部转发到 TcpServer 以统一管理。
+    // 配置 TcpConnection 回调，TcpServer 把 6 种 callback 从用户设置转发到每个 TcpConnection
     conn->set_message_callback([this](const TcpConnectionPtr& activeConn) {
         on_message(activeConn);
         });
