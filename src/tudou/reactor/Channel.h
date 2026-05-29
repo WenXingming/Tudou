@@ -35,7 +35,7 @@
 //     ├── set_write_callback(cb)                   # [公有] 注册写事件处理函数
 //     ├── set_close_callback(cb)                   # [公有] 注册关闭事件处理函数
 //     ├── set_error_callback(cb)                   # [公有] 注册错误事件处理函数
-//     ├── set_revents(revents)                     # [公有] 写入 Poller 返回的本轮就绪事件
+//     ├── set_revents(revents)                     # [私有] 写入 Poller 返回的本轮就绪事件（仅 friend EpollPoller 调用）
 //     ├── get_owner_loop() const                   # [公有] 返回所属 EventLoop
 //     ├── get_fd() const                           # [公有] 返回绑定 fd
 //     ├── is_none_event() const                    # [公有] 判断当前是否无事件关注
@@ -51,23 +51,25 @@
 #include <cstdint>
 
 class EventLoop;
+class EpollPoller;
 
 // Channel 只管理单个 fd 的事件兴趣与回调分发，不参与更高层业务编排。
 class Channel {
 public:
     using EventCallback = std::function<void(Channel&)>;
+    friend class EpollPoller; // 仅 Poller 有权通过 set_revents() 写入就绪事件。
 
     explicit Channel(EventLoop* loop, int fd);
     Channel(const Channel&) = delete;
     Channel& operator=(const Channel&) = delete;
     ~Channel();
 
+    void handle_events(); // Channel 的统一事件入口。
+
     void set_read_callback(EventCallback cb);
     void set_write_callback(EventCallback cb);
     void set_close_callback(EventCallback cb);
     void set_error_callback(EventCallback cb);
-    void set_revents(uint32_t revents);
-    void handle_events(); // Channel 的统一事件入口。
     void tie_to_object(const std::shared_ptr<void>& obj); // 回调期间保活 owner。
 
     EventLoop* get_owner_loop() const;
@@ -83,6 +85,7 @@ public:
     uint32_t get_events() const;
 
 private:
+    void set_revents(uint32_t revents); // 仅 EpollPoller（friend）调用，外部不可设置。
     void update_in_register(); // 把当前 events_ 同步到 Poller。
     void remove_in_register();
     void handle_events_with_guard(); // 按关闭/错误/读/写顺序分发事件。
@@ -93,9 +96,9 @@ private:
     void handle_error_callback();
 
 private:
-    static const uint32_t kNoneEvent_;
-    static const uint32_t kReadEvent_;
-    static const uint32_t kWriteEvent_;
+    static const uint32_t kNoneEvent;
+    static const uint32_t kReadEvent;
+    static const uint32_t kWriteEvent;
 
     EventLoop* loop_; // 所属 EventLoop，非 owning。
 

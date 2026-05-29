@@ -18,6 +18,8 @@
 // ============================================================================
 
 #pragma once
+#include "tudou/net/Socket.h"
+
 #include <sys/epoll.h>
 #include <vector>
 #include <unordered_map>
@@ -44,7 +46,7 @@ private:
 private:
     EventLoop* loop_; // 所属 EventLoop，限定线程边界。
 
-    int epollFd_; // epoll 文件描述符。
+    Socket epollFd_{-1}; // epoll 文件描述符。
     std::unordered_map<int, Channel*> channels_; // fd 到 Channel 的注册表，不拥有 Channel。
 
     const size_t initEventListSize_; // 初始事件列表容量。

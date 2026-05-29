@@ -7,7 +7,6 @@
 #include "tudou/reactor/EventLoop.h"
 #include "tudou/reactor/Channel.h"
 #include "spdlog/spdlog.h"
-#include <unistd.h>
 #include <cassert>
 #include <cstring>
 
@@ -17,16 +16,13 @@ EpollPoller::EpollPoller(EventLoop* loop)
     , channels_()
     , initEventListSize_(16)
     , eventList_(initEventListSize_) {
-    if (epollFd_ < 0) {
+    if (epollFd_.fd() < 0) {
         spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
     }
 }
 
-EpollPoller::~EpollPoller() {
-    int ret = ::close(epollFd_);
-    assert(ret == 0);
-}
+EpollPoller::~EpollPoller() = default;
 
 const std::vector<Channel*>& EpollPoller::poll(int timeoutMs) {
     const int numReady = get_ready_num(timeoutMs);
@@ -55,7 +51,7 @@ void EpollPoller::update_channel(Channel* channel) {
         assert(findIt->second == channel);
     }
 
-    int epollCtlRet = epoll_ctl(epollFd_, operation, fd, &ev);
+    int epollCtlRet = epoll_ctl(epollFd_.fd(), operation, fd, &ev);
     if (epollCtlRet != 0) {
         spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
             operation == EPOLL_CTL_ADD ? "ADD" : "MOD",
@@ -73,7 +69,7 @@ void EpollPoller::remove_channel(Channel* channel) {
     // epollfd、channels 应该同步
     int fd = channel->get_fd();
     channels_.erase(fd);
-    int epollCtlRet = epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
+    int epollCtlRet = epoll_ctl(epollFd_.fd(), EPOLL_CTL_DEL, fd, nullptr);
     if (epollCtlRet != 0) {
         spdlog::error("epoll_ctl DEL failed, fd={}, errno={} ({})", fd, errno, strerror(errno));
         assert(false);
@@ -93,7 +89,7 @@ bool EpollPoller::has_channel(Channel* channel) const {
 }
 
 int EpollPoller::get_ready_num(int timeoutMs) {
-    int numReady = ::epoll_wait(epollFd_, eventList_.data(),
+    int numReady = ::epoll_wait(epollFd_.fd(), eventList_.data(),
         static_cast<int>(eventList_.size()), timeoutMs);
     if (numReady < 0) {
         // 非致命；其他错误记录后同样安全返回 0

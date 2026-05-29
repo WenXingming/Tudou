@@ -70,6 +70,7 @@ Socket Socket::create_tcp_listener(const InetAddress& addr) {
 }
 
 Socket Socket::accept(sockaddr_in* peerAddr) const {
+    // 接受新连接，返回 non-blocking + cloexec 的 Socket。peerAddr 非空时写入对端原始地址。
     sockaddr_in clientAddr{};
     socklen_t length = sizeof(clientAddr);
     const int connFd = ::accept4(sockFd_,

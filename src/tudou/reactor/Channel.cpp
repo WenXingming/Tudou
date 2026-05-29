@@ -5,20 +5,20 @@
 
 #include "tudou/reactor/Channel.h"
 #include "tudou/reactor/EventLoop.h"
-#include "spdlog/spdlog.h"
 
 #include <sys/epoll.h>
 #include <cassert>
+#include <spdlog/spdlog.h>
 
-const uint32_t Channel::kNoneEvent_ = 0;
-const uint32_t Channel::kReadEvent_ = EPOLLIN | EPOLLPRI;
-const uint32_t Channel::kWriteEvent_ = EPOLLOUT;
+const uint32_t Channel::kNoneEvent = 0;
+const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
+const uint32_t Channel::kWriteEvent = EPOLLOUT;
 
 Channel::Channel(EventLoop* loop, int fd)
     : loop_(loop)
     , fd_(fd)
-    , events_(kNoneEvent_)
-    , revents_(kNoneEvent_)
+    , events_(kNoneEvent)
+    , revents_(kNoneEvent)
     , tie_()
     , isTied_(false)
     , readCallback_(nullptr)
@@ -59,15 +59,16 @@ void Channel::set_revents(uint32_t revents) {
 }
 
 void Channel::handle_events() {
-    if (isTied_) {
-        std::shared_ptr<void> guard = tie_.lock(); // 升级：栈上临时强引用
-        if (guard) {
-            handle_events_with_guard(); // 对象保活，安全执行事件分发
-        }
-    }
-    else {
+    if (!isTied_) {
         handle_events_with_guard(); // Acceptor 走此分支，无需保活
+        return;
     }
+
+    std::shared_ptr<void> guard = tie_.lock(); // 升级：栈上临时强引用
+    if (guard) {
+        handle_events_with_guard(); // 对象保活，安全执行事件分发
+    }
+    else; // 返回 null 是 tie_to_object 后对象被析构的正常结果，不需要报错
 }
 
 void Channel::tie_to_object(const std::shared_ptr<void>& obj) {
@@ -84,40 +85,40 @@ int Channel::get_fd() const {
 }
 
 void Channel::enable_reading() {
-    events_ |= kReadEvent_;
+    events_ |= kReadEvent;
     update_in_register();
 }
 
 void Channel::enable_writing() {
-    events_ |= kWriteEvent_;
+    events_ |= kWriteEvent;
     update_in_register();
 }
 
 void Channel::disable_reading() {
-    events_ &= ~kReadEvent_;
+    events_ &= ~kReadEvent;
     update_in_register();
 }
 
 void Channel::disable_writing() {
-    events_ &= ~kWriteEvent_;
+    events_ &= ~kWriteEvent;
     update_in_register();
 }
 
 void Channel::disable_all() {
-    events_ = kNoneEvent_;
+    events_ = kNoneEvent;
     update_in_register();
 }
 
 bool Channel::is_none_event() const {
-    return events_ == kNoneEvent_;
+    return events_ == kNoneEvent;
 }
 
 bool Channel::is_writing() const {
-    return (events_ & kWriteEvent_) != 0;
+    return (events_ & kWriteEvent) != 0;
 }
 
 bool Channel::is_reading() const {
-    return (events_ & kReadEvent_) != 0;
+    return (events_ & kReadEvent) != 0;
 }
 
 uint32_t Channel::get_events() const {
@@ -134,12 +135,12 @@ void Channel::remove_in_register() {
 
 void Channel::handle_events_with_guard() {
     // 事件分发顺序遵循“关闭/错误优先于正常读写”，避免已失效 fd 继续走业务回调。
+    // EPOLLHUP | EPOLLIN 同时到来时（常见于 read 返回 0 即 EOF 场景），走 read 逻辑更合理，避免误判为异常。EPOLLHUP 单独到来时才走 close 逻辑。
     if ((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN)) {
         handle_close_callback();
         return;
     }
     if (revents_ & EPOLLERR) {
-        spdlog::error("Channel::handle_events_with_guard(). EPOLLERR on fd: {}", fd_);
         handle_error_callback();
         return;
     }
