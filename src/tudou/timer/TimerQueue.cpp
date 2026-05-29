@@ -41,20 +41,19 @@ timespec to_timespec(std::chrono::steady_clock::time_point expiration) {
 
 TimerQueue::TimerQueue(EventLoop* loop)
     : loop_(loop)
-    , timerFd_(create_timerfd())
-    , timerChannel_(std::make_unique<Channel>(loop, timerFd_))
     , nextTimerId_(1)
     , timersByExpire_()
     , timersById_() {
+    // timerFd_ 的 in-class 初始化器 {-1} 先于构造函数体执行，此处赋值触发 Socket 移动赋值接管 fd。
+    timerFd_ = Socket(create_timerfd());
+    timerChannel_ = std::make_unique<Channel>(loop, timerFd_.fd());
     // timerfd 到期 → Channel 可读 → on_timerfd_read 接管后续管道
     timerChannel_->set_read_callback([this](Channel&) { on_timerfd_read(); });
     timerChannel_->enable_reading();
 }
 
 TimerQueue::~TimerQueue() {
-    // Channel 不再负责关闭 fd，析构时显式清理 timerfd
-    timerChannel_.reset();
-    ::close(timerFd_);
+    // 成员按声明逆序自动析构：timerChannel_（epoll 注销）→ timerFd_（close fd）。
 }
 
 TimerId TimerQueue::add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval) {
@@ -90,7 +89,7 @@ void TimerQueue::erase_timer(TimerId timerId) {
 
 void TimerQueue::on_timerfd_read() {
     // 管道四步：消费 → 收集 → 执行 → 同步
-    read_timerfd(timerFd_);
+    read_timerfd(timerFd_.fd());
 
     const Timestamp now = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Timer>> expiredTimers;
@@ -139,7 +138,7 @@ void TimerQueue::reset_timerfd(Timestamp expiration) {
     memset(&newValue, 0, sizeof(newValue));
     newValue.it_value = to_timespec(expiration);
 
-    if (::timerfd_settime(timerFd_, 0, &newValue, nullptr) < 0) {
+    if (::timerfd_settime(timerFd_.fd(), 0, &newValue, nullptr) < 0) {
         spdlog::error("TimerQueue::reset_timerfd() failed, errno={} ({})", errno, strerror(errno));
     }
 }
@@ -149,7 +148,7 @@ void TimerQueue::disarm_timerfd() {
     itimerspec newValue;
     memset(&newValue, 0, sizeof(newValue));
 
-    if (::timerfd_settime(timerFd_, 0, &newValue, nullptr) < 0) {
+    if (::timerfd_settime(timerFd_.fd(), 0, &newValue, nullptr) < 0) {
         spdlog::error("TimerQueue::disarm_timerfd() failed, errno={} ({})", errno, strerror(errno));
     }
 }

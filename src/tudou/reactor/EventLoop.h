@@ -8,7 +8,7 @@
 // └── EventLoop
 //     ├── EventLoop()                              # [公有] 构造：创建 Poller、eventfd + wakeup Channel 和 TimerQueue
 //     │   └── on_read()                            # [私有] 绑定为 wakeupChannel_ 读回调，负责消费唤醒事件
-//     ├── ~EventLoop()                             # [公有] 析构：校验线程归属，显式销毁 TimerQueue/wakeupChannel 并关闭 wakeupFd
+//     ├── ~EventLoop()                             # [公有] 析构：校验线程归属，成员按声明逆序自动回收（wakeupChannel → wakeupFd，确保 epoll 注销在 fd 关闭之前）
 //     ├── EventLoop(copy)                          # [公有] 删除拷贝构造，维持 one loop per thread 约束
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，禁止复制内部 Poller/TimerQueue 状态
 //     ├── loop()                                   # [公有] Reactor 主循环：poll 获取就绪 Channel 列表、分发事件、执行待处理任务
@@ -39,6 +39,7 @@
 #include <queue>
 #include <thread>
 
+#include "tudou/net/Socket.h"
 #include "tudou/timer/Timer.h"
 
 class EpollPoller;
@@ -85,7 +86,7 @@ private:
     std::atomic<bool> isLooping_; // 当前事件循环是否处于运行状态。
     std::atomic<bool> isQuit_; // 当前事件循环是否收到退出请求。
 
-    int wakeupFd_; // 跨线程唤醒使用的 eventfd。
+    Socket wakeupFd_{-1}; // 跨线程唤醒使用的 eventfd，声明在 wakeupChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
     std::unique_ptr<Channel> wakeupChannel_; // 负责监听 wakeupFd_ 可读事件的 Channel。
 
     FunctorQueue pendingFunctors_; // 待回到 EventLoop 线程执行的任务队列。

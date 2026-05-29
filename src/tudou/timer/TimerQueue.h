@@ -16,7 +16,7 @@
 //     │       └── sync_timerfd()                   # [私有] 以新的最早到期时间重置 timerfd
 //     ├── TimerQueue(copy)                         # [公有] 删除拷贝构造，避免复制 timerfd 与双索引状态
 //     ├── operator=(copy)                          # [公有] 删除拷贝赋值，保持队列归属唯一
-//     ├── ~TimerQueue()                            # [公有] 析构：显式销毁 timerChannel 并关闭 timerFd
+//     ├── ~TimerQueue()                            # [公有] 析构：成员按声明逆序自动回收（timerChannel → timerFd）
 //     ├── add_timer(callback, when, interval)      # [公有] 统一注册入口：生成 ID 后投递到 EventLoop 线程
 //     │   └── sync_timerfd()                       # [私有] 若最早到期时间变化则重武装 timerfd
 //     │       ├── reset_timerfd(expiration)        # [私有] 设置下次唤醒时刻
@@ -34,6 +34,7 @@
 #include <map>
 #include <memory>
 
+#include "tudou/net/Socket.h"
 #include "tudou/timer/Timer.h"
 
 class Channel;
@@ -71,7 +72,7 @@ private:
 
 private:
     EventLoop* loop_; // 所属 EventLoop，限定所有索引操作的线程边界。
-    int timerFd_; // timerfd 负责把最早到期时间映射成可读事件。
+    Socket timerFd_{-1}; // timerfd 负责把最早到期时间映射成可读事件，声明在 timerChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
     std::unique_ptr<Channel> timerChannel_; // 监听 timerfd 可读事件的 Channel。
 
     std::atomic<uint64_t> nextTimerId_; // 跨线程注册定时器时使用的单调递增 ID 生成器。

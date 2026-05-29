@@ -22,8 +22,6 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     poller_(nullptr),
     isLooping_(false),
     isQuit_(false),
-    wakeupFd_(-1),
-    wakeupChannel_(nullptr),
     pendingFunctors_(),
     pendingFunctorsMutex_(),
     isCallingPendingFunctors_(false),
@@ -38,12 +36,12 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     poller_ = std::make_unique<EpollPoller>(this);
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
-    wakeupFd_ = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-    if (wakeupFd_ < 0) {
+    wakeupFd_ = Socket(::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC));
+    if (wakeupFd_.fd() < 0) {
         spdlog::critical("EventLoop: Failed to create eventfd");
         assert(false);
     }
-    wakeupChannel_ = std::make_unique<Channel>(this, wakeupFd_);
+    wakeupChannel_ = std::make_unique<Channel>(this, wakeupFd_.fd());
     wakeupChannel_->set_read_callback([this](Channel&) { on_read(); });
     wakeupChannel_->enable_reading();
 
@@ -56,13 +54,7 @@ EventLoop::~EventLoop() {
         assert(false);
     }
     loopInthisThread = nullptr;
-
-    // 析构函数体先于成员析构执行，timerQueue_/poller_ 按声明逆序自动析构，wakeupFd_ 是原始类型，其"析构"什么也不做。
-    // 为了确保 epoll_ctl(DEL) 在 ::close 之前完成，因此必须手动 reset wakeupChannel_。
-    // wakeupChannel_.reset() 不是多余的——它强制把 Channel 析构提前到函数体内，保证在 ::close 之前完成 epoll 注销。
-    // 结论：当前的 wakeupChannel_.reset() 必须保留。如果将来把 wakeupFd_ 封装成 RAII 类型（如已有的 Socket 类），声明在 wakeupChannel_ 之后，就能完全依赖自动析构顺序，连 reset() 也不需要了。
-    wakeupChannel_.reset();
-    ::close(wakeupFd_);
+    // 成员按声明逆序自动析构：timerQueue_ → wakeupChannel_（epoll 注销）→ wakeupFd_（close fd）。
 }
 
 void EventLoop::loop() {
@@ -168,7 +160,7 @@ void EventLoop::cancel(TimerId timerId) {
 
 void EventLoop::wakeup() {
     const uint64_t one = 1;
-    const ssize_t n = ::write(wakeupFd_, &one, sizeof(one));
+    const ssize_t n = ::write(wakeupFd_.fd(), &one, sizeof(one));
     if (n != sizeof(one)) {
         spdlog::error("EventLoop::wakeup() writes {} bytes instead of 8", n);
     }
@@ -176,7 +168,7 @@ void EventLoop::wakeup() {
 
 void EventLoop::on_read() {
     uint64_t one = 1;
-    const ssize_t n = ::read(wakeupFd_, &one, sizeof(one));
+    const ssize_t n = ::read(wakeupFd_.fd(), &one, sizeof(one));
     if (n != sizeof(one)) {
         spdlog::error("EventLoop::on_read() reads {} bytes instead of 8", n);
     }
