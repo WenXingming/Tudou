@@ -230,6 +230,7 @@ void TcpConnection::close_connection(Channel& channel) {
     }
 
     isClosed_ = true;
+    connSocket_.shutdown_write(); // 先向对端发送 FIN，保证对端看到正常 EOF 而非 RST。
     channel.disable_all();
     handle_close_callback(); // TcpServer 删除连接析构 TcpConnection 对象，TcpConnection 自动管理 Socket、Channel 等资源的生命周期，保证资源正确释放。特别是 Channel 的析构会自动从 Poller 注销，避免悬挂事件。
 }
