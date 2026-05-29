@@ -224,7 +224,6 @@ void TcpConnection::on_write(Channel& channel) {
 
 void TcpConnection::handle_write_complete_callback() {
     if (!writeCompleteCallback_) {
-        spdlog::warn("TcpConnection::handle_write_complete_callback(). writeCompleteCallback is nullptr, fd: {}", get_fd());
         return;
     }
 
@@ -265,7 +264,6 @@ void TcpConnection::on_error(Channel& channel) {
 
 void TcpConnection::handle_error_callback() {
     if (!errorCallback_) {
-        spdlog::warn("TcpConnection::handle_error_callback(). errorCallback is nullptr, fd: {}", get_fd());
         return;
     }
 
@@ -274,7 +272,6 @@ void TcpConnection::handle_error_callback() {
 
 void TcpConnection::handle_high_water_mark_callback() {
     if (!highWaterMarkCallback_) {
-        spdlog::warn("TcpConnection::handle_high_water_mark_callback(). highWaterMarkCallback is nullptr, fd: {}", get_fd());
         return;
     }
 
