@@ -14,8 +14,7 @@ EpollPoller::EpollPoller(EventLoop* loop)
     : loop_(loop)
     , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 确保 exec 后 fd 被自动关闭，避免 fork 的子进程误继承父进程的 epollFd 导致资源泄漏或竞争
     , channels_()
-    , initEventListSize_(16)
-    , eventList_(initEventListSize_) {
+    , eventList_(initEventListSize) {
     if (epollFd_.fd() < 0) {
         spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
@@ -25,7 +24,7 @@ EpollPoller::EpollPoller(EventLoop* loop)
 EpollPoller::~EpollPoller() = default;
 
 const std::vector<Channel*>& EpollPoller::poll(int timeoutMs) {
-    const int numReady = get_ready_num(timeoutMs);
+    const int numReady = collect_ready_num(timeoutMs);
     collect_active_channels(numReady);
     resize_event_list(numReady);
     return activeChannels_;
@@ -34,46 +33,48 @@ const std::vector<Channel*>& EpollPoller::poll(int timeoutMs) {
 void EpollPoller::update_channel(Channel* channel) {
     assert(loop_->is_in_loop_thread());
 
+    // 查询当前 fd 是否已注册，决定 operation
     const int fd = channel->get_fd();
-    const uint32_t events = channel->get_events();
+    const auto findIt = channels_.find(fd);
+    assert(findIt->second == channel);
+    const int operation = (findIt == channels_.end()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
 
+    // 构造 ev
     struct epoll_event ev;
     std::memset(&ev, 0, sizeof(ev));
-    ev.events = events;
+    ev.events = channel->get_events();
     ev.data.ptr = channel; // 注意：epoll_event.data 是 union，data.fd 和 data.ptr 不能同时使用
 
-    const auto findIt = channels_.find(fd);
-    const int operation = (findIt == channels_.end()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
-    if (operation == EPOLL_CTL_ADD) {
-        channels_[fd] = channel;
-    }
-    else {
-        assert(findIt->second == channel);
-    }
-
+    // 调用 epoll_ctl 注册/修改 fd 和事件，失败记录日志并断言
     int epollCtlRet = epoll_ctl(epollFd_.fd(), operation, fd, &ev);
     if (epollCtlRet != 0) {
         spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
             operation == EPOLL_CTL_ADD ? "ADD" : "MOD",
             fd,
-            events,
+            channel->get_events(),
             errno,
             strerror(errno));
         assert(false);
+    }
+
+    // 同步 channels_
+    if (operation == EPOLL_CTL_ADD) {
+        channels_[fd] = channel;
     }
 }
 
 void EpollPoller::remove_channel(Channel* channel) {
     assert(loop_->is_in_loop_thread());
-
     // epollfd、channels 应该同步
+
     int fd = channel->get_fd();
-    channels_.erase(fd);
     int epollCtlRet = epoll_ctl(epollFd_.fd(), EPOLL_CTL_DEL, fd, nullptr);
     if (epollCtlRet != 0) {
         spdlog::error("epoll_ctl DEL failed, fd={}, errno={} ({})", fd, errno, strerror(errno));
         assert(false);
     }
+
+    channels_.erase(fd);
 }
 
 bool EpollPoller::has_channel(Channel* channel) const {
@@ -88,17 +89,17 @@ bool EpollPoller::has_channel(Channel* channel) const {
     return true;
 }
 
-int EpollPoller::get_ready_num(int timeoutMs) {
+int EpollPoller::collect_ready_num(int timeoutMs) {
     int numReady = ::epoll_wait(epollFd_.fd(), eventList_.data(),
         static_cast<int>(eventList_.size()), timeoutMs);
     if (numReady < 0) {
         // 非致命；其他错误记录后同样安全返回 0
         if (errno != EINTR) {
-            spdlog::error("EpollPoller::get_ready_num(): epoll_wait error, errno={} ({})", errno, strerror(errno));
+            spdlog::error("EpollPoller::collect_ready_num(): epoll_wait error, errno={} ({})", errno, strerror(errno));
         }
         numReady = 0;
     }
-    spdlog::debug("EpollPoller::get_ready_num(): numReady={}", numReady);
+    spdlog::debug("EpollPoller::collect_ready_num(): numReady={}", numReady);
     return numReady;
 }
 
@@ -125,7 +126,7 @@ void EpollPoller::resize_event_list(int numReady) {
     if (loadFactor >= expandThreshold) {
         eventList_.resize(static_cast<size_t>(eventList_.size() * expandRatio));
     }
-    else if (eventList_.size() > initEventListSize_ && loadFactor <= shrinkThreshold) {
+    else if (eventList_.size() > initEventListSize && loadFactor <= shrinkThreshold) {
         eventList_.resize(static_cast<size_t>(eventList_.size() * shrinkRatio));
     }
 }

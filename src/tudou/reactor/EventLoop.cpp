@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <thread>
 
-thread_local EventLoop* EventLoop::loopInthisThread = nullptr;
+thread_local EventLoop* EventLoop::loopInThisThread = nullptr;
 EventLoop::EventLoop(int pollTimeoutMs) :
     threadId_(std::this_thread::get_id()),
     pollTimeoutMs_(pollTimeoutMs),
@@ -28,11 +28,11 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     timerQueue_(nullptr) {
 
     // 先校验线程归属约束，再创建底层资源，避免在非法构造路径上先注册 fd。
-    if (loopInthisThread != nullptr) {
+    if (loopInThisThread != nullptr) {
         spdlog::critical("Cannot create more than one EventLoop per thread");
         assert(false);
     }
-    loopInthisThread = this;
+    loopInThisThread = this;
     poller_ = std::make_unique<EpollPoller>(this);
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
@@ -49,11 +49,11 @@ EventLoop::EventLoop(int pollTimeoutMs) :
 }
 
 EventLoop::~EventLoop() {
-    if (loopInthisThread != this) {
+    if (loopInThisThread != this) {
         spdlog::error("EventLoop destructed in wrong thread");
         assert(false);
     }
-    loopInthisThread = nullptr;
+    loopInThisThread = nullptr;
     // 成员按声明逆序自动析构：timerQueue_ → wakeupChannel_（epoll 注销）→ wakeupFd_（close fd）。
 }
 
@@ -185,7 +185,7 @@ void EventLoop::do_pending_functors() {
 
     while (!functors.empty()) {
         // 这里必须做值拷贝；front() 返回的引用在 pop() 后会立即悬空。
-        Functor functor = functors.front();
+        Functor functor = std::move(functors.front());
         functors.pop();
         functor();
     }

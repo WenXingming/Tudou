@@ -31,8 +31,10 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
+#include <queue>
 
 #include "tudou/net/Socket.h"
 #include "tudou/timer/Timer.h"
@@ -45,7 +47,6 @@ class TimerQueue {
 public:
     using Timestamp = std::chrono::steady_clock::time_point;
     using TimerKey = std::pair<Timestamp, TimerId>;
-    using TimerMap = std::map<TimerKey, std::shared_ptr<Timer>>;
 
     explicit TimerQueue(EventLoop* loop);
     ~TimerQueue();
@@ -54,7 +55,7 @@ public:
     TimerQueue& operator=(const TimerQueue&) = delete;
 
     // 线程安全：索引修改统一投递到 EventLoop 线程执行。
-    TimerId add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval);
+    TimerId add_timer(std::function<void()> callback, Timestamp when, std::chrono::milliseconds interval);
 
     // 线程安全：索引修改统一投递到 EventLoop 线程执行。
     void erase_timer(TimerId timerId);
@@ -72,11 +73,11 @@ private:
 
 private:
     EventLoop* loop_; // 所属 EventLoop，限定所有索引操作的线程边界。
-    Socket timerFd_{-1}; // timerfd 负责把最早到期时间映射成可读事件，声明在 timerChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
+    Socket timerFd_{ -1 }; // timerfd 负责把最早到期时间映射成可读事件，声明在 timerChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
     std::unique_ptr<Channel> timerChannel_; // 监听 timerfd 可读事件的 Channel。
 
     std::atomic<uint64_t> nextTimerId_; // 跨线程注册定时器时使用的单调递增 ID 生成器。
 
-    TimerMap timersByExpire_; // 按到期时间排序，驱动 collect_expired 和 sync_timerfd。
-    std::map<TimerId, std::shared_ptr<Timer>> timersById_; // 按 ID 索引，支持删除和回调后存活检查。
+    std::priority_queue<TimerKey, std::vector<TimerKey>, std::greater<>> expireHeap_; // 按到期时间升序排序的辅助结构
+    std::map<TimerId, std::shared_ptr<Timer>> timersById_; // times 的管理结构
 };

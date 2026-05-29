@@ -36,6 +36,7 @@ public:
     uint64_t value() const { return value_; }
 
     bool operator<(const TimerId& other) const { return value_ < other.value_; }
+    bool operator==(const TimerId& other) const { return value_ == other.value_; }
 
 private:
     uint64_t value_; // 0 表示无效。
@@ -53,8 +54,8 @@ public:
     TimerId id() const { return id_; }
     Timestamp expiration() const { return expiration_; }
     bool is_repeat() const { return interval_.count() > 0; }
-    void run() const; // 执行一次定时器回调。
-    void restart(Timestamp now); // 重复定时器推进下一次到期时间。
+    void run() const;
+    void restart(Timestamp now);
 
 private:
     TimerId id_;

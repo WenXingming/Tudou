@@ -44,9 +44,6 @@ void EventLoopThreadPool::create_main_loop() {
 void EventLoopThreadPool::create_io_threads() {
     for (int index = 0; index < numThreads_; ++index) {
         auto ioThread = std::make_unique<EventLoopThread>(initCallback_);
-        ioThread->start();
-
-        // 线程启动成功后再纳入池中，保证池内对象都能返回有效 loop。
         ioLoopThreads_.push_back(std::move(ioThread));
     }
 }

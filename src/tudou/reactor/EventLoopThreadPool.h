@@ -46,15 +46,16 @@ public:
     EventLoop* get_next_loop(); // 轮询选择一个 IO loop；空池时回退 main loop。
     std::vector<EventLoop*> get_all_loops() const;
     std::string get_name() const { return name_; }
-    int get_num_threads() const { return numThreads_ + 1; }
+    int get_num_threads() const { return numThreads_; }
 
 private:
     void create_main_loop(); // 在当前线程创建主 EventLoop。
     void create_io_threads(); // 批量创建并启动后台 IO 线程。
 
 private:
-    // mainLoop_ 类型是 EventLoop 而非 EventLoopThread——main loop 跑在调用 start() 的当前线程上，
-    // IO loop 跑在各自的新线程上，两者线程模型不同，用不同类型表达是正确的抽象边界。
+    // mainLoop_ 类型是 EventLoop 而非 EventLoopThread
+    // EventLoopThread 的职责是创建一个新线程并在其上运行 EventLoop。
+    // main loop 跑在调用 start() 的当前线程上，两者线程模型不同，用不同类型表达是正确的抽象边界。
     std::unique_ptr<EventLoop> mainLoop_;
     std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads_; // 后台 IO 线程集合。
     size_t ioLoopsIndex_; // 轮询选择 IO loop 时使用的当前索引。

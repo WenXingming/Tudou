@@ -15,18 +15,20 @@
 
 #include "spdlog/spdlog.h"
 
-const size_t Buffer::kCheapPrepend_ = 8;
-const size_t Buffer::kInitialSize_ = 1024;
+const size_t Buffer::kCheapPrepend = 8;
+const size_t Buffer::kInitialSize = 1024;
+const size_t Buffer::kStackBufSize = 65536; // 64KB，足够大多数单次 readv 调用，避免频繁扩容。
+
 
 // 构造缓冲区，预留 prepend 区域并初始化读写索引。
 Buffer::Buffer(size_t initialSize) :
-    buffer_(kCheapPrepend_ + initialSize),
-    readIndex_(kCheapPrepend_),
-    writeIndex_(kCheapPrepend_) {
+    buffer_(kCheapPrepend + initialSize),
+    readIndex_(kCheapPrepend),
+    writeIndex_(kCheapPrepend) {
 
     assert(readable_bytes() == 0);
     assert(writable_bytes() == initialSize);
-    assert(prependable_bytes() == kCheapPrepend_);
+    assert(prependable_bytes() == kCheapPrepend);
 }
 
 Buffer::~Buffer() = default;
@@ -49,6 +51,10 @@ std::string Buffer::read_from_buffer() {
 }
 
 void Buffer::write_to_buffer(const char* data, size_t len) {
+    if (data == nullptr || len == 0) {
+        return;
+    }
+
     // 先保证空间，再顺序追加数据，避免调用者关注底层搬移或扩容细节。
     if (writable_bytes() < len) {
         make_space(len);
@@ -64,7 +70,7 @@ void Buffer::write_to_buffer(const std::string& str) {
 
 ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
     // 使用 readv 让主缓冲与临时栈缓冲协作，减少“先扩容再读”的额外内存动作。
-    char extraBuf[65536];
+    char extraBuf[kStackBufSize];
     const size_t writableBytes = writable_bytes();
 
     struct iovec vec[2];
@@ -127,20 +133,22 @@ void Buffer::maintain_read_index(size_t len) {
 }
 
 void Buffer::maintain_all_index() {
-    readIndex_ = kCheapPrepend_;
-    writeIndex_ = kCheapPrepend_;
+    readIndex_ = kCheapPrepend;
+    writeIndex_ = kCheapPrepend;
 }
 
 void Buffer::make_space(size_t len) {
     // 优先复用前部空洞；只有复用后仍不够时才扩容，避免高频小对象重分配。
-    if (writable_bytes() + prependable_bytes() < len + kCheapPrepend_) {
+    const size_t available = writable_bytes() + prependable_bytes();
+    const size_t needed = len + kCheapPrepend;
+    if (available < needed) {
         buffer_.resize(writeIndex_ + len);
         return;
     }
 
     const size_t readableBytes = readable_bytes();
     // 这里源和目标区域可能重叠，必须使用 memmove 而不是 std::copy。
-    std::memmove(buffer_.data() + kCheapPrepend_, readable_start_ptr(), readableBytes);
-    readIndex_ = kCheapPrepend_;
+    std::memmove(buffer_.data() + kCheapPrepend, readable_start_ptr(), readableBytes);
+    readIndex_ = kCheapPrepend;
     writeIndex_ = readIndex_ + readableBytes;
 }

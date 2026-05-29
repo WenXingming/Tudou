@@ -18,11 +18,9 @@
 
 namespace {
 
-timespec to_timespec(std::chrono::steady_clock::time_point expiration) {
+timespec to_timespec(std::chrono::steady_clock::duration duration) {
     using namespace std::chrono;
 
-    auto now = steady_clock::now();
-    auto duration = expiration - now;
     // timerfd 不允许 0 延迟，至少设 1ms
     if (duration < milliseconds(1)) {
         duration = milliseconds(1);
@@ -42,7 +40,7 @@ timespec to_timespec(std::chrono::steady_clock::time_point expiration) {
 TimerQueue::TimerQueue(EventLoop* loop)
     : loop_(loop)
     , nextTimerId_(1)
-    , timersByExpire_()
+    , expireHeap_()
     , timersById_() {
     // timerFd_ 的 in-class 初始化器 {-1} 先于构造函数体执行，此处赋值触发 Socket 移动赋值接管 fd。
     timerFd_ = Socket(create_timerfd());
@@ -56,14 +54,14 @@ TimerQueue::~TimerQueue() {
     // 成员按声明逆序自动析构：timerChannel_（epoll 注销）→ timerFd_（close fd）。
 }
 
-TimerId TimerQueue::add_timer(const Timer::Callback& callback, Timestamp when, std::chrono::milliseconds interval) {
+TimerId TimerQueue::add_timer(std::function<void()> callback, Timestamp when, std::chrono::milliseconds interval) {
     TimerId id = TimerId(nextTimerId_.fetch_add(1, std::memory_order_relaxed));
-    auto timer = std::make_shared<Timer>(id, callback, when, interval);
+    auto timer = std::make_shared<Timer>(id, std::move(callback), when, interval);
 
     // 索引修改统一回到 EventLoop 线程执行，避免对双索引额外加锁。
     loop_->run_in_loop(
         [this, timer]() {
-            timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
+            expireHeap_.push({ timer->expiration(), timer->id() });
             timersById_[timer->id()] = timer;
             sync_timerfd();
         }
@@ -74,14 +72,7 @@ TimerId TimerQueue::add_timer(const Timer::Callback& callback, Timestamp when, s
 void TimerQueue::erase_timer(TimerId timerId) {
     loop_->run_in_loop(
         [this, timerId]() {
-            auto it = timersById_.find(timerId);
-            if (it == timersById_.end()) {
-                return;
-            }
-
-            const auto timer = it->second;
-            timersByExpire_.erase({ timer->expiration(), timer->id() });
-            timersById_.erase(it);
+            timersById_.erase(timerId); // 如果不存在这个 ID，erase 不做任何事，返回值的语义是删除的元素个数
             sync_timerfd();
         }
     );
@@ -93,61 +84,67 @@ void TimerQueue::on_timerfd_read() {
 
     const Timestamp now = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Timer>> expiredTimers;
-
-    // timersByExpire_ 按到期时间升序，从头遍历直到遇到未到期的。
-    auto it = timersByExpire_.begin();
-    while (it != timersByExpire_.end() && it->first.first <= now) {
-        expiredTimers.push_back(it->second);
-        it = timersByExpire_.erase(it);
+    while (!expireHeap_.empty()) {
+        auto top = expireHeap_.top();
+        // 懒删除的定时器
+        TimerId timerId = top.second;
+        if (timersById_.find(timerId) == timersById_.end()) {
+            expireHeap_.pop();
+            continue;
+        }
+        // 收集到期的定时器
+        if (top.first > now) {
+            break;
+        }
+        expiredTimers.push_back(timersById_[timerId]);
+        expireHeap_.pop();
     }
 
     for (const auto& timer : expiredTimers) {
         timer->run();
 
-        // 回调中可能连带取消其他定时器，因此执行后要重新确认它是否还在索引里。
+        // 回调中可能连带取消定时器（包括自己），因此执行后要重新确认它是否还在索引里。
         const auto stillExists = timersById_.find(timer->id());
         if (stillExists == timersById_.end()) {
             continue;
         }
-
+        // 如果是一次性定时器，回调后就从索引里删除；如果是重复定时器，重启并重新加入到期队列。
         if (!timer->is_repeat()) {
             timersById_.erase(timer->id());
             continue;
         }
-
-        timer->restart(now);
-        timersByExpire_[{ timer->expiration(), timer->id() }] = timer;
+        // 重复定时器以“当前执行完成的时刻”为基准推进下一次到期时间，避免回调执行时间过长导致的时间漂移。
+        const Timestamp t = std::chrono::steady_clock::now();
+        timer->restart(t);
+        expireHeap_.push({ timer->expiration(), timer->id() });
     }
 
     sync_timerfd();
 }
 
 void TimerQueue::sync_timerfd() {
-    if (timersByExpire_.empty()) {
-        // 无定时器：解除武装，避免 timerfd 空唤醒浪费 CPU
+    // 无定时器：解除武装，避免 timerfd 空唤醒浪费 CPU
+    if (expireHeap_.empty()) {
         disarm_timerfd();
         return;
     }
-
     // 以最早到期时间重新武装 timerfd
-    reset_timerfd(timersByExpire_.begin()->first.first);
+    reset_timerfd(expireHeap_.top().first);
 }
 
 void TimerQueue::reset_timerfd(Timestamp expiration) {
     itimerspec newValue;
     memset(&newValue, 0, sizeof(newValue));
-    newValue.it_value = to_timespec(expiration);
-
+    auto duration = expiration - std::chrono::steady_clock::now();
+    newValue.it_value = to_timespec(duration);
     if (::timerfd_settime(timerFd_.fd(), 0, &newValue, nullptr) < 0) {
         spdlog::error("TimerQueue::reset_timerfd() failed, errno={} ({})", errno, strerror(errno));
     }
 }
 
 void TimerQueue::disarm_timerfd() {
-    // it_value = {0, 0} 表示不再触发到期事件
     itimerspec newValue;
-    memset(&newValue, 0, sizeof(newValue));
-
+    memset(&newValue, 0, sizeof(newValue)); // it_value = {0, 0} 表示不再触发到期事件
     if (::timerfd_settime(timerFd_.fd(), 0, &newValue, nullptr) < 0) {
         spdlog::error("TimerQueue::disarm_timerfd() failed, errno={} ({})", errno, strerror(errno));
     }

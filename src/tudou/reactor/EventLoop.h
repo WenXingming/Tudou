@@ -77,7 +77,7 @@ private:
     void do_pending_functors(); // 执行当前批次待处理任务。
 
 private:
-    thread_local static EventLoop* loopInthisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查
+    thread_local static EventLoop* loopInThisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查
     const std::thread::id threadId_; // EventLoop 所属线程 ID，用于线程归属断言。
 
     const int pollTimeoutMs_;
