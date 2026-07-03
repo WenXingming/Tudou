@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Linux-0F6CBD?style=flat-square" alt="Linux" />
   <img src="https://img.shields.io/badge/core-C%2B%2B14-00599C?style=flat-square" alt="C++14" />
-  <img src="https://img.shields.io/badge/build-CMake%203.10%2B-064F8C?style=flat-square" alt="CMake" />
+  <img src="https://img.shields.io/badge/build-CMake%203.25%2B-064F8C?style=flat-square" alt="CMake" />
   <img src="https://img.shields.io/badge/protocol-HTTP%20%2F%20HTTPS-0A7F5A?style=flat-square" alt="HTTP and HTTPS" />
   <img src="https://img.shields.io/badge/parser-llhttp-EF6C00?style=flat-square" alt="llhttp" />
 </p>
@@ -21,9 +21,9 @@
   <a href="#文档导航">📚 文档导航</a>
 </p>
 
-> Tudou 的核心库会编译为静态库 `tudou`，源码位于 [src](./src)。
-> 当前仓库在核心库之上提供了 3 个可直接运行的完整示例应用：
-> [static-server](./examples/StaticFileHttpServer)、[filelink-server](./examples/FileLinkServer)、[StarMind](./examples/StarMind)。
+> Tudou 默认只编译静态库 target `Tudou::tudou`，源码位于 [src](./src)。
+> examples、benchmark 和 test 均为可选构建，不会进入默认构建：
+> [static-server](./examples/StaticFileHttpServer)、[StarMind](./examples/StarMind)。
 
 > [!IMPORTANT]
 > Tudou 当前以 Linux 为目标平台，依赖 epoll、eventfd、timerfd 等 Linux 特性。
@@ -136,7 +136,7 @@ flowchart TD
     }
 }}%%
 flowchart LR
-    App[业务应用\nStatic Server / FileLink / StarMind] --> HttpServer[HttpServer]
+    App[业务应用\nStatic Server / StarMind] --> HttpServer[HttpServer]
     HttpServer --> Router[Router\n精确路由 / 前缀路由]
     HttpServer --> HttpContext[HttpContext\nllhttp 解析状态]
     HttpServer --> Tls[TlsConnection\nHTTPS / TLS]
@@ -240,20 +240,17 @@ Transfer/sec:     61.58MB
 | 依赖 | 是否需要 | 用途 |
 | --- | --- | --- |
 | g++ / clang++ | 必需 | 建议使用支持 C++17 的编译器；核心库按 C++14 编写，单元测试目标当前使用 C++17 |
-| CMake 3.10+ | 必需 | 项目构建 |
+| CMake 3.25+ | 必需 | 项目构建与 FetchContent 依赖管理 |
 | OpenSSL (`libssl-dev`) | 必需 | 核心库链接依赖，提供 HTTPS / SHA-256 等能力 |
 | Google Test (`libgtest-dev`) | 可选 | 构建并运行单元测试 |
 | libcurl (`libcurl4-openssl-dev`) | StarMind 需要 | 调用 OpenAI-compatible LLM API |
-| MySQL Connector/C++ (`libmysqlcppconn-dev`) | FileLink 可选 | 持久化文件元数据 |
-| hiredis (`libhiredis-dev`) | FileLink 可选 | 热点元数据缓存 |
-| llhttp / spdlog | 仓库内置 | 无需额外安装 |
+| llhttp / spdlog | 自动解析 | 优先使用兼容的系统包，未找到时通过 FetchContent 下载固定版本 |
 
 Ubuntu 一键安装示例：
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
     build-essential \
-    cmake \
     libssl-dev \
     libgtest-dev \
     libcurl4-openssl-dev \
@@ -276,17 +273,36 @@ openssl req -x509 -newkey rsa:2048 \
 ### 构建
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j2
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target tudou -j2
 ```
 
-按目标单独构建：
+默认构建只生成 Tudou 静态库。按需启用示例、性能服务和测试：
 
 ```bash
-cmake --build build --target static-server -j2
-cmake --build build --target filelink-server -j2
-cmake --build build --target StarMind -j2
-cmake --build build --target TudouUnitTest -j2
+cmake -S . -B build-all \
+    -DTUDOU_BUILD_EXAMPLES=ON \
+    -DTUDOU_BUILD_BENCHMARKS=ON \
+    -DTUDOU_BUILD_TESTS=ON
+cmake --build build-all -j2
+```
+
+### 通过 FetchContent 使用 Tudou
+
+其他 CMake 项目可以直接拉取 Tudou，并只链接公开 target：
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    Tudou
+    GIT_REPOSITORY https://github.com/WenXingming/Tudou.git
+    GIT_TAG main # 正式项目建议固定为 release tag 或 commit
+)
+
+FetchContent_MakeAvailable(Tudou)
+
+target_link_libraries(your-server PRIVATE Tudou::tudou)
 ```
 
 ### 测试
@@ -294,13 +310,13 @@ cmake --build build --target TudouUnitTest -j2
 运行单元测试：
 
 ```bash
-cd build && ctest -R unitTest --output-on-failure
+ctest --test-dir build-all --output-on-failure
 ```
 
 运行单个测试：
 
 ```bash
-cd build && ./test/unitTest/TudouUnitTest --gtest_filter=RouterTest*
+./build-all/test/unitTest/TudouUnitTest --gtest_filter=RouterTest*
 ```
 
 仓库还包含若干集成测试可执行程序，例如 `TudouIntegrateTest`、`StaticFileTcpServer` 与 `https-test`；其中部分用于人工联调，不会默认注册到 CTest。
@@ -337,12 +353,11 @@ int main() {
 }
 ```
 
-如果你更关心完整可运行项目，而不是最小 API 示例，请直接看下面三个示例程序。
+如果你更关心完整可运行项目，而不是最小 API 示例，请直接看下面两个示例程序。
 
 | 目标 | 配置目录 | 适用场景 | 亮点 |
 | --- | --- | --- | --- |
 | `static-server` | [configs/static-file-http-server](./configs/static-file-http-server) | 静态资源托管 | GET / HEAD、前缀路由、简单文件缓存、测试证书 HTTPS |
-| `filelink-server` | [configs/file-link-server](./configs/file-link-server) | 文件上传、URL 分发与下载 | 内容寻址存储、软去重、可选 MySQL / Redis、可选 HTTPS |
 | `StarMind` | [configs/starmind](./configs/starmind) | AI 聊天 Web 服务 | 登录鉴权、会话管理、OpenAI-compatible LLM API、前端页面 |
 
 ### static-server 示例
@@ -360,8 +375,8 @@ int main() {
 推荐从仓库根目录运行：
 
 ```bash
-cmake --build build --target static-server -j2
-./build/examples/StaticFileHttpServer/static-server -r ./configs/static-file-http-server
+cmake --build build-all --target static-server -j2
+./build-all/examples/StaticFileHttpServer/static-server -r ./configs/static-file-http-server
 ```
 
 配置文件目录结构示例：
@@ -378,41 +393,6 @@ static-file-http-server/
 - `http://127.0.0.1:8080/index.html`
 - 如果测试证书可用，也可以尝试 `https://127.0.0.1:8080/index.html`
 
-### filelink-server 示例
-
-<p align="center">
-  <img src="./assets/filelink-server.png" alt="filelink-server" width="88%" />
-</p>
-
-<p align="center">
-  <img src="./assets/filelink-server-mysql.png" alt="filelink-server mysql" width="44%" />
-  <img src="./assets/filelink-server-redis.png" alt="filelink-server redis" width="44%" />
-</p>
-
-`filelink-server` 展示了 Tudou 在真实业务服务中的用法：
-
-- `POST /upload` 上传文件，并返回一个下载链接。
-- `GET /file/{id}` 按链接下载文件。
-- 文件内容写入 `blobs/{sha256}`，对相同内容做软去重；对外仍保留独立 `fileId`。
-- 可选接入 MySQL 保存元数据、Redis 做热点缓存；如果缺少对应依赖，会自动退化到内存 / 空缓存实现。
-- 可通过配置启用账号密码鉴权与 HTTPS。
-
-启动命令：
-
-```bash
-cmake --build build --target filelink-server -j2
-./build/examples/FileLinkServer/filelink-server -r ./configs/file-link-server
-```
-
-常用入口：
-
-- 首页：`GET /`
-- 登录：`POST /login`
-- 上传：`POST /upload`，请求头中需要 `X-File-Name`
-- 下载：`GET /file/{id}`
-
-如果你想快速准备依赖环境，可以使用仓库里的 [docker-compose.yml](./docker-compose.yml) 启动 MySQL 和 Redis。
-
 ### StarMind 示例
 
 <p align="center">
@@ -428,8 +408,8 @@ cmake --build build --target filelink-server -j2
 启动命令：
 
 ```bash
-cmake --build build --target StarMind -j2
-./build/examples/StarMind/StarMind -r ./configs/starmind
+cmake --build build-all --target StarMind -j2
+./build-all/examples/StarMind/StarMind -r ./configs/starmind
 ```
 
 常用入口：
@@ -445,6 +425,7 @@ cmake --build build --target StarMind -j2
 
 如果你希望继续深入，而不仅仅停留在使用层，建议按下面的顺序阅读：
 
+- [docs/Tudou 面试拷打清单.md](./docs/Tudou%20%E9%9D%A2%E8%AF%95%E6%8B%B7%E6%89%93%E6%B8%85%E5%8D%95.md)：按真实面试追问方式整理的核心问题、回答边界和易错点。
 - [docs/Architecture.md](./docs/Architecture.md)：完整架构图、类关系图与模块分层。
 - [docs/生命周期管理详解.md](./docs/生命周期管理详解.md)：对象所有权、共享生命周期与回调期间存活问题。
 - [docs/深入理解回调.md](./docs/深入理解回调.md)：框架中回调的设计方式与分层通信。
