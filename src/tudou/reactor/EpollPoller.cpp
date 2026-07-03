@@ -36,7 +36,9 @@ void EpollPoller::update_channel(Channel* channel) {
     // 查询当前 fd 是否已注册，决定 operation
     const int fd = channel->get_fd();
     const auto findIt = channels_.find(fd);
-    assert(findIt->second == channel);
+    if (findIt != channels_.end()) {
+        assert(findIt->second == channel);
+    }
     const int operation = (findIt == channels_.end()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
 
     // 构造 ev
