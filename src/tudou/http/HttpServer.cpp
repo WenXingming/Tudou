@@ -94,17 +94,49 @@ bool HttpServer::is_ssl_enabled() const {
 
 void HttpServer::on_message(const TcpConnectionPtr& conn) {
     const std::string receivedData = conn ? conn->receive() : std::string();
+    if (receivedData.empty()) {
+        return;
+    }
+
     std::shared_ptr<ConnectionState> state = find_connection_state(conn);
     if (!state) {
         return;
     }
 
+    // 1. 提取并归一化明文 payload（处理 TLS 解密与握手数据发回）
     std::string payload;
-    if (!read_request_payload(conn, receivedData, *state, payload)) {
-        return;
+    if (state->tlsConnection) {
+        std::string plaintext;
+        std::string outboundCiphertext;
+        const TlsConnection::ReadResult tlsResult =
+            state->tlsConnection->read_plaintext(receivedData, plaintext, outboundCiphertext);
+
+        // 如果解密/握手过程中产生了待发送的网络密文，立即发送出去
+        if (!outboundCiphertext.empty()) {
+            conn->send(outboundCiphertext);
+        }
+
+        if (tlsResult == TlsConnection::ReadResult::Error) {
+            spdlog::error("HttpServer: TLS read failed for fd={}", conn ? conn->get_fd() : -1);
+            return;
+        }
+
+        // 若 TLS 握手尚未完成或收到的是半包，静待下一波 TCP 可读事件
+        if (tlsResult != TlsConnection::ReadResult::Ready) {
+            return;
+        }
+
+        payload = std::move(plaintext);
+    } else {
+        // 安全校验：若服务器启用了 SSL，明文连接不应拥有缺失的 TlsConnection
+        if (is_ssl_enabled()) {
+            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
+            return;
+        }
+        payload = receivedData;
     }
 
-    // 通过 while 循环逐个解析并消费粘包/管道化发送的 HTTP 请求，解决多请求丢弃漏洞。
+    // 2. 通过 while 循环逐个解析并消费粘包/管道化发送的 HTTP 请求，解决多请求丢弃漏洞。
     size_t consumed = 0;
     while (consumed < payload.size()) {
         const char* currentData = payload.data() + consumed;
@@ -116,10 +148,12 @@ void HttpServer::on_message(const TcpConnectionPtr& conn) {
 
         switch (result) {
         case HttpContext::ParseResult::NeedMoreData:
-            log_incomplete_request(conn);
+            spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, fd={}", conn ? conn->get_fd() : -1);
             break;
         case HttpContext::ParseResult::Rejected:
-            reject_bad_request(conn, *state);
+            // 直接就地回复 400 Bad Request，并重置当前连接的 HTTP 上下文
+            send_http_response(conn, *state, HttpResponse::plain_text(400, kBadRequestMessage, kBadRequestMessage));
+            state->httpContext.reset();
             return;
         case HttpContext::ParseResult::Complete:
             reply_complete_request(conn, *state);
@@ -189,48 +223,6 @@ void HttpServer::on_close(const TcpConnectionPtr& conn) {
     spdlog::debug("HttpServer: Connection closed, fd={}", conn ? conn->get_fd() : -1);
 }
 
-bool HttpServer::read_request_payload(const TcpConnectionPtr& conn,
-    const std::string& receivedData,
-    ConnectionState& state,
-    std::string& payload) const {
-    payload.clear();
-
-    if (receivedData.empty()) {
-        return false;
-    }
-
-    if (state.tlsConnection) {
-        std::string plaintext;
-        std::string outboundCiphertext;
-        const TlsConnection::ReadResult tlsResult =
-            state.tlsConnection->read_plaintext(receivedData, plaintext, outboundCiphertext);
-
-        if (!outboundCiphertext.empty()) {
-            conn->send(outboundCiphertext);
-        }
-
-        if (tlsResult == TlsConnection::ReadResult::Error) {
-            spdlog::error("HttpServer: TLS read failed for fd={}", conn ? conn->get_fd() : -1);
-            return false;
-        }
-
-        if (tlsResult != TlsConnection::ReadResult::Ready) {
-            return false;
-        }
-
-        payload = std::move(plaintext);
-        return true;
-    }
-
-    if (is_ssl_enabled()) {
-        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
-        return false;
-    }
-
-    payload = receivedData;
-    return true;
-}
-
 std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(const TcpConnectionPtr& conn) {
     std::lock_guard<std::mutex> lock(contextsMutex_);
     const auto it = connectionStates_.find(conn.get());
@@ -240,16 +232,6 @@ std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(c
     }
 
     return it->second;
-}
-
-void HttpServer::log_incomplete_request(const TcpConnectionPtr& conn) const {
-    spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, fd={}", conn ? conn->get_fd() : -1);
-}
-
-void HttpServer::reject_bad_request(const TcpConnectionPtr& conn,
-    ConnectionState& state) {
-    send_http_response(conn, state, build_bad_request_response());
-    state.httpContext.reset();
 }
 
 void HttpServer::reply_complete_request(const TcpConnectionPtr& conn,
@@ -265,39 +247,20 @@ HttpResponse HttpServer::build_http_response(const HttpRequest& req) const {
     return response;
 }
 
-HttpResponse HttpServer::build_bad_request_response() const {
-    return HttpResponse::plain_text(400, kBadRequestMessage, kBadRequestMessage);
-}
-
-void HttpServer::finalize_http_response(HttpResponse& resp) const {
-    // Content-Length 是网络契约的一部分，统一在基础设施层补齐，避免业务回调重复关注协议细节。
-    if (!resp.has_header(kContentLengthHeader)) {
-        resp.set_header(kContentLengthHeader, std::to_string(resp.get_body().size()));
-    }
-}
-
-std::string HttpServer::serialize_response(const HttpResponse& resp) const {
-    return resp.package_to_string();
-}
-
 void HttpServer::send_http_response(const TcpConnectionPtr& conn,
     const ConnectionState& state,
     HttpResponse resp) {
-    // 响应在发送前统一补齐协议默认头，避免业务回调遗漏网络层必需字段。
-    finalize_http_response(resp);
-    send_response(conn, state, serialize_response(resp));
-
-    // 解决 Connection: close 连接泄漏漏洞（局限性：对于极其巨大的响应，若内核发送缓冲满导致未完全发送，调用 force_close() 可能会阶段性截断数据）
-    if (resp.get_close_connection()) {
-        conn->force_close();
+    
+    // 1. Content-Length 是网络契约的一部分，统一在基础设施层补齐，避免业务回调重复关注协议细节。
+    if (!resp.has_header(kContentLengthHeader)) {
+        resp.set_header(kContentLengthHeader, std::to_string(resp.get_body().size()));
     }
-}
 
-void HttpServer::send_response(const TcpConnectionPtr& conn,
-    const ConnectionState& state,
-    const std::string& response) {
+    // 2. 序列化 DTO 状态转换为完整协议报文
+    std::string response = resp.package_to_string();
+
+    // 3. 执行发送（明文或经由 TlsConnection 加密后发送）
     if (state.tlsConnection) {
-        // HTTPS 场景下发送前统一交给 TlsConnection 编码，保持业务侧始终操作明文 HttpResponse。
         std::string encrypted;
         if (!state.tlsConnection->write_plaintext(response, encrypted)) {
             spdlog::error("HttpServer: TLS write failed for fd={}", conn ? conn->get_fd() : -1);
@@ -307,15 +270,18 @@ void HttpServer::send_response(const TcpConnectionPtr& conn,
         if (!encrypted.empty()) {
             conn->send(encrypted);
         }
-        return;
+    } else {
+        if (is_ssl_enabled()) {
+            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
+            return;
+        }
+        conn->send(response);
     }
 
-    if (is_ssl_enabled()) {
-        spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
-        return;
+    // 4. 解决 Connection: close 连接泄漏漏洞（局限性：对于极其巨大的响应，若内核发送缓冲满导致未完全发送，调用 force_close() 可能会阶段性截断数据）
+    if (resp.get_close_connection()) {
+        conn->force_close();
     }
-
-    conn->send(response);
 }
 
 void HttpServer::remove_connection_state(const TcpConnectionPtr& conn) {

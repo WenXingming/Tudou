@@ -93,27 +93,14 @@ private:
     void on_message(const TcpConnectionPtr& conn);
     std::shared_ptr<ConnectionState> create_connection_state(const TcpConnectionPtr& conn) const;
     void on_close(const TcpConnectionPtr& conn);
-    bool read_request_payload(
-        const TcpConnectionPtr& conn,
-        const std::string& receivedData,
-        ConnectionState& state,
-        std::string& payload) const; // 读取并归一化本次 HTTP 明文。
 
     std::shared_ptr<ConnectionState> find_connection_state(const TcpConnectionPtr& conn);
-    void log_incomplete_request(const TcpConnectionPtr& conn) const;
-    void reject_bad_request(const TcpConnectionPtr& conn, ConnectionState& state);
     void reply_complete_request(const TcpConnectionPtr& conn, ConnectionState& state);
     HttpResponse build_http_response(const HttpRequest& req) const; // 调用内部路由器构建响应。
 
-    HttpResponse build_bad_request_response() const;
-    void finalize_http_response(HttpResponse& resp) const;
-    std::string serialize_response(const HttpResponse& resp) const;
     void send_http_response(const TcpConnectionPtr& conn,
         const ConnectionState& state,
         HttpResponse resp);
-    void send_response(const TcpConnectionPtr& conn,
-        const ConnectionState& state,
-        const std::string& response); // 发送明文或 TLS 密文。
 
     void remove_connection_state(const TcpConnectionPtr& conn);
 
