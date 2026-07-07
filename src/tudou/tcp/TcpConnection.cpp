@@ -12,18 +12,14 @@
 
 #include "spdlog/spdlog.h"
 
-#include "tudou/net/Buffer.h"
+#include "tudou/tcp/Buffer.h"
 #include "tudou/reactor/Channel.h"
 #include "tudou/reactor/EventLoop.h"
 
-std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop,
-    Socket connSocket,
-    const InetAddress& localAddr,
-    const InetAddress& peerAddr) {
-
-    // tie 和 enable_reading 必须在 shared_ptr 创建之后：shared_from_this() 依赖 shared_ptr 控制块已就绪。
+std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr) {
     std::shared_ptr<TcpConnection> conn(new TcpConnection(loop, std::move(connSocket), localAddr, peerAddr));
     conn->channel_->tie_to_object(conn);
+    conn->channel_->enable_reading(); // 避免还未创建好触发 epoll 和回调
     return conn;
 }
 
@@ -47,20 +43,19 @@ TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddre
     channel_->set_write_callback([this](Channel& ch) { on_write(ch); });
     channel_->set_close_callback([this](Channel& ch) { on_close(ch); });
     channel_->set_error_callback([this](Channel& ch) { on_error(ch); });
-    channel_->enable_reading();
 }
 
 TcpConnection::~TcpConnection() {
     spdlog::debug("TcpConnection::~TcpConnection() called. fd: {}", connSocket_.fd());
 }
 
-
+// 线程屏障。与用户业务代码交互，用户可能会在业务线程池中调用 send()
 void TcpConnection::send(const std::string& msg) {
     if (!loop_->is_in_loop_thread()) {
         std::shared_ptr<TcpConnection> self = shared_from_this();
         loop_->queue_in_loop([self, msg]() {
             self->send_in_loop(msg);
-        });
+            });
         return;
     }
 
@@ -72,7 +67,7 @@ void TcpConnection::send(std::string&& msg) {
         std::shared_ptr<TcpConnection> self = shared_from_this();
         loop_->queue_in_loop([self, msg = std::move(msg)]() {
             self->send_in_loop(msg);
-        });
+            });
         return;
     }
 

@@ -10,9 +10,9 @@
 #include <string>
 #include <thread>
 
-#include "base/InetAddress.h"
+#include "tudou/tcp/InetAddress.h"
 #include "tudou/reactor/EventLoop.h"
-#include "tudou/net/Socket.h"
+#include "tudou/tcp/Socket.h"
 #include "tudou/tcp/TcpConnection.h"
 
 namespace {

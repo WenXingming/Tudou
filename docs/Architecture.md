@@ -255,7 +255,7 @@ classDiagram
             -Timestamp expiration_
             -milliseconds interval_
             +run()
-            +restart(now)
+            +reschedule(now)
             +is_repeat() bool
         }
     end

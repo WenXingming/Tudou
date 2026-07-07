@@ -1,14 +1,14 @@
 add_library(tudou STATIC
-    base/InetAddress.cpp
+    tudou/tcp/InetAddress.cpp
     tudou/http/HttpContext.cpp
     tudou/http/HttpRequest.cpp
     tudou/http/HttpResponse.cpp
     tudou/http/HttpServer.cpp
     tudou/http/Router.cpp
-    tudou/http/SslContext.cpp
+    tudou/http/TlsConfig.cpp
     tudou/http/TlsConnection.cpp
-    tudou/net/Buffer.cpp
-    tudou/net/Socket.cpp
+    tudou/tcp/Buffer.cpp
+    tudou/tcp/Socket.cpp
     tudou/reactor/Channel.cpp
     tudou/reactor/EpollPoller.cpp
     tudou/reactor/EventLoop.cpp

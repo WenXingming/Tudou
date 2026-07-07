@@ -40,7 +40,6 @@
 
 // TlsConnection 只负责单连接 TLS 状态机，不参与任何 HTTP 业务编排。
 
-// 前向声明
 typedef struct ssl_st SSL;
 typedef struct bio_st BIO;
 
@@ -76,21 +75,13 @@ public:
     bool is_error() const { return state_ == State::ERROR; }
 
 private:
-    void initialize_tls_session();
-    bool create_memory_bio_pair();
-    void attach_memory_bio_pair();
-    int feed_ciphertext(const char* data, size_t len);
-    bool advance_handshake();
-    int drain_plaintext(std::string& plaintext);
-    int seal_plaintext(const char* data, size_t len);
     std::string drain_ciphertext();
     bool ensure_tls_session(const char* action) const; // 校验 SSL/BIO/状态机是否可继续执行。
     void mark_error(const char* message); // 记录不可恢复错误并切换 ERROR。
-    bool handle_tls_progress(const char* action, int result);
 
 private:
-    SSL* ssl_;      // SSL 对象，拥有所有权。
-    BIO* rbio_;     // 读 BIO，承接来自网络的 TLS 密文。
-    BIO* wbio_;     // 写 BIO，输出待发送的 TLS 密文。
-    State state_;   // 当前 TLS 生命周期状态。
+    SSL* ssl_;                          // SSL 对象，拥有所有权。
+    BIO* rbio_;                         // 读 BIO，承接来自网络的 TLS 密文。
+    BIO* wbio_;                         // 写 BIO，输出待发送的 TLS 密文。
+    State state_;                       // 当前 TLS 生命周期状态。
 };

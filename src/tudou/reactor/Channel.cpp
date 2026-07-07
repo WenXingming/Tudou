@@ -10,15 +10,15 @@
 #include <cassert>
 #include <spdlog/spdlog.h>
 
-const uint32_t Channel::kNoneEvent = 0;
-const uint32_t Channel::kReadEvent = EPOLLIN | EPOLLPRI;
-const uint32_t Channel::kWriteEvent = EPOLLOUT;
+const uint32_t Channel::kNoneEvent_ = 0;
+const uint32_t Channel::kReadEvent_ = EPOLLIN | EPOLLPRI;
+const uint32_t Channel::kWriteEvent_ = EPOLLOUT;
 
 Channel::Channel(EventLoop* loop, int fd)
     : loop_(loop)
     , fd_(fd)
-    , events_(kNoneEvent)
-    , revents_(kNoneEvent)
+    , events_(kNoneEvent_)
+    , revents_(kNoneEvent_)
     , tie_()
     , isTied_(false)
     , readCallback_(nullptr)
@@ -26,9 +26,10 @@ Channel::Channel(EventLoop* loop, int fd)
     , closeCallback_(nullptr)
     , errorCallback_(nullptr) {
 
-    // 构造时立即注册到 Poller，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
     assert(loop_->is_in_loop_thread());
-    update_in_register();
+    // 构造时立即注册到 Poller，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
+    // 或者采用惰性注册（Lazy Registration），避免多支付一次昂贵的 `epoll_ctl` 系统调用
+    // update_in_register();
 }
 
 Channel::~Channel() {
@@ -85,40 +86,40 @@ int Channel::get_fd() const {
 }
 
 void Channel::enable_reading() {
-    events_ |= kReadEvent;
+    events_ |= kReadEvent_;
     update_in_register();
 }
 
 void Channel::enable_writing() {
-    events_ |= kWriteEvent;
+    events_ |= kWriteEvent_;
     update_in_register();
 }
 
 void Channel::disable_reading() {
-    events_ &= ~kReadEvent;
+    events_ &= ~kReadEvent_;
     update_in_register();
 }
 
 void Channel::disable_writing() {
-    events_ &= ~kWriteEvent;
+    events_ &= ~kWriteEvent_;
     update_in_register();
 }
 
 void Channel::disable_all() {
-    events_ = kNoneEvent;
+    events_ = kNoneEvent_;
     update_in_register();
 }
 
 bool Channel::is_none_event() const {
-    return events_ == kNoneEvent;
+    return events_ == kNoneEvent_;
 }
 
 bool Channel::is_writing() const {
-    return (events_ & kWriteEvent) != 0;
+    return (events_ & kWriteEvent_) != 0;
 }
 
 bool Channel::is_reading() const {
-    return (events_ & kReadEvent) != 0;
+    return (events_ & kReadEvent_) != 0;
 }
 
 uint32_t Channel::get_events() const {
@@ -142,7 +143,6 @@ void Channel::handle_events_with_guard() {
     }
     if (revents_ & EPOLLERR) {
         handle_error_callback();
-        return;
     }
     if (revents_ & (EPOLLIN | EPOLLPRI)) {
         handle_read_callback();

@@ -1,0 +1,281 @@
+{
+  "root": "/home/wxm/Tudou",
+  "cpp_view": "headers",
+  "direction": "TB",
+  "nodes": [
+    "src/base/NonCopyable.h",
+    "src/base/ScopedFd.h",
+    "src/tudou/http/HttpContext.h",
+    "src/tudou/http/HttpRequest.h",
+    "src/tudou/http/HttpResponse.h",
+    "src/tudou/http/HttpServer.h",
+    "src/tudou/http/Router.h",
+    "src/tudou/http/SslContext.h",
+    "src/tudou/http/TlsConnection.h",
+    "src/tudou/reactor/Channel.h",
+    "src/tudou/reactor/EpollPoller.h",
+    "src/tudou/reactor/EventLoop.h",
+    "src/tudou/reactor/EventLoopThread.h",
+    "src/tudou/reactor/EventLoopThreadPool.h",
+    "src/tudou/tcp/Acceptor.h",
+    "src/tudou/tcp/Buffer.h",
+    "src/tudou/tcp/ConnectionHeartbeat.h",
+    "src/tudou/tcp/InetAddress.h",
+    "src/tudou/tcp/Socket.h",
+    "src/tudou/tcp/TcpConnection.h",
+    "src/tudou/tcp/TcpServer.h",
+    "src/tudou/timer/Timer.h",
+    "src/tudou/timer/TimerQueue.h"
+  ],
+  "edges": [
+    {
+      "source": "src/base/ScopedFd.h",
+      "target": "src/base/NonCopyable.h"
+    },
+    {
+      "source": "src/tudou/http/HttpContext.h",
+      "target": "src/tudou/http/HttpRequest.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/HttpContext.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/HttpRequest.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/HttpResponse.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/Router.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/SslContext.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/http/TlsConnection.h"
+    },
+    {
+      "source": "src/tudou/http/HttpServer.h",
+      "target": "src/tudou/tcp/TcpServer.h"
+    },
+    {
+      "source": "src/tudou/http/Router.h",
+      "target": "src/tudou/http/HttpRequest.h"
+    },
+    {
+      "source": "src/tudou/http/Router.h",
+      "target": "src/tudou/http/HttpResponse.h"
+    },
+    {
+      "source": "src/tudou/reactor/Channel.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/reactor/EpollPoller.h",
+      "target": "src/tudou/reactor/Channel.h"
+    },
+    {
+      "source": "src/tudou/reactor/EpollPoller.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/reactor/EpollPoller.h",
+      "target": "src/tudou/tcp/Socket.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoop.h",
+      "target": "src/base/ScopedFd.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoop.h",
+      "target": "src/tudou/reactor/Channel.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoop.h",
+      "target": "src/tudou/reactor/EpollPoller.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoop.h",
+      "target": "src/tudou/timer/Timer.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoop.h",
+      "target": "src/tudou/timer/TimerQueue.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoopThread.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoopThreadPool.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/reactor/EventLoopThreadPool.h",
+      "target": "src/tudou/reactor/EventLoopThread.h"
+    },
+    {
+      "source": "src/tudou/tcp/Acceptor.h",
+      "target": "src/tudou/reactor/Channel.h"
+    },
+    {
+      "source": "src/tudou/tcp/Acceptor.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/tcp/Acceptor.h",
+      "target": "src/tudou/tcp/InetAddress.h"
+    },
+    {
+      "source": "src/tudou/tcp/Acceptor.h",
+      "target": "src/tudou/tcp/Socket.h"
+    },
+    {
+      "source": "src/tudou/tcp/ConnectionHeartbeat.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/tcp/ConnectionHeartbeat.h",
+      "target": "src/tudou/tcp/TcpConnection.h"
+    },
+    {
+      "source": "src/tudou/tcp/ConnectionHeartbeat.h",
+      "target": "src/tudou/timer/Timer.h"
+    },
+    {
+      "source": "src/tudou/tcp/Socket.h",
+      "target": "src/base/ScopedFd.h"
+    },
+    {
+      "source": "src/tudou/tcp/Socket.h",
+      "target": "src/tudou/tcp/InetAddress.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpConnection.h",
+      "target": "src/tudou/reactor/Channel.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpConnection.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpConnection.h",
+      "target": "src/tudou/tcp/Buffer.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpConnection.h",
+      "target": "src/tudou/tcp/InetAddress.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpConnection.h",
+      "target": "src/tudou/tcp/Socket.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/reactor/EventLoopThread.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/reactor/EventLoopThreadPool.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/tcp/Acceptor.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/tcp/ConnectionHeartbeat.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/tcp/InetAddress.h"
+    },
+    {
+      "source": "src/tudou/tcp/TcpServer.h",
+      "target": "src/tudou/tcp/TcpConnection.h"
+    },
+    {
+      "source": "src/tudou/timer/TimerQueue.h",
+      "target": "src/base/ScopedFd.h"
+    },
+    {
+      "source": "src/tudou/timer/TimerQueue.h",
+      "target": "src/tudou/reactor/Channel.h"
+    },
+    {
+      "source": "src/tudou/timer/TimerQueue.h",
+      "target": "src/tudou/reactor/EventLoop.h"
+    },
+    {
+      "source": "src/tudou/timer/TimerQueue.h",
+      "target": "src/tudou/timer/Timer.h"
+    }
+  ],
+  "weak_edges": [
+    "src/tudou/tcp/TcpConnection.h->src/tudou/reactor/EventLoop.h",
+    "src/tudou/http/HttpServer.h->src/tudou/reactor/EventLoop.h",
+    "src/tudou/tcp/Acceptor.h->src/tudou/reactor/EventLoop.h",
+    "src/tudou/reactor/Channel.h->src/tudou/reactor/EventLoop.h",
+    "src/tudou/timer/TimerQueue.h->src/tudou/reactor/EventLoop.h",
+    "src/tudou/tcp/TcpServer.h->src/tudou/reactor/EventLoop.h"
+  ],
+  "fan_in": {
+    "src/base/NonCopyable.h": 1,
+    "src/base/ScopedFd.h": 3,
+    "src/tudou/http/HttpContext.h": 1,
+    "src/tudou/http/HttpRequest.h": 3,
+    "src/tudou/http/HttpResponse.h": 2,
+    "src/tudou/http/Router.h": 1,
+    "src/tudou/http/SslContext.h": 1,
+    "src/tudou/http/TlsConnection.h": 1,
+    "src/tudou/reactor/Channel.h": 5,
+    "src/tudou/reactor/EpollPoller.h": 1,
+    "src/tudou/reactor/EventLoop.h": 9,
+    "src/tudou/reactor/EventLoopThread.h": 2,
+    "src/tudou/reactor/EventLoopThreadPool.h": 1,
+    "src/tudou/tcp/Acceptor.h": 1,
+    "src/tudou/tcp/Buffer.h": 1,
+    "src/tudou/tcp/ConnectionHeartbeat.h": 1,
+    "src/tudou/tcp/InetAddress.h": 4,
+    "src/tudou/tcp/Socket.h": 3,
+    "src/tudou/tcp/TcpConnection.h": 2,
+    "src/tudou/tcp/TcpServer.h": 1,
+    "src/tudou/timer/Timer.h": 3,
+    "src/tudou/timer/TimerQueue.h": 1
+  },
+  "fan_out": {
+    "src/base/ScopedFd.h": 1,
+    "src/tudou/http/HttpContext.h": 1,
+    "src/tudou/http/HttpServer.h": 7,
+    "src/tudou/http/Router.h": 2,
+    "src/tudou/reactor/Channel.h": 1,
+    "src/tudou/reactor/EpollPoller.h": 3,
+    "src/tudou/reactor/EventLoop.h": 5,
+    "src/tudou/reactor/EventLoopThread.h": 1,
+    "src/tudou/reactor/EventLoopThreadPool.h": 2,
+    "src/tudou/tcp/Acceptor.h": 4,
+    "src/tudou/tcp/ConnectionHeartbeat.h": 3,
+    "src/tudou/tcp/Socket.h": 2,
+    "src/tudou/tcp/TcpConnection.h": 5,
+    "src/tudou/tcp/TcpServer.h": 7,
+    "src/tudou/timer/TimerQueue.h": 4
+  },
+  "cycles": [
+    [
+      "src/tudou/reactor/Channel.h",
+      "src/tudou/reactor/EpollPoller.h",
+      "src/tudou/reactor/EventLoop.h",
+      "src/tudou/timer/TimerQueue.h"
+    ]
+  ]
+}

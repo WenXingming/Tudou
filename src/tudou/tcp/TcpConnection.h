@@ -49,17 +49,16 @@
 #include <memory>
 #include <string>
 
-#include "base/InetAddress.h"
-#include "tudou/net/Buffer.h"
+#include "tudou/tcp/InetAddress.h"
+#include "tudou/tcp/Buffer.h"
 #include "tudou/reactor/Channel.h"
-#include "tudou/net/Socket.h"
+#include "tudou/tcp/Socket.h"
 
 class EventLoop;
 class TcpConnection;
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
 
-// TcpConnection 是面向连接的会话门面，通过 Socket 持有连接 fd 所有权。
 class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 public:
     using MessageCallback = std::function<void(const TcpConnectionPtr&)>;
@@ -68,14 +67,9 @@ public:
     using WriteCompleteCallback = std::function<void(const TcpConnectionPtr&)>;
     using HighWaterMarkCallback = std::function<void(const TcpConnectionPtr&)>;
 
-    // 工厂方法：TcpConnection 必须由 shared_ptr 管理（enable_shared_from_this），
-    // tie_to_object 依赖 shared_from_this()，必须在 shared_ptr 创建之后调用，
-    // 因此构造分两步：先 new + shared_ptr，再 tie + enable_reading。
-    // 工厂封装此顺序，避免调用方误用栈/裸指针构造。
-    static TcpConnectionPtr create_connection(EventLoop* loop,
-        Socket connSocket,
-        const InetAddress& localAddr,
-        const InetAddress& peerAddr);
+    // tie_to_object 依赖 shared_from_this()，必须在 shared_ptr 创建之后调用。
+    // 因此构造分两步：先 new + shared_ptr，再 tie + enable_reading。工厂封装此顺序避免错误
+    static TcpConnectionPtr create_connection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
 
     ~TcpConnection();
 
@@ -116,25 +110,26 @@ private:
     void on_error(Channel& channel);
     void handle_error_callback();
     void handle_high_water_mark_callback();
+
 private:
-    EventLoop* loop_; // 所属 EventLoop，所有回调均在此线程执行。
+    EventLoop* loop_;                                   // 所属 EventLoop，所有回调均在此线程执行。
 
-    Socket connSocket_;                          // 连接 socket 的 RAII 句柄，析构时自动关闭 fd（必须在 channel_ 之前声明）
-    std::unique_ptr<Channel> channel_; // 连接 fd 对应的 Channel，负责 epoll 事件回调。
+    Socket connSocket_;                                 // 连接 socket 的 RAII 句柄，析构时自动关闭 fd（必须在 channel_ 之前声明）
+    std::unique_ptr<Channel> channel_;                  // 连接 fd 对应的 Channel，负责 epoll 事件回调。
 
-    InetAddress localAddr_; // 本地地址快照。
-    InetAddress peerAddr_;  // 对端地址快照。
+    InetAddress localAddr_;                             // 本地地址快照。
+    InetAddress peerAddr_;                              // 对端地址快照。
 
-    std::unique_ptr<Buffer> readBuffer_;  // 应用层读缓冲。
-    std::unique_ptr<Buffer> writeBuffer_; // 应用层写缓冲。
+    std::unique_ptr<Buffer> readBuffer_;                // 应用层读缓冲。
+    std::unique_ptr<Buffer> writeBuffer_;               // 应用层写缓冲。
 
-    size_t highWaterMark_; // 发送缓冲高水位阈值（字节）。
+    size_t highWaterMark_;                              // 发送缓冲高水位阈值（字节）。
 
-    MessageCallback messageCallback_;               // 消息到达时触发（必选）。
-    CloseCallback closeCallback_;                   // 连接关闭时触发（必选）。
-    ErrorCallback errorCallback_;                   // 读写错误时触发（可选）。
-    WriteCompleteCallback writeCompleteCallback_;   // 写缓冲清空时触发（可选）。
-    HighWaterMarkCallback highWaterMarkCallback_;   // 写缓冲越过高水位时触发（可选）。
+    MessageCallback messageCallback_;                   // 消息到达时触发（必选）。
+    CloseCallback closeCallback_;                       // 连接关闭时触发（必选）。
+    ErrorCallback errorCallback_;                       // 读写错误时触发（可选）。
+    WriteCompleteCallback writeCompleteCallback_;       // 写缓冲清空时触发（可选）。
+    HighWaterMarkCallback highWaterMarkCallback_;       // 写缓冲越过高水位时触发（可选）。
 
-    bool isClosed_; // 是否已关闭，保证 close_connection 幂等。
+    bool isClosed_;                                     // 是否已关闭，保证 close_connection 幂等。
 };

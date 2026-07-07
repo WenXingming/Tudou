@@ -52,74 +52,63 @@ void HttpContext::reset() {
 
 int HttpContext::on_message_begin(llhttp_t* parser) {
     auto* ctx = get_context(parser);
-    ctx->on_message_begin_impl();
+    ctx->reset_message_state(); // 每条新消息都必须在干净状态下构建，避免上一个请求的片段泄漏到当前请求。
     return 0;
 }
 
 int HttpContext::on_url(llhttp_t* parser, const char* at, size_t length) {
     auto* ctx = get_context(parser);
-    ctx->on_url_impl(at, length);
+    // 请求行可能跨多次 parse 调用切分，先累计 target，再在 message complete 时一次性落盘。
+    ctx->currentUrl_.append(at, length);
+
+    const char* method = llhttp_method_name(static_cast<llhttp_method>(parser->method));
+    if (method != nullptr) {
+        ctx->request_.set_method(method);
+    }
     return 0;
 }
 
 int HttpContext::on_header_field(llhttp_t* parser, const char* at, size_t length) {
     auto* ctx = get_context(parser);
-    ctx->on_header_field_impl(at, length);
+    // llhttp 允许头字段被分片回调，因此进入新 field 前必须先提交上一组已闭合的键值。
+    ctx->flush_pending_header();
+    ctx->currentHeaderField_.append(at, length);
     return 0;
 }
 
 int HttpContext::on_header_value(llhttp_t* parser, const char* at, size_t length) {
     auto* ctx = get_context(parser);
-    ctx->on_header_value_impl(at, length);
+    // Header Value 可能被多次回调拼接，必须保持 append 语义直到明确闭合。
+    ctx->currentHeaderValue_.append(at, length);
+    ctx->lastWasValue_ = true;
     return 0;
 }
 
 int HttpContext::on_body(llhttp_t* parser, const char* at, size_t length) {
     auto* ctx = get_context(parser);
-    ctx->on_body_impl(at, length);
+    // Body 可以被分块送达，因此请求体需要按序追加而不是覆盖。
+    ctx->request_.append_body(at, length);
     return 0;
 }
 
 int HttpContext::on_message_complete(llhttp_t* parser) {
     auto* ctx = get_context(parser);
-    ctx->on_message_complete_impl();
-    return 0;
-}
-
-void HttpContext::on_message_begin_impl() {
-    // 每条新消息都必须在干净状态下构建，避免上一个请求的片段泄漏到当前请求。
-    reset_message_state();
-}
-
-void HttpContext::on_url_impl(const char* at, size_t length) {
-    // 请求行可能跨多次 parse 调用切分，先累计 target，再在 message complete 时一次性落盘。
-    append_request_target_fragment(at, length);
-    capture_request_method();
-}
-
-void HttpContext::on_header_field_impl(const char* at, size_t length) {
-    // llhttp 允许头字段被分片回调，因此进入新 field 前必须先提交上一组已闭合的键值。
-    flush_pending_header();
-    currentHeaderField_.append(at, length);
-}
-
-void HttpContext::on_header_value_impl(const char* at, size_t length) {
-    // Header Value 可能被多次回调拼接，必须保持 append 语义直到明确闭合。
-    currentHeaderValue_.append(at, length);
-    lastWasValue_ = true;
-}
-
-void HttpContext::on_body_impl(const char* at, size_t length) {
-    // Body 可以被分块送达，因此请求体需要按序追加而不是覆盖。
-    request_.append_body(at, length);
-}
-
-void HttpContext::on_message_complete_impl() {
     // 报文结束时统一提交尾 header 和请求行，确保请求对象只暴露完整状态。
-    flush_pending_header();
-    apply_request_target();
-    capture_http_version();
-    messageComplete_ = true;
+    ctx->flush_pending_header();
+
+    ctx->request_.set_url(ctx->currentUrl_);
+    const std::string::size_type querySeparator = ctx->currentUrl_.find('?');
+    if (querySeparator == std::string::npos) {
+        ctx->request_.set_path(ctx->currentUrl_);
+        ctx->request_.set_query("");
+    } else {
+        ctx->request_.set_path(ctx->currentUrl_.substr(0, querySeparator));
+        ctx->request_.set_query(ctx->currentUrl_.substr(querySeparator + 1));
+    }
+
+    ctx->request_.set_version("HTTP/" + std::to_string(parser->http_major) + "." + std::to_string(parser->http_minor));
+    ctx->messageComplete_ = true;
+    return 0;
 }
 
 void HttpContext::reset_message_state() {
@@ -129,38 +118,6 @@ void HttpContext::reset_message_state() {
     currentHeaderField_.clear();
     currentHeaderValue_.clear();
     lastWasValue_ = false;
-}
-
-void HttpContext::append_request_target_fragment(const char* at, size_t length) {
-    // URL 可能跨多次回调送达，因此这里必须保持 append，而不是简单覆盖。
-    currentUrl_.append(at, length);
-}
-
-void HttpContext::capture_request_method() {
-    const char* method = llhttp_method_name(static_cast<llhttp_method>(parser_.method));
-    if (method != nullptr) {
-        request_.set_method(method);
-    }
-}
-
-void HttpContext::apply_request_target() {
-    // 原始 request target 只在这里集中拆分，避免 path/query 逻辑散落在多个回调里。
-    request_.set_url(currentUrl_);
-
-    const std::string::size_type querySeparator = currentUrl_.find('?');
-    if (querySeparator == std::string::npos) {
-        request_.set_path(currentUrl_);
-        request_.set_query("");
-        return;
-    }
-
-    request_.set_path(currentUrl_.substr(0, querySeparator));
-    request_.set_query(currentUrl_.substr(querySeparator + 1));
-}
-
-void HttpContext::capture_http_version() {
-    // HTTP 版本来自解析器最终状态，避免把所有请求都错误归一成 HTTP/1.1。
-    request_.set_version("HTTP/" + std::to_string(parser_.http_major) + "." + std::to_string(parser_.http_minor));
 }
 
 void HttpContext::flush_pending_header() {

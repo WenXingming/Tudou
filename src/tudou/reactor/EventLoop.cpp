@@ -36,7 +36,7 @@ EventLoop::EventLoop(int pollTimeoutMs) :
     poller_ = std::make_unique<EpollPoller>(this);
 
     // wakeupChannel_ 依赖 poller_ 完成注册，因此两者初始化顺序必须固定。
-    wakeupFd_ = Socket(::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC));
+    wakeupFd_.reset(::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC));
     if (wakeupFd_.fd() < 0) {
         spdlog::critical("EventLoop: Failed to create eventfd");
         assert(false);

@@ -20,8 +20,30 @@ TlsConnection::TlsConnection(SSL* ssl)
     , wbio_(nullptr)
     , state_(State::HANDSHAKING) {
 
-    // 连接级 TLS 资源在构造时一次性装配完成，后续所有动作都围绕同一组 SSL/BIO 展开。
-    initialize_tls_session();
+    if (!ssl_) {
+        mark_error("TlsConnection: Cannot initialize with null SSL handle");
+        return;
+    }
+
+    rbio_ = BIO_new(BIO_s_mem());
+    wbio_ = BIO_new(BIO_s_mem());
+    if (!rbio_ || !wbio_) {
+        if (rbio_) {
+            BIO_free(rbio_);
+            rbio_ = nullptr;
+        }
+        if (wbio_) {
+            BIO_free(wbio_);
+            wbio_ = nullptr;
+        }
+        mark_error("TlsConnection: Failed to create Memory BIO pair");
+        return;
+    }
+
+    // SSL_set_bio 会接管 BIO 的释放职责；这里保留裸指针仅用于后续读写。
+    SSL_set_bio(ssl_, rbio_, wbio_);
+    // 当前对象始终扮演 TLS 服务端，客户端握手驱动由对端承担。
+    SSL_set_accept_state(ssl_);
 }
 
 TlsConnection::~TlsConnection() {
@@ -38,17 +60,38 @@ TlsConnection::ReadResult TlsConnection::read_plaintext(
     plaintext.clear();
     outboundCiphertext.clear();
 
-    if (feed_ciphertext(ciphertext.data(), ciphertext.size()) < 0) {
+    if (!ensure_tls_session("read_plaintext")) {
         return ReadResult::Error;
     }
 
-    if (is_handshaking() && !advance_handshake()) {
-        return ReadResult::Error;
+    // 1. 将接收到的网络密文写入输入缓冲（rbio_）
+    if (!ciphertext.empty()) {
+        const int written = BIO_write(rbio_, ciphertext.data(), static_cast<int>(ciphertext.size()));
+        if (written <= 0) {
+            mark_error("TlsConnection: BIO_write failed");
+            return ReadResult::Error;
+        }
+    }
+
+    // 2. 尝试推进 TLS 握手状态
+    if (state_ == State::HANDSHAKING) {
+        const int result = SSL_do_handshake(ssl_);
+        if (result == 1) {
+            state_ = State::ESTABLISHED;
+            spdlog::debug("TlsConnection: TLS handshake completed successfully");
+        } else {
+            const int err = SSL_get_error(ssl_, result);
+            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+                state_ = State::ERROR;
+                spdlog::error("TlsConnection: TLS handshake failed, SSL_get_error={}", err);
+                return ReadResult::Error;
+            }
+        }
     }
 
     // 先把握手阶段产生的待发密文交给调用方，再决定本轮是否已有可读明文。
     outboundCiphertext = drain_ciphertext();
-    if (is_handshaking()) {
+    if (state_ == State::HANDSHAKING) {
         return ReadResult::NeedMoreData;
     }
 
@@ -57,80 +100,12 @@ TlsConnection::ReadResult TlsConnection::read_plaintext(
         return ReadResult::Error;
     }
 
-    if (drain_plaintext(plaintext) < 0) {
-        return ReadResult::Error;
-    }
-
-    return plaintext.empty() ? ReadResult::NeedMoreData : ReadResult::Ready;
-}
-
-bool TlsConnection::write_plaintext(const std::string& plaintext, std::string& ciphertext) {
-    ciphertext.clear();
-    if (plaintext.empty()) {
-        return true;
-    }
-
-    if (seal_plaintext(plaintext.data(), plaintext.size()) < 0) {
-        return false;
-    }
-
-    ciphertext = drain_ciphertext();
-    return !ciphertext.empty();
-}
-
-int TlsConnection::feed_ciphertext(const char* data, size_t len) {
-    if (!ensure_tls_session("feed_data")) {
-        return -1;
-    }
-
-    if (!data || len == 0) {
-        return 0;
-    }
-
-    // 所有网络密文都统一先写入 rbio，后续握手和解密步骤只消费内存中的标准输入。
-    const int written = BIO_write(rbio_, data, static_cast<int>(len));
-    if (written <= 0) {
-        mark_error("TlsConnection: BIO_write failed");
-        return -1;
-    }
-
-    return written;
-}
-
-bool TlsConnection::advance_handshake() {
-    if (!ensure_tls_session("do_handshake")) {
-        return false;
-    }
-
-    const int result = SSL_do_handshake(ssl_);
-    if (result == 1) {
-        state_ = State::ESTABLISHED;
-        spdlog::debug("TlsConnection: TLS handshake completed successfully");
-        return true;
-    }
-
-    return handle_tls_progress("TlsConnection: TLS handshake failed", result);
-}
-
-int TlsConnection::drain_plaintext(std::string& plaintext) {
-    if (!ensure_tls_session("decrypt")) {
-        return -1;
-    }
-
-    if (state_ != State::ESTABLISHED) {
-        spdlog::warn("TlsConnection: Cannot decrypt, TLS not established");
-        return -1;
-    }
-
+    // 3. 从 SSL 会话中持续读取并解密应用层明文
     char buf[kTlsBufferSize];
-    int totalRead = 0;
-
-    // 单次 feed_data 可能携带多个 TLS record，因此这里要持续抽干 SSL_read 直到 WANT_READ。
     while (true) {
         const int n = SSL_read(ssl_, buf, sizeof(buf));
         if (n > 0) {
             plaintext.append(buf, n);
-            totalRead += n;
             continue;
         }
 
@@ -145,39 +120,41 @@ int TlsConnection::drain_plaintext(std::string& plaintext) {
 
         mark_error("TlsConnection: SSL_read failed");
         spdlog::error("TlsConnection: SSL_read error, SSL_get_error={}", err);
-        return -1;
+        return ReadResult::Error;
     }
 
-    return totalRead;
+    return plaintext.empty() ? ReadResult::NeedMoreData : ReadResult::Ready;
 }
 
-int TlsConnection::seal_plaintext(const char* data, size_t len) {
-    if (!ensure_tls_session("encrypt")) {
-        return -1;
+bool TlsConnection::write_plaintext(const std::string& plaintext, std::string& ciphertext) {
+    ciphertext.clear();
+    if (plaintext.empty()) {
+        return true;
+    }
+
+    if (!ensure_tls_session("write_plaintext")) {
+        return false;
     }
 
     if (state_ != State::ESTABLISHED) {
         spdlog::warn("TlsConnection: Cannot encrypt, TLS not established");
-        return -1;
-    }
-
-    if (!data || len == 0) {
-        return 0;
+        return false;
     }
 
     // 明文写入 SSL 后，加密结果统一滞留在 wbio，等待 HttpServer 拉取后发送。
-    const int written = SSL_write(ssl_, data, static_cast<int>(len));
+    const int written = SSL_write(ssl_, plaintext.data(), static_cast<int>(plaintext.size()));
     if (written <= 0) {
         const int err = SSL_get_error(ssl_, written);
-        if (err == SSL_ERROR_WANT_WRITE) {
-            return 0;
+        if (err != SSL_ERROR_WANT_WRITE) {
+            mark_error("TlsConnection: SSL_write failed");
+            spdlog::error("TlsConnection: SSL_write error, SSL_get_error={}", err);
+            return false;
         }
-        mark_error("TlsConnection: SSL_write failed");
-        spdlog::error("TlsConnection: SSL_write error, SSL_get_error={}", err);
-        return -1;
+        return true;
     }
 
-    return written;
+    ciphertext = drain_ciphertext();
+    return !ciphertext.empty();
 }
 
 std::string TlsConnection::drain_ciphertext() {
@@ -204,47 +181,6 @@ std::string TlsConnection::drain_ciphertext() {
     return output;
 }
 
-void TlsConnection::initialize_tls_session() {
-    if (!ssl_) {
-        mark_error("TlsConnection: Cannot initialize with null SSL handle");
-        return;
-    }
-
-    if (!create_memory_bio_pair()) {
-        mark_error("TlsConnection: Failed to create Memory BIO pair");
-        return;
-    }
-
-    attach_memory_bio_pair();
-
-    // 当前对象始终扮演 TLS 服务端，客户端握手驱动由对端承担。
-    SSL_set_accept_state(ssl_);
-}
-
-bool TlsConnection::create_memory_bio_pair() {
-    rbio_ = BIO_new(BIO_s_mem());
-    wbio_ = BIO_new(BIO_s_mem());
-    if (rbio_ && wbio_) {
-        return true;
-    }
-
-    if (rbio_) {
-        BIO_free(rbio_);
-        rbio_ = nullptr;
-    }
-    if (wbio_) {
-        BIO_free(wbio_);
-        wbio_ = nullptr;
-    }
-
-    return false;
-}
-
-void TlsConnection::attach_memory_bio_pair() {
-    // SSL_set_bio 会接管 BIO 的释放职责；这里保留裸指针仅用于后续读写。
-    SSL_set_bio(ssl_, rbio_, wbio_);
-}
-
 bool TlsConnection::ensure_tls_session(const char* action) const {
     if (!ssl_ || !rbio_ || !wbio_) {
         spdlog::error("TlsConnection: Cannot {}, TLS session not initialized", action);
@@ -262,15 +198,4 @@ bool TlsConnection::ensure_tls_session(const char* action) const {
 void TlsConnection::mark_error(const char* message) {
     state_ = State::ERROR;
     spdlog::error("{}", message);
-}
-
-bool TlsConnection::handle_tls_progress(const char* action, int result) {
-    const int err = SSL_get_error(ssl_, result);
-    if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-        return true;
-    }
-
-    state_ = State::ERROR;
-    spdlog::error("{}, SSL_get_error={}", action, err);
-    return false;
 }

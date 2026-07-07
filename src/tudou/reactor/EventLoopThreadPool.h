@@ -57,13 +57,13 @@ private:
     // EventLoopThread 的职责是创建一个新线程并在其上运行 EventLoop。
     // main loop 跑在调用 start() 的当前线程上，两者线程模型不同，用不同类型表达是正确的抽象边界。
     std::unique_ptr<EventLoop> mainLoop_;
-    std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads_; // 后台 IO 线程集合。
-    size_t ioLoopsIndex_; // 轮询选择 IO loop 时使用的当前索引。
+    std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads_;       // 后台 IO 线程集合。
+    size_t ioLoopsIndex_;                                               // 轮询选择 IO loop 时使用的当前索引。
 
-    std::string name_; // 线程池名称。
-    int numThreads_; // 后台 IO 线程数量。
+    std::string name_;                                                  // 线程池名称。
+    int numThreads_;                                                    // 后台 IO 线程数量。
 
-    bool started_; // 是否已经完成启动。
+    bool started_;                                                      // 是否已经完成启动。
 
-    ThreadInitCallback initCallback_; // IO loop 初始化回调。
+    ThreadInitCallback initCallback_;                                   // IO loop 初始化回调。
 };

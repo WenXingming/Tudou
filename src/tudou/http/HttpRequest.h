@@ -59,12 +59,12 @@ public:
     void clear();
 
 private:
-    std::string method_;   // 请求方法。
-    std::string url_;      // 原始请求目标。
-    std::string path_;     // 解析后的 path。
-    std::string query_;    // 解析后的 query。
-    std::string version_;  // HTTP 版本。
-    Headers headers_;      // 请求头集合。
-    std::string body_;     // 请求体。
+    std::string method_;                // 请求方法。
+    std::string url_;                   // 原始请求目标。
+    std::string path_;                  // 解析后的 path。
+    std::string query_;                 // 解析后的 query。
+    std::string version_;               // HTTP 版本。
+    Headers headers_;                   // 请求头集合。
+    std::string body_;                  // 请求体。
 };
 

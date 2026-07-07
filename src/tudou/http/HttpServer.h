@@ -57,11 +57,10 @@
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 #include "tudou/http/HttpContext.h"
-#include "tudou/http/SslContext.h"
+#include "tudou/http/TlsConfig.h"
 #include "tudou/http/TlsConnection.h"
 #include "tudou/http/Router.h"
 
-// HttpServer 是 HTTP/HTTPS 协议门面，负责把连接事件翻译成稳定的请求-响应流程。
 class HttpServer {
 public:
     using Handler = Router::Handler;
@@ -85,8 +84,8 @@ public:
 
 private:
     struct ConnectionState {
-        HttpContext httpContext;                     // 单连接 HTTP 解析状态。
-        std::unique_ptr<TlsConnection> tlsConnection; // HTTPS 连接独有的 TLS 状态。
+        HttpContext httpContext;                                                                // 单连接 HTTP 解析状态。
+        std::unique_ptr<TlsConnection> tlsConnection;                                           // HTTPS 连接独有的 TLS 状态。
     };
 
     void bind_tcp_callbacks();
@@ -119,14 +118,14 @@ private:
     void remove_connection_state(const TcpConnectionPtr& conn);
 
 private:
-    std::string ip_;                              // 服务监听 IP。
-    uint16_t port_;                               // 服务监听端口。
-    std::unique_ptr<TcpServer> tcpServer_;        // 底层 TCP 服务器门面。
+    std::string ip_;                                                                            // 服务监听 IP。
+    uint16_t port_;                                                                             // 服务监听端口。
+    std::unique_ptr<TcpServer> tcpServer_;                                                      // 底层 TCP 服务器门面。
 
-    std::unordered_map<TcpConnection*, std::shared_ptr<ConnectionState>> connectionStates_; // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
-    std::mutex contextsMutex_;                                  // 保护连接级状态映射。
+    std::unordered_map<TcpConnection*, std::shared_ptr<ConnectionState>> connectionStates_;     // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
+    std::mutex contextsMutex_;                                                                  // 保护连接级状态映射。
 
-    Router router_;                               // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
+    Router router_;                                                                             // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
 
-    std::unique_ptr<SslContext> sslContext_;      // 全局 SSL 上下文，持有证书与私钥。
+    std::unique_ptr<TlsConfig> tlsConfig_;                                                      // 全局 TLS 配置，持有证书与私钥。
 };

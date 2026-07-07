@@ -22,6 +22,6 @@ void Timer::run() const {
     callback_();
 }
 
-void Timer::restart(Timestamp now) {
+void Timer::reschedule(Timestamp now) {
     expiration_ = now + interval_;
 }

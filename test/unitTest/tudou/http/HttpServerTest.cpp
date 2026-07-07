@@ -11,9 +11,9 @@
 #include "tudou/http/HttpServer.h"
 #undef private
 
-#include "base/InetAddress.h"
+#include "tudou/tcp/InetAddress.h"
 #include "tudou/reactor/EventLoop.h"
-#include "tudou/net/Socket.h"
+#include "tudou/tcp/Socket.h"
 #include "tudou/tcp/TcpConnection.h"
 
 namespace {
@@ -150,13 +150,7 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
     EXPECT_NE(response.find("Content-Length: 11\r\n"), std::string::npos);
     EXPECT_NE(response.find("\r\n\r\nBad Request"), std::string::npos);
 
-    const auto stateIt = server.connectionStates_.find(conn.get());
-    ASSERT_NE(stateIt, server.connectionStates_.end());
-    ASSERT_NE(stateIt->second, nullptr);
-    EXPECT_TRUE(stateIt->second->httpContext.get_request().get_path().empty());
-    EXPECT_TRUE(stateIt->second->httpContext.get_request().get_body().empty());
-
-    conn->force_close();
+    // 因 Connection: close 触发主动关闭，连接状态已在 on_close 回调中被物理清理
     EXPECT_TRUE(server.connectionStates_.empty());
 
     ::close(fds[1]);

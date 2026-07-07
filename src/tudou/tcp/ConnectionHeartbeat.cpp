@@ -28,23 +28,11 @@ ConnectionHeartbeat::ConnectionHeartbeat(const std::shared_ptr<TcpConnection>& c
 }
 
 void ConnectionHeartbeat::start() {
-    if (!loop_->is_in_loop_thread()) {
-        std::shared_ptr<ConnectionHeartbeat> self = shared_from_this();
-        loop_->queue_in_loop([self]() {
-            self->start_in_loop();
-            });
-        return;
-    }
-
-    start_in_loop();
-}
-
-void ConnectionHeartbeat::start_in_loop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
 
     if (running_) {
-        stop_in_loop();
+        stop();
     }
 
     if (checkIntervalSeconds_ <= 0.0 || idleTimeoutSeconds_ <= 0.0) {
@@ -71,18 +59,6 @@ void ConnectionHeartbeat::start_in_loop() {
 }
 
 void ConnectionHeartbeat::stop() {
-    if (!loop_->is_in_loop_thread()) {
-        std::shared_ptr<ConnectionHeartbeat> self = shared_from_this();
-        loop_->queue_in_loop([self]() {
-            self->stop_in_loop();
-            });
-        return;
-    }
-
-    stop_in_loop();
-}
-
-void ConnectionHeartbeat::stop_in_loop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
 
@@ -96,18 +72,6 @@ void ConnectionHeartbeat::stop_in_loop() {
 }
 
 void ConnectionHeartbeat::refresh() {
-    if (!loop_->is_in_loop_thread()) {
-        std::shared_ptr<ConnectionHeartbeat> self = shared_from_this();
-        loop_->queue_in_loop([self]() {
-            self->refresh_in_loop();
-            });
-        return;
-    }
-
-    refresh_in_loop();
-}
-
-void ConnectionHeartbeat::refresh_in_loop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
     lastActiveTime_ = std::chrono::steady_clock::now();
@@ -123,7 +87,7 @@ void ConnectionHeartbeat::check_timeout() {
 
     auto conn = conn_.lock();
     if (!conn) {
-        stop_in_loop();
+        stop();
         return;
     }
 

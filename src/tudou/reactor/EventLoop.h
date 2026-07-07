@@ -39,7 +39,7 @@
 #include <queue>
 #include <thread>
 
-#include "tudou/net/Socket.h"
+#include "base/ScopedFd.h"
 #include "tudou/timer/Timer.h"
 
 class EpollPoller;
@@ -77,21 +77,21 @@ private:
     void do_pending_functors(); // 执行当前批次待处理任务。
 
 private:
-    thread_local static EventLoop* loopInThisThread; // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查
-    const std::thread::id threadId_; // EventLoop 所属线程 ID，用于线程归属断言。
+    thread_local static EventLoop* loopInThisThread;    // 线程局部 EventLoop 指针，强制执行 one loop per thread 约束。必须是静态的才能在所有同线程实例间共享这个检查
+    const std::thread::id threadId_;                    // EventLoop 所属线程 ID，用于线程归属断言。
 
     const int pollTimeoutMs_;
-    std::unique_ptr<EpollPoller> poller_; // 当前线程的 Poller 实现。
+    std::unique_ptr<EpollPoller> poller_;               // 当前线程的 Poller 实现。
 
-    std::atomic<bool> isLooping_; // 当前事件循环是否处于运行状态。
-    std::atomic<bool> isQuit_; // 当前事件循环是否收到退出请求。
+    std::atomic<bool> isLooping_;                       // 当前事件循环是否处于运行状态。
+    std::atomic<bool> isQuit_;                          // 当前事件循环是否收到退出请求。
 
-    Socket wakeupFd_{-1}; // 跨线程唤醒使用的 eventfd，声明在 wakeupChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
-    std::unique_ptr<Channel> wakeupChannel_; // 负责监听 wakeupFd_ 可读事件的 Channel。
+    ScopedFd wakeupFd_;                                 // 跨线程唤醒使用的 eventfd，声明在 wakeupChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
+    std::unique_ptr<Channel> wakeupChannel_;            // 负责监听 wakeupFd_ 可读事件的 Channel。
 
-    FunctorQueue pendingFunctors_; // 待回到 EventLoop 线程执行的任务队列。
-    std::mutex pendingFunctorsMutex_; // 保护 pendingFunctors_ 的互斥锁。
-    std::atomic<bool> isCallingPendingFunctors_; // 当前是否正在执行一批待处理任务。
+    FunctorQueue pendingFunctors_;                      // 待回到 EventLoop 线程执行的任务队列。
+    std::mutex pendingFunctorsMutex_;                   // 保护 pendingFunctors_ 的互斥锁。
+    std::atomic<bool> isCallingPendingFunctors_;        // 当前是否正在执行一批待处理任务。
 
-    std::unique_ptr<class TimerQueue> timerQueue_; // 负责所有定时任务的 timerfd 封装层。
+    std::unique_ptr<class TimerQueue> timerQueue_;      // 负责所有定时任务的 timerfd 封装层。
 };

@@ -97,9 +97,9 @@ private:
     void write_not_found_response(const HttpRequest& req, HttpResponse& resp) const;
 
 private:
-    std::unordered_map<RouteKey, Handler, RouteKeyHash> exactRoutes_; // 精确路由表，使用 method + path 锁定唯一处理器。
-    std::unordered_map<std::string, AllowedMethods> allowedMethodsByPath_; // 路径到允许方法集合的索引，用于严格区分 404 与 405。
-    std::vector<PrefixRoute> prefixRoutes_; // 前缀兜底路由表，保持注册顺序来表达匹配优先级。
-    Handler notFoundHandler_; // 可选的 404 覆盖处理器，用于接管未命中响应内容。
-    Handler methodNotAllowedHandler_; // 可选的 405 覆盖处理器，用于接管方法不允许响应内容。
+    std::unordered_map<RouteKey, Handler, RouteKeyHash> exactRoutes_;           // 精确路由表，使用 method + path 锁定唯一处理器。
+    std::unordered_map<std::string, AllowedMethods> allowedMethodsByPath_;      // 路径到允许方法集合的索引，用于严格区分 404 与 405。
+    std::vector<PrefixRoute> prefixRoutes_;                                     // 前缀兜底路由表，保持注册顺序来表达匹配优先级。
+    Handler notFoundHandler_;                                                   // 可选的 404 覆盖处理器，用于接管未命中响应内容。
+    Handler methodNotAllowedHandler_;                                           // 可选的 405 覆盖处理器，用于接管方法不允许响应内容。
 };

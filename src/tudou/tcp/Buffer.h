@@ -52,7 +52,6 @@
 #include <vector>
 #include <string>
 
-// Buffer 只负责字节搬运与空间管理，不参与任何业务编排。
 class Buffer {
 public:
     explicit Buffer(size_t initialSize = kInitialSize);
@@ -62,13 +61,13 @@ public:
     Buffer& operator=(Buffer&&) = default;
     ~Buffer();
 
-    std::string read_from_buffer(size_t len); // 读取指定字节并推进读指针。
+    std::string read_from_buffer(size_t len);           // 读取指定字节并推进读指针。
     std::string read_from_buffer();
     void write_to_buffer(const char* data, size_t len); // 顺序追加原始字节。
     void write_to_buffer(const std::string& str);
 
-    ssize_t read_from_fd(int fd, int* savedErrno); // 通过 readv 把 fd 数据追加到缓冲区。
-    ssize_t write_to_fd(int fd, int* savedErrno); // 把当前可读数据刷入 fd。
+    ssize_t read_from_fd(int fd, int* savedErrno);      // 通过 readv 把 fd 数据追加到缓冲区。
+    ssize_t write_to_fd(int fd, int* savedErrno);       // 把当前可读数据刷入 fd。
 
     size_t readable_bytes() const;
     size_t writable_bytes() const;
@@ -85,7 +84,7 @@ private:
     static const size_t kInitialSize;
     static const size_t kStackBufSize;
 
-    std::vector<char> buffer_; // 底层连续字节数组，统一承载 prepend/readable/writable 三个区域。
-    size_t readIndex_; // 当前可读区域起点。
-    size_t writeIndex_; // 当前可读区域终点，也是可写区域起点。
+    std::vector<char> buffer_;          // 底层连续字节数组，统一承载 prepend/readable/writable 三个区域。
+    size_t readIndex_;                  // 当前可读区域起点。
+    size_t writeIndex_;                 // 当前可读区域终点，也是可写区域起点。
 };

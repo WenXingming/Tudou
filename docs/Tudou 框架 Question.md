@@ -95,7 +95,7 @@ Reactor 模式的核心优势是"事件驱动 + 非阻塞 I/O"，一个线程就
 
 Channel 析构时做两件事：
 
-1. `disable_all()`：把 `events_` 设为 `kNoneEvent`，然后调用 `epoll_ctl(MOD)` 同步到内核，确保 epoll 不再关注这个 fd 的任何事件。
+1. `disable_all()`：把 `events_` 设为 `kNoneEvent_`，然后调用 `epoll_ctl(MOD)` 同步到内核，确保 epoll 不再关注这个 fd 的任何事件。
 2. `remove_in_register()`：调用 `epoll_ctl(DEL)` 把 fd 从 epoll 中彻底移除。
 
 为什么要这么做？因为 Channel 的析构和 fd 的关闭是**分离**的。fd 的生命周期由 Socket（RAII）管理，Channel 析构时 fd 可能还活着（比如 TcpConnection 的 Socket 还没析构）。如果不注销 epoll，那 epoll 内部还持有这个 fd 的引用，下一次 `epoll_wait` 可能返回一个指向已销毁 Channel 的悬空指针，导致 use-after-free。

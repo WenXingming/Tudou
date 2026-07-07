@@ -7,7 +7,7 @@
 #include "tudou/http/HttpContext.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
-#include "tudou/http/SslContext.h"
+#include "tudou/http/TlsConfig.h"
 #include "tudou/http/TlsConnection.h"
 
 #include "spdlog/spdlog.h"
@@ -27,13 +27,13 @@ HttpServer::HttpServer(std::string ip, uint16_t port, int threadNum) :
     connectionStates_(),
     contextsMutex_(),
     router_(),
-    sslContext_(nullptr) {
+    tlsConfig_(nullptr) {
 
     bind_tcp_callbacks();
 }
 
 void HttpServer::start() {
-    if (sslContext_ && sslContext_->is_initialized()) {
+    if (tlsConfig_ && tlsConfig_->is_initialized()) {
         spdlog::info("HttpServer: Starting HTTPS server at {}:{}", ip_, port_);
     }
     else {
@@ -77,10 +77,10 @@ void HttpServer::set_method_not_allowed_handler(Handler handler) {
 }
 
 bool HttpServer::enable_ssl(const std::string& certFile, const std::string& keyFile) {
-    sslContext_ = std::make_unique<SslContext>();
-    if (!sslContext_->init(certFile, keyFile)) {
-        spdlog::critical("HttpServer: Failed to initialize SSL context");
-        sslContext_.reset();
+    tlsConfig_ = std::make_unique<TlsConfig>();
+    if (!tlsConfig_->init(certFile, keyFile)) {
+        spdlog::critical("HttpServer: Failed to initialize TLS configuration");
+        tlsConfig_.reset();
         return false;
     }
 
@@ -89,7 +89,7 @@ bool HttpServer::enable_ssl(const std::string& certFile, const std::string& keyF
 }
 
 bool HttpServer::is_ssl_enabled() const {
-    return sslContext_ && sslContext_->is_initialized();
+    return tlsConfig_ && tlsConfig_->is_initialized();
 }
 
 void HttpServer::on_message(const TcpConnectionPtr& conn) {
@@ -148,11 +148,11 @@ void HttpServer::on_connect(const TcpConnectionPtr& conn) {
 std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state(const TcpConnectionPtr& conn) const {
     auto state = std::make_shared<ConnectionState>();
 
-    if (!sslContext_) {
+    if (!tlsConfig_) {
         return state;
     }
 
-    SSL* ssl = sslContext_->create_ssl();
+    SSL* ssl = tlsConfig_->create_ssl();
     if (!ssl) {
         spdlog::error("HttpServer: Failed to create SSL for fd={}", conn ? conn->get_fd() : -1);
         return state;
@@ -265,6 +265,11 @@ void HttpServer::send_http_response(const TcpConnectionPtr& conn,
     // 响应在发送前统一补齐协议默认头，避免业务回调遗漏网络层必需字段。
     finalize_http_response(resp);
     send_response(conn, state, serialize_response(resp));
+
+    // 解决 Connection: close 连接泄漏漏洞（局限性：对于极其巨大的响应，若内核发送缓冲满导致未完全发送，调用 force_close() 可能会阶段性截断数据）
+    if (resp.get_close_connection()) {
+        conn->force_close();
+    }
 }
 
 void HttpServer::send_response(const TcpConnectionPtr& conn,

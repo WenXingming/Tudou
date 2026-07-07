@@ -7,10 +7,10 @@
 
 #include <string>
 
-#include "base/InetAddress.h"
+#include "tudou/tcp/InetAddress.h"
 #include "tudou/tcp/Acceptor.h"
 #include "tudou/reactor/EventLoop.h"
-#include "tudou/net/Socket.h"
+#include "tudou/tcp/Socket.h"
 
 namespace {
 

@@ -1,352 +1,270 @@
-# TimerQueue 设计与实现（STAR 法则）
+# TimerQueue 设计与实现（基于 Linux timerfd 和 std::set）
 
-## Situation — 项目背景
+`TimerQueue` 将“到期时间管理”抽象为底层的 `timerfd` 读就绪事件，并借由 `EventLoop` 的多路复用机制，实现了定时任务与网络 I/O 任务的单线程扁平化调度。
 
-Tudou 是一个基于 Reactor 模式的多线程 C++ 网络框架。在实现 TCP 连接的心跳机制时，需要定时器基础设施支持——连接的保活探测、空闲超时断开等功能都依赖定时器。框架需要在**不引入额外线程**的前提下，提供高效、线程安全的定时器管理能力，且必须与现有的 epoll 事件循环无缝集成。
+本设计基于 **Thread-Per-Core** 的无锁化多线程并发模型，并将底层的定时器容器由优先队列（懒删除）重构为了 `std::set`（物理即时删除），配合 `std::shared_ptr` 解决复杂的定时器生命周期管理问题。
 
-## Task — 任务目标
+---
+
+# 一、 TimerQueue 设计与实现（STAR 法则）
+
+## 1. Situation — 项目背景
+
+Tudou 是一个基于 Reactor 模式的多线程 C++ 网络框架。在实现 TCP 连接的心跳机制时，需要定时器基础设施支持——连接的保活探测、空闲超时断开等功能都依赖定时器。框架需要在**不引入额外定时线程**的前提下，提供高效、并发安全且无锁的定时器管理能力，且必须与现有的 epoll 事件循环无缝集成。
+
+## 2. Task — 任务目标
 
 设计并实现一个定时器队列组件，满足以下约束：
+1. **零额外线程**：定时器到期检测复用 EventLoop 的 epoll 轮询，不占用独立线程。
+2. **多线程并发安全**：允许任意外部线程并发添加/取消定时器，但实际操作和回调执行必须在 EventLoop 线程内单线程串行化完成。
+3. **消除无效空唤醒**：在定时器被取消时，必须即时解除内核武装，杜绝残留失效定时器导致的网络库空唤醒与 CPU 损耗。
+4. **生命周期防御**：防止在批量定时器到期时，因回调函数内部发生“自我取消”或“相互取消”而导致的野指针（Use-After-Free）崩溃。
 
-1. **零额外线程**：定时器到期检测不能使用独立的定时器线程，必须复用 EventLoop 的 epoll 轮询
-2. **线程安全**：允许任意线程添加/取消定时器，但实际执行必须在 EventLoop 线程
-3. **高效操作**：添加、取消、查找最早到期定时器的复杂度需可控
-4. **支持重复定时器**：如心跳探测需要按固定间隔重复触发
+---
 
-## Action — 技术方案与实现
+## 3. Action — 技术方案与实现
 
-### 1. 底层机制选型：Linux timerfd
+### 3.1 底层事件源选型：Linux timerfd
+使用 `timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC)` 创建定时器文件描述符。它将“时间流逝”映射为“文件描述符可读”，这使得定时器事件可以像普通的 socket 读写事件一样被注册到 `epoll` 中进行统一监听。
 
-使用 `timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC)` 创建定时器文件描述符。timerfd 在到期时变为可读，可被 epoll 多路复用——和 socket I/O 统一为一个事件处理循环。
+* **优势**：
+  * **单线程复用**：避免了 `std::thread` + `sleep` 带来的线程上下文切换和同步开销。
+  * **精度高且稳定**：使用 `CLOCK_MONOTONIC` 单调时钟，不受系统校时（如 NTP、管理员修改时间）的影响。
 
-```
-timerfd_settime(fd, 0, &newValue, nullptr)
-        │
-        ▼
-  epoll_wait 返回 timerfd 可读事件
-        │
-        ▼
-  Channel 回调 → on_timerfd_read()
-```
+---
 
-对比方案：若使用独立的 `std::thread` + `sleep` 循环，需要线程同步且浪费一个线程；若使用 `setitimer` + 信号，信号处理受限且与多线程模型冲突。timerfd 是最契合 Reactor 模型的选择。
-
-### 2. 双索引数据结构（优先队列 + 懒删除）
+### 3.2 双索引数据结构（std::set + std::map）
+原方案使用 `std::priority_queue` 配合懒删除，无法物理上即时取消堆中的定时器，导致 `timerfd` 空唤醒和无法在无定时器时解除武装。重构方案采用 **`std::set` + `std::map`** 的双索引设计：
 
 ```
-expireHeap_                              timersById_
-priority_queue<TimerKey, greater<>>          map<TimerId, shared_ptr<Timer>>
-
-主索引：按到期时间最小堆                     辅助索引：按 ID 排序
-用途：sync_timerfd() O(1) 取堆顶            用途：erase_timer() O(log n)
-      on_timerfd_read() 收集到期                  回调后存活检查 O(log n)
+      expireSet_                                 timersById_
+std::set<TimerEntry>                   std::map<TimerId, std::shared_ptr<Timer>>
+  (按到期时间排序)                            (按 TimerId 排序)
+        │                                          │
+        ▼                                          ▼
+用于 O(1) 获取最早到期元素，                     用于 O(log n) 按 ID 检索，
+并在 erase 时实现 O(log n) 物理即时删除           以及执行时的生命周期存活校验
 ```
 
-`expireHeap_` 是优先队列（最小堆），只存 `{Timestamp, TimerId}` 作为排序键，O(1) 取最早到期。`timersById_` 是唯一持有 `shared_ptr<Timer>` 的索引——删除时只从 `timersById_` 移除，`expireHeap_` 中的残留条目在 `on_timerfd_read()` 收集阶段通过 `timersById_.find()` 检测后丢弃（懒删除）。这种设计避免了在优先队列中做 O(n) 的随机删除。
+* **`TimerEntry` 结构**：
+  定义为 `std::pair<Timestamp, std::shared_ptr<Timer>>`。`std::set` 默认先比较第一个元素（到期时间 `Timestamp`），在时间相同时比对 `shared_ptr` 的内存地址作为 Tie-breaker，保证元素唯一性并实现自动升序。
+* **物理即时删除（Immediate Deletion）**：
+  取消定时器时，通过 `timersById_` 找到该定时器的 `shared_ptr<Timer>` 并获取其到期时间，随后在 $O(\log N)$ 时间内直接在 `expireSet_` 中将其抹去。由于失效的定时器被当场彻底清除，`sync_timerfd()` 获取的永远是真实的、最早到期的活动定时器时间，空唤醒率降为 **0**。
 
-### 3. 线程安全模型：one loop per thread
+---
 
-所有索引操作（增删改查）都在 EventLoop 线程执行，**无锁设计**。外部线程通过 `loop_->run_in_loop(lambda)` 将操作投递到 EventLoop 线程：
+### 3.3 多线程并发设计（One-Loop-Per-Thread 无锁化）
+为了避免在 `TimerQueue` 的 `add_timer` / `erase_timer` 等高频操作中引入互斥锁（Mutex）和条件变量，网络库严格遵守 **One-Loop-Per-Thread** 线程模型：
+
+* **线程隔离边界**：
+  `TimerQueue` 的内部数据结构（`expireSet_` 和 `timersById_`）是非线程安全的。**我们规定：只有拥有该 TimerQueue 的 EventLoop 线程，才有权对其进行读写修改。**
+* **跨线程任务投递**：
+  当外部线程（如工作线程池）需要添加或取消定时器时，不允许直接调用修改接口，而是必须通过 [EventLoop::run_in_loop](file:///home/wxm/Tudou/src/tudou/reactor/EventLoop.cpp#L102) 将操作封装为 Lambda 任务，投递到主线程的等待任务队列中：
 
 ```cpp
-TimerId add_timer(std::function<void()> callback, Timestamp when, milliseconds interval) {
+TimerId TimerQueue::add_timer(std::function<void()> callback, Timestamp when, std::chrono::milliseconds interval) {
     TimerId id = TimerId(nextTimerId_.fetch_add(1, std::memory_order_relaxed));
     auto timer = std::make_shared<Timer>(id, std::move(callback), when, interval);
-    loop_->run_in_loop([this, timer]() {
-        // 此 lambda 在 EventLoop 线程执行，无需加锁
-        expireHeap_.push({ timer->expiration(), timer->id() });
-        timersById_[timer->id()] = timer;
-        sync_timerfd();  // 新定时器可能成为最早到期的，需重新武装 timerfd
-    });
+
+    // 线程安全：通过 run_in_loop 将索引修改操作强制排队回 EventLoop 主线程执行
+    loop_->run_in_loop(
+        [this, timer]() {
+            expireSet_.insert({ timer->get_expiration(), timer });
+            timersById_[timer->get_id()] = timer;
+            sync_timerfd(); // 重新校准 timerfd 到期时间
+        }
+    );
     return id;
 }
 ```
 
-### 4. 到期处理流程
+* **同步机制**：如果投递时主线程正阻塞在 `epoll_wait` 中，投递动作会通过向 `eventfd` 写入 8 字节数据将其唤醒，使主线程能立即处理添加/取消任务。这种架构实现了**外部并发访问安全，主线程内部零锁运行**的高性能设计。
 
-```
-on_timerfd_read()
-  ├─ read_timerfd()                  // 消费事件（读 8 字节），避免 LT 模式反复通知
-  ├─ 收集到期定时器                    // 循环弹出堆顶
-  │    ├─ 堆顶在 timersById_ 中不存在 → pop + continue（懒删除）
-  │    ├─ 堆顶 expiration > now      → break（未到期，停止收集）
-  │    └─ 堆顶 expiration <= now     → 加入 expiredTimers + pop
-  ├─ 逐条执行回调
-  │    ├─ timer->run()               // 执行用户回调
-  │    ├─ timersById_.find(id)       // 回调后重新检查存活（回调可能取消了自身或其他定时器）
-  │    │    └─ 不存在 → continue
-  │    ├─ 一次性定时器：timersById_.erase(id)
-  │    └─ 重复定时器：timer->restart(now) → expireHeap_.push({newExp, id})
-  └─ sync_timerfd()                  // 根据新的最早到期时间重新武装 timerfd
-```
+---
 
-关键细节：收集阶段通过 `timersById_.find()` 实现懒删除——`erase_timer` 只从 `timersById_` 移除，`expireHeap_` 中的残留条目在此处被过滤丢弃，避免在优先队列中做 O(n) 随机删除。
+### 3.4 生命周期防御：`shared_ptr` 防止“相互取消”崩溃
+定时器回调函数的执行充满不确定性。例如：定时器 A 到期，触发的回调函数中执行了 `cancel(B)`；而定时器 B 也在本次到期批次中。此时，极易发生内存悬空野指针崩溃。
 
-### 5. sync_timerfd 的武装/解除逻辑
+#### 1. 致命缺陷场景（如果不用 `shared_ptr`）
+如果 `TimerQueue` 仅存储 `Timer*` 裸指针或由 `std::unique_ptr` 强拥有：
+1. **收集阶段**：定时器 A 和 B 在同一时刻到期，它们被存入待执行临时数组：`expiredTimers = {A*, B*}`。
+2. **执行阶段**：
+   1. 首先轮到 A 执行：调用 `A->run()`。
+   2. 在 A 的回调内，业务逻辑调用了 `erase_timer(B)`，B 从底层 Map 中被移除并**立即被释放析构**。
+   3. 轮到 B 执行：调用 `B->run()`。但此时 `B*` 指向的内存已成野指针，**程序立即发生 Use-After-Free 崩溃**。
+
+#### 2. `shared_ptr` 护栏机制的实现
+重构设计利用 `std::shared_ptr` 的引用计数实现**延迟析构保活**：
 
 ```cpp
-void sync_timerfd() {
-    if (expireHeap_.empty()) {
-        disarm_timerfd();  // it_value = {0,0}，timerfd 不再触发
-    } else {
-        reset_timerfd(expireHeap_.top().first);  // 武装到最早到期时间
+void TimerQueue::on_timerfd_read() {
+    read_timerfd(timerFd_.fd());
+    const Timestamp now = std::chrono::steady_clock::now();
+    
+    // 1. 临时容器通过 shared_ptr 共享所有权，增加引用计数
+    std::vector<std::shared_ptr<Timer>> expiredTimers;
+    
+    while (!expireSet_.empty()) {
+        auto it = expireSet_.begin();
+        if (it->first > now) break;
+        expiredTimers.push_back(it->second); // 计数 +1，防 UAF
+        expireSet_.erase(it); // 从 set 移出
     }
+
+    // 2. 顺序执行回调
+    for (const auto& timer : expiredTimers) {
+        // 3. 执行前存活检查：即使 timer 在前面其他定时器的回调中被 cancel 掉了，
+        // 它的内存依然被 expiredTimers 数组安全保活，但我们必须在这里拦截它，防止其执行。
+        if (timersById_.find(timer->get_id()) == timersById_.end()) {
+            continue; // 已被取消，安全跳过，绝不执行
+        }
+
+        timer->run();
+
+        // 4. 执行后再次确认：防止定时器在其自身的回调中注销了自己（Self-Cancellation）。
+        const auto stillExists = timersById_.find(timer->get_id());
+        if (stillExists == timersById_.end()) {
+            continue; 
+        }
+
+        if (!timer->is_repeat()) {
+            // 一次性定时器：执行完后从索引中彻底删除
+            timersById_.erase(timer->get_id());
+            continue;
+        }
+
+        // 5. 重复定时器重调度
+        const Timestamp t = std::chrono::steady_clock::now();
+        timer->reschedule(t);
+        expireSet_.insert({ timer->get_expiration(), timer });
+    }
+
+    sync_timerfd();
 }
+```
 
-void reset_timerfd(Timestamp expiration) {
-    auto duration = expiration - steady_clock::now();  // 时间基准统一在这一处
-    newValue.it_value = to_timespec(duration);          // to_timespec 只做格式转换
-    ::timerfd_settime(timerFd_, 0, &newValue, nullptr);
+> [!IMPORTANT]
+> 引用计数为定时器提供了安全的执行生命周期。被执行前取消的定时器不会被提前释放，而是会完好地留在 `expiredTimers` 数组中，直到 `on_timerfd_read()` 退出、临时数组析构时，才会被安全销毁。
+
+---
+
+### 3.5 sync_timerfd 的精确重武装
+因为改用了 `std::set` 物理删除，`expireSet_` 的头部永远保持着最新的、绝对有效的最早到期时间戳。`sync_timerfd` 实现变得极为简练，**不再需要由于懒删除而存在的“堆顶循环清理”过滤逻辑**，也不再会发生因懒删除条目积压导致无法进入 `disarm` 的问题：
+
+```cpp
+void TimerQueue::sync_timerfd() {
+    // 1. 若集合为空，说明当前无任何活动定时器，立即解除内核武装，杜绝 CPU 空转
+    if (expireSet_.empty()) {
+        disarm_timerfd(); 
+        return;
+    }
+    // 2. 以 std::set 头部最早到期的真实定时器时间重新武装 timerfd
+    reset_timerfd(expireSet_.begin()->first);
 }
 ```
 
-`to_timespec` 只接收相对时间（duration）并做格式转换，不在内部重复取 `steady_clock::now()`，避免两次取时间之间的微小偏差。时间计算集中在 `reset_timerfd` 一处。
+---
 
-每次添加或移除定时器后都必须调用 `sync_timerfd()`，确保 timerfd 始终反映当前最早到期时间——旧定时器被取消而新定时器更晚时，如果忘记解除则会导致空唤醒；新定时器更早时如果忘记重新武装则会延迟触发。
+## 4. Result — 重构效果
 
-## Result — 效果
-
-- **零线程开销**：定时器完全融入 epoll 事件循环，不需要额外的定时器线程
-- **操作复杂度**：添加 O(log n)，取消 O(log n)，获取最早到期 O(1)，批量收集到期 O(k)
-- **线程安全**：所有索引操作在 EventLoop 线程无锁执行，外部线程通过 `run_in_loop` 投递
-- **可扩展**：框架内所有定时需求（心跳保活、连接超时、延迟任务）共用同一套机制
-- **正确性**：`on_timerfd_read` 中每条定时器执行回调后重新检查 `timersById_` 存活状态，避免回调中取消定时器导致悬空访问
+* **物理即时删除**：取消定时器操作从原先的“仅在 Map 删除 + 堆中等待懒弹出”变为了**物理当场擦除**。
+* **零无效唤醒**：`sync_timerfd()` 同步数据 100% 准确。在无定时器运行时，`timerfd` 能即时被 `disarm`，系统空唤醒率降为 0。
+* **极高性能的无锁并发**：外层通过 `run_in_loop` 进行排队，内层操作在 EventLoop 线程无锁串行，吞吐量极大。
+* **坚固的生命周期防线**：基于 `std::shared_ptr` 的引用计数保护机制，使得网络库即便面对复杂的、自我取消、相互取消的回调交互时，也能维持 100% 的内存安全。
 
 ---
 
-## 扩展思考：为什么很多类持有 `EventLoop*`？
+# 二、 深度源码级分析与流转
 
-持有 `EventLoop*` 的类：`Channel`、`EpollPoller`、`TimerQueue`、`Acceptor`、`TcpConnection`。三个核心用途：
-
-**1. 线程归属断言** — 所有关键方法都在 `assert_in_loop_thread()` 守卫下执行，多线程误用立即 crash，提前暴露 bug。
-
-**2. 跨线程任务投递** — 外部线程通过 `loop_->run_in_loop(lambda)` 将操作安全转移到 EventLoop 线程。
-
-**3. 间接访问同线程设施** — 如 `Channel → EventLoop → EpollPoller`，避免跨层直接持有指针，保持相邻类通信原则。
-
-本质：EventLoop 是线程内的**唯一协调者**，是所有同线程对象的调度中心。持有 `EventLoop*` 就是持有"我在哪个线程、我能调度什么"的上下文。
-
----
-
-# TimerQueue 深度源码分析报告
-
-## 一、 核心宏观干道 (Macro Execution Pathway)
-
-### 1.1 添加定时器（跨线程安全入口）
-
-```
-外部线程调用
-    └── TimerQueue::add_timer(callback, when, interval)
-            ├── TimerId id = TimerId(nextTimerId_++)               # ① 在调用方线程生成唯一 ID，保证同步返回
-            ├── std::make_shared<Timer>(id, std::move(callback), when, interval)  # 按值接收 + move，零拷贝
-            └── loop_->run_in_loop(lambda)                         # ② 投递到 EventLoop 线程
-                    └── [lambda 在 EventLoop 线程执行]
-                            ├── expireHeap_.push({expiration, id})  # ③ 插入主索引（优先队列，按时间最小堆）
-                            ├── timersById_[id] = timer                 # ③ 插入辅助索引（按 ID 排序）
-                            └── sync_timerfd()                          # ④ 武装 timerfd
-                                    ├── expireHeap_ 为空? → disarm_timerfd()    # 解除武装
-                                    └── 否则 → reset_timerfd(最早到期时间)           # 重设 timerfd
-                                            ├── duration = expiration - now()        # 时间基准统一在这一处
-                                            └── ::timerfd_settime(timerFd_, ...)     # 系统调用
-```
-
-### 1.2 取消定时器（跨线程安全入口）
-
-```
-外部线程调用
-    └── TimerQueue::erase_timer(timerId)
-            └── loop_->run_in_loop(lambda)                      # 投递到 EventLoop 线程
-                    └── [lambda 在 EventLoop 线程执行]
-                            ├── timersById_.erase(timerId)      # ① 从辅索引移除（持有 shared_ptr 的唯一索引）
-                            └── sync_timerfd()                  # ② 最早到期可能已变，重新同步
-                                    └── 堆顶若已被 erase 的定时器 → on_timerfd_read 中懒删除过滤
-```
-
-注意：`erase_timer` 不从优先队列中删除（O(n) 不可接受），只从 `timersById_` 移除。残留条目在 `on_timerfd_read()` 收集阶段通过 `timersById_.find()` 检测后丢弃（懒删除）。
-
-### 1.3 定时器到期处理管道（EventLoop 线程内，单线程无锁）
-
-```
-epoll_wait 返回 timerFd_ 可读事件
-    └── Channel::handle_events()                              # Channel 分发就绪事件
-            └── read_callback → TimerQueue::on_timerfd_read()  # 管道唯一入口
-                    ├── read_timerfd(timerFd_)                  # ① 消费事件（读 8 字节）
-                    │       └── ::read(timerFd_, &howmany, 8)   # 必须消费，否则 LT 模式反复通知
-                    ├── ② 收集到期定时器（循环弹出堆顶）
-                    │       └── while (!expireHeap_.empty()):
-                    │               ├── top = expireHeap_.top()
-                    │               ├── timersById_ 中不存在 top.id → pop + continue  # 懒删除过滤
-                    │               ├── top.expiration > now → break                  # 未到期，停止收集
-                    │               └── top.expiration <= now → expiredTimers.push + pop
-                    ├── ③ 逐条执行回调
-                    │       └── for each timer in expired:
-                    │               ├── timer->run()                         # 执行用户回调
-                    │               │       └── callback_()                  # 回调内可能取消自身或其它定时器
-                    │               ├── timersById_.find(timer->id())        # 回调后重新检查存活
-                    │               │       └── 不存在 → continue            # 已被回调取消，跳过
-                    │               ├── !timer->is_repeat()?                 # 一次性定时器
-                    │               │       └── timersById_.erase(timer->id())  # 清理辅索引
-                    │               └── timer->is_repeat()?                 # 重复定时器
-                    │                       ├── timer->restart(now)           # 以当前时间为基准推进到期时间
-                    │                       └── expireHeap_.push({newExp, id})  # 重新入堆
-                    └── sync_timerfd()                          # ④ 根据新的最早到期重新武装
-                            ├── expireHeap_ 为空? → disarm_timerfd()
-                            └── 否则 → reset_timerfd(最早到期时间)
-```
-
-关键点: 所有索引操作都在 EventLoop 线程执行，零锁开销。外部线程通过 `run_in_loop` 将操作投递到正确线程，保证线程安全。
-
----
-
-## 二、 架构与数据流转图 (Architecture & Data Flow Diagram)
+## 1. 架构与数据流转图 (Architecture & Data Flow Diagram)
 
 ```
                          外部线程 (可多个)                       EventLoop 线程 (唯一)
                          ──────────────                        ─────────────────────
-                              │                                          │
-              add_timer()     │     erase_timer()                        │
-              ┌───────┴───────┴───────┐                                  │
-              │  run_in_loop(lambda)  │  # 跨线程投递                    │
-              └───────────┬───────────┘                                  │
-                          │                                              │
-                          v                                              │
-              +-------------------------------------------------------+  │
-              |                   TimerQueue                          |  │
-              |                                                       |  │
-              |  +-- timerFd_ ──────────> epoll 监听                  |  │
-              |  +-- timerChannel_ ──────> 回调 → on_timerfd_read()   |  │
-              |  +-- nextTimerId_ ───────> 64位自增计数器              |  │
-              |                                                       |  │
-              |  +-- expireHeap_ ────> priority_queue              |  │
-              |  |    (主索引: 最小堆)     <TimerKey, greater<>>       |  |
-              |  |                         ┌─────────────────┐        |  |
-              |  |                         | {T+100ms, id=1} │ ← top |  |
-              |  |                         | {T+200ms, id=2} │        |  |
-              |  |                         | {T+500ms, id=3} │        |  |
-              |  |                         └─────────────────┘        |  |
-              |  |                         只存排序键，不持有对象       |  |
-              |  |                              |                      |  |
-              |  |                         懒删除：收集时通过           |  |
-              |  |                         timersById_.find 过滤       |  |
-              |  +-- timersById_ ────────> map< TimerId,              |  |
-              |       (辅索引: 按ID)          shared_ptr<Timer> >      |  |
-              |       (唯一持有 Timer)         ┌─────────────┐         |  |
-              |                               | id=1: TimerA |         |  |
-              |                               | id=2: TimerB |         |  |
-              |                               | id=3: TimerC |         |  |
-              |                               └─────────────┘         |  |
-              +-------------------------------------+-----------------+  |
-                                                    |                    |
-                          timerfd 到期 (epoll 通知)  |                    |
-                                                    v                    |
-                              on_timerfd_read() ─────────────────────────┘
-                                      │
+                               │                                          │
+               add_timer()     │     erase_timer()                        │
+               ┌───────┴───────┴───────┐                                  │
+               │  run_in_loop(lambda)  │  # 跨线程排队                    │
+               └───────────┬───────────┘                                  │
+                           │                                              │
+                           v                                              │
+               +-------------------------------------------------------+  │
+               |                   TimerQueue                          |  │
+               |                                                       |  │
+               |  +-- timerFd_ ──────────> epoll 监听                  |  │
+               |  +-- timerChannel_ ──────> 回调 → on_timerfd_read()   |  │
+               |                                                       |  │
+               |  +-- expireSet_ ────> std::set<TimerEntry>            |  │
+               |  |    (主索引: 物理排序)   ┌─────────────────┐        |  |
+               |  |                         | {T+100ms, ptrA} | ← begin|  |
+               |  |                         | {T+200ms, ptrB} |        |  |
+               |  |                         | {T+500ms, ptrC} |        |  |
+               |  |                         └─────────────────┘        |  |
+               |  |                         实时升序，支持 O(log n) 删除 |  |
+               |  |                              │                      |  |
+               |  |                              ▼                      |  |
+               |  +-- timersById_ ────────> map< TimerId,              |  |
+               |       (辅索引: 按ID)          shared_ptr<Timer> >      |  |
+               |       (唯一持有 Timer)         ┌─────────────┐         |  |
+               |                               | id=1: TimerA |         |  |
+               |                               | id=2: TimerB |         |  |
+               |                               | id=3: TimerC |         |  |
+               |                               └─────────────┘         |  |
+               +-------------------------------------+-----------------+  │
+                                                     |                    │
+                           timerfd 到期 (epoll 通知)  |                    │
+                                                     v                    │
+                               on_timerfd_read() ─────────────────────────┘
+                                       │
                     ┌─────────────────┼─────────────────┐
                     │                 │                 │
                     v                 v                 v
-            read_timerfd()   懒删除+收集到期     逐条执行+清理
-              (消费事件)     (pop + find过滤)   (run + 检查存活)
-
-
-            数据流向 (add_timer):
-            ==================
-            调用方线程                    EventLoop 线程
-            ─────────                    ──────────────
-            TimerId id                     │
-                 │                         │
-            Timer obj ──run_in_loop──> expireHeap_.push({when, id})
-                                        timersById_[id] = timer
-                                             │
-                                        sync_timerfd()
-                                             │
-                                    timerfd_settime(timerFd_, expiration - now())
-
-
-            数据流向 (到期触发):
-            ==================
-            timerfd 可读 (epoll)
-                 │
-                 v
-            on_timerfd_read()
-                 │
-         ┌───────┼──────────┐
-         v       v          v
-      消费    懒删除+收集    逐条执行
-     事件    (pop堆顶,      ├─ run()
-             find过滤)      ├─ 检查存活 (辅索引)
-                            ├─ 一次性: 清理辅索引
-                            └─ 重复: restart + push回堆
-                 │
-                 v
-           sync_timerfd()
-           (武装/解除)
+             read_timerfd()      收集到期(即时)     逐条执行+存活检查
+              (消费 8 字节)      (erase从expireSet) (shared_ptr临时保活)
 ```
 
 ---
 
-## 三、 关键数据结构详解
+## 2. 各索引操作复杂度对比
 
-### 3.1 TimerKey — 主索引的复合键
+在引入 `std::set` 物理即时删除重构后，操作复杂度的改变如下：
 
-```cpp
-using TimerKey = std::pair<Timestamp, TimerId>;
-//                 ^^^^^^^^^  ^^^^^^^
-//                 到期时间    唯一ID（解决同一时间戳冲突）
-```
-
-`std::pair` 的默认比较先比 first 再比 second，天然实现了"按到期时间排序，同一时间按 ID 区分"。TimerId 作为 second 确保即使两个定时器设了相同的到期时间，map 也不会把它们当同一个 key 覆盖。
-
-### 3.2 优先队列 + ID 索引的协作模型
-
-```
-expireHeap_:  priority_queue<pair<Timestamp, TimerId>>   // 主索引（只存排序键）
-timersById_:      map<TimerId, shared_ptr<Timer>>            // 辅索引（唯一持有 Timer 对象）
-
-  expireHeap_ (最小堆)         timersById_ (唯一持有者)
-  ┌───────────────────────┐       ┌──────────────────────────┐
-  │ {T+100ms, id=1}       │       │ id=1 → shared_ptr<Timer> │──→ Timer(id=1)
-  │ {T+200ms, id=2}       │       │ id=2 → shared_ptr<Timer> │──→ Timer(id=2)
-  │ {T+500ms, id=3}       │       │ id=3 → shared_ptr<Timer> │──→ Timer(id=3)
-  └───────────────────────┘       └──────────────────────────┘
-         只存键，不持有对象               引用计数管理对象生命周期
-```
-
-`expireHeap_` 只存 `{Timestamp, TimerId}` 排序键，不持有 `shared_ptr`。`timersById_` 是唯一持有 `shared_ptr<Timer>` 的索引。删除时只从 `timersById_` 移除，优先队列中的残留条目通过懒删除过滤。Timer 的生命周期完全由 `timersById_` 的引用计数管理。
-
-### 3.3 各索引的操作复杂度
-
-| 操作 | expireHeap_ | timersById_ | 说明 |
-|------|:---:|:---:|------|
-| 查找最早到期 | O(1) | O(n) | `top()` 即最早 |
-| 按 ID 查找 | 不支持 | O(log n) | 优先队列不支持随机访问 |
-| 批量收集到期 | O(k log n) | — | k 次 pop，每次 O(log n) |
-| 插入 | O(log n) | O(log n) | push + insert |
-| 删除（取消） | 懒删除 O(1) | O(log n) | 只从 timersById_ 移除，堆中残留条目收集时过滤 |
+| 操作 | 优先队列 + 懒删除 (旧) | std::set + 即时删除 (新) | 重构效果与差异说明 |
+| :--- | :---: | :---: | :--- |
+| **查找最早到期** | $O(1)$ | $O(1)$ | 均为常数级。旧方案读 `top()`，新方案读 `*begin()`。 |
+| **按 ID 查找** | 不支持 | 不支持 | 均通过 `timersById_` ($O(\log N)$) 辅助进行。 |
+| **批量到期弹出** | $O(K \log N)$ | $O(K \log N)$ | 耗时一致。 |
+| **添加定时器** | $O(\log N)$ | $O(\log N)$ | 均需要对两个容器进行插入动作。 |
+| **取消定时器** | $O(\log N)$ (懒删除仅删Map) | **$O(\log N)$ (两端物理擦除)** | **核心区别**：新方案增加了一次 `std::set::erase` 操作，仍为对数复杂度，但换来了 timerfd 绝对精准的武装，消除了无效空唤醒的开销。 |
 
 ---
 
-## 四、 核心设计要点提炼 (Key Architectural Points)
+# 三、 核心设计要点提炼 (Key Architectural Points)
 
-| 设计点 (Design Pattern / Principle) | 代码体现与说明 |
-|---|---|
-| **Reactor 集成 (timerfd + epoll)** | `timerfd_create` 将时间事件转化为 fd 可读事件，统一纳入 epoll 多路复用，无需独立定时器线程。`Channel(timerFd_)` 注册读回调 `on_timerfd_read`，完全融入 EventLoop 事件循环 |
-| **门面模式 (Facade)** | `TimerQueue` 对外只暴露 `add_timer` / `erase_timer` 两个公开接口，隐藏内部双索引、timerfd 系统调用、线程投递等所有实现细节。调用方（EventLoop、TcpConnection）无需感知 timerfd 的存在 |
-| **单一职责原则 (SRP)** | `Timer` 只保存单个定时器的到期时间和回调，不参与调度；`TimerQueue` 只负责编排调度和 timerfd 管理；`Channel` 只负责 fd 事件分发。三层职责清晰分割 |
-| **one loop per thread 并发模型** | 所有索引操作限定在 EventLoop 线程执行（`assert_in_loop_thread` 守卫），零锁设计。跨线程访问通过 `loop_->run_in_loop(lambda)` 投递，利用 eventfd 唤醒机制立即执行 |
-| **依赖注入 (Dependency Injection)** | `TimerQueue(EventLoop* loop)` 通过构造函数注入所属 EventLoop，不持有所有权（裸指针），符合"生命周期由智能指针管理，访问用裸指针"的项目规范 |
-| **优先队列 + 懒删除 (Lazy Deletion)** | `expireHeap_` 使用优先队列（最小堆），O(1) 取最早到期。删除时只从 `timersById_` 移除（唯一持有 `shared_ptr` 的索引），优先队列中的残留条目在 `on_timerfd_read()` 收集阶段通过 `find()` 检测后丢弃，避免 O(n) 随机删除 |
-| **回调后存活检查 (Defensive Check)** | `on_timerfd_read` 中每条定时器执行后重新 `timersById_.find(id)`，因为回调内可能通过 `erase_timer()` 移除了其他定时器。这是一种防御式编程，避免访问已释放对象 |
-| **RAII 管理 fd 生命周期** | `timerFd_` 由 `TimerQueue` 构造函数创建，`timerChannel_`（`unique_ptr<Channel>`）析构时自动 `::close(fd)`。timerfd 的创建和销毁与 TimerQueue 生命周期严格绑定 |
-| **解除武装避免空唤醒** | `sync_timerfd` 中队列为空时调用 `disarm_timerfd` 设置 `it_value={0,0}`，避免 timerfd 在没有定时器时仍然触发，浪费 epoll 唤醒的 CPU 开销 |
-| **CLOCK_MONOTONIC 时钟源** | `timerfd_create(CLOCK_MONOTONIC, ...)` 使用单调时钟，不受系统时间调整（如 NTP 校时、管理员手动改时间）影响，保证定时器行为可预测 |
+| 设计点 (Design Pattern) | 代码体现与说明 |
+| :--- | :--- |
+| **Reactor 物理集成** | `timerfd` 使时间事件退化为常规的 I/O 可读事件，借用 `Channel` 的多路复用直接融入 `EventLoop` 主循环，免去多线程轮询开销。 |
+| **one loop per thread** | 通过 `loop_->run_in_loop(lambda)` 把所有修改和回调限定在 EventLoop 线程内单线程串行化，**规避了在核心数据结构上加锁的开销**。 |
+| **物理即时删除（std::set）** | 取消定时器时利用 `timersById_` 获取到期时间，并在 `expireSet_` 中同步擦除。没有脏条目残留，使得 `sync_timerfd` 能瞬间解武装，避免 CPU 空转。 |
+| **生命周期护栏（shared_ptr）** | 收集到期定时器时将 `std::shared_ptr<Timer>` 存入临时数组。即使回调在执行期被取消，其引用计数也保持 $\ge 1$，完美隔绝了 Use-After-Free 隐患。 |
+| **单调时钟源 (Monotonic)** | 使用 `CLOCK_MONOTONIC` 创建 `timerfd`，确保即便系统遭遇校时突变，定时任务的绝对间隔精度也绝不受影响。 |
 
 ---
 
-## 五、 面试核心要点总结
+# 四、 面试核心问答总结 (Q&A)
 
-1. **为什么用 timerfd 而不是独立线程？** — 融入 epoll 事件循环，零额外线程开销，统一的事件处理模型。
-2. **为什么用优先队列 + 懒删除而不是两个 map？** — 优先队列 O(1) 取最早到期，但不支持 O(log n) 随机删除。解决方案：`erase_timer` 只从 `timersById_` 移除，优先队列中的残留条目在 `on_timerfd_read()` 收集时通过 `find()` 过滤（懒删除），避免 O(n) 遍历。
-3. **如何保证线程安全？** — one loop per thread 模型，所有索引操作在 EventLoop 线程执行，外部线程通过 `run_in_loop` 投递，eventfd 唤醒。
-4. **重复定时器如何实现？** — `on_timerfd_read` 中检查 `is_repeat()`，调用 `restart(now)` 推进到期时间，`push` 回优先队列。
-5. **回调中取消定时器安全吗？** — 安全。`on_timerfd_read` 在每次 `run()` 后重新检查 `timersById_`，被取消的定时器会被跳过。
-6. **timerfd 延迟最小 1ms 是怎么保证的？** — `to_timespec` 中 `if (duration < 1ms) duration = 1ms`，因为 timerfd 不接受 0 延迟。
+#### Q1：为什么重构掉 `priority_queue` 懒删除，改用 `std::set`？
+优先队列（堆）不支持对中间元素的随机删除（删除只能是 $O(N)$），导致取消定时器时只能做“懒删除”（即只在 Map 中抹去，让废弃节点残留在堆中）。这会导致：
+1. **空唤醒**：已取消的定时器在到期时，仍会从内核唤醒 `EventLoop`，造成不必要的 CPU 损耗。
+2. **武装滞留**：如果当前全部定时器都被取消了，因为废弃元素仍然堆积在堆中，导致 `sync_timerfd()` 无法将其解除武装（disarm），使得 `timerfd` 频繁产生多余唤醒。
+改用 `std::set`（底层是红黑树）后，我们可以通过对数复杂度 $O(\log N)$ 物理上直接将元素擦除，实现精准、即时的定时器解除武装，空唤醒率归零。
+
+#### Q2：既然都在同一个线程执行，为什么还会有“相互取消导致的野指针”问题？
+虽然是单线程串行执行回调，但**回调函数的执行是嵌套在 TimerQueue 的执行循环内部 of **。
+当我们一次性触发了 $5$ 个到期定时器，TimerQueue 必须先把这 $5$ 个定时器放入一个临时列表（如 `expiredTimers`），然后循环遍历执行它们。如果我们在执行第 $1$ 个定时器的回调时，它在代码里调用了 `erase_timer(第 2 个)`。
+如果生命周期没有防护，第 2 个定时器对象会在第 1 个回调执行时就被彻底析构释放。当执行循环走到第 2 个定时器并调用 `timer->run()` 时，该指针已指向已被释放的内存，导致 Use-After-Free 致命崩溃。
+
+#### Q3：`std::shared_ptr` 是如何具体解决这个崩溃的？
+在收集阶段，临时数组 `expiredTimers` 存储的是 `std::shared_ptr<Timer>`。这会将这批即将触发的定时器引用计数全部加 1。
+即使第 1 个定时器的回调注销了第 2 个定时器，导致其从 `timersById_` map 中被删除，由于 `expiredTimers` 数组依然抓着第 2 个定时器的 `shared_ptr`，其对象在内存中并不会被销毁。
+在第 2 个定时器准备执行前，我们通过 `timersById_.find(id)` 进行一次快速的存活检查，发现它已被注销，因此安全跳过。当 `on_timerfd_read()` 运行结束离开作用域、`expiredTimers` 被自动析构时，被注销的第 2 个定时器才会被真正、安全地释放。

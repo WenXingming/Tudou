@@ -6,6 +6,7 @@
 #include "tudou/reactor/EventLoopThread.h"
 
 #include "tudou/reactor/EventLoop.h"
+#include "EventLoopThread.h"
 
 EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     : loop_(nullptr)
@@ -30,6 +31,12 @@ EventLoopThread::~EventLoopThread() {
     if (thread_.joinable()) {
         thread_.join(); // std::thread::join() 是同步屏障——调用方会阻塞，直到 thread_func() 完整返回后 join() 才返回。这是 C++ 标准保证的。不会产生 loop_ 未被 reset
     }
+}
+
+
+EventLoop * EventLoopThread::get_loop(){
+    std::lock_guard<std::mutex> lock(loopMutex_);
+    return loop_.get(); 
 }
 
 void EventLoopThread::thread_func() {

@@ -40,7 +40,7 @@ TEST(TimerTest, OneShotTimerIsNotRepeat) {
     Timer timer(TimerId(1), [&]() { called = true; },
                 steady_clock::now() + seconds(10), milliseconds(0));
 
-    EXPECT_EQ(timer.id().value(), 1U);
+    EXPECT_EQ(timer.get_id().value(), 1U);
     EXPECT_FALSE(timer.is_repeat());
 }
 
@@ -69,15 +69,15 @@ TEST(TimerTest, RunWithNullCallbackDoesNotCrash) {
     timer.run();
 }
 
-TEST(TimerTest, RestartAdvancesExpirationByInterval) {
+TEST(TimerTest, RescheduleAdvancesExpirationByInterval) {
     auto t0 = steady_clock::now();
     Timer timer(TimerId(1), []() {}, t0, milliseconds(200));
 
-    auto before = timer.expiration();
-    timer.restart(t0 + seconds(1));
-    auto after = timer.expiration();
+    auto before = timer.get_expiration();
+    timer.reschedule(t0 + seconds(1));
+    auto after = timer.get_expiration();
 
-    // restart(now) => expiration = now + interval
+    // reschedule(now) => expiration = now + interval
     auto diff = duration_cast<milliseconds>(after - before);
     EXPECT_GE(diff.count(), 900);  // roughly 1000ms - 200ms initial
     EXPECT_LE(diff.count(), 1200);
@@ -87,13 +87,13 @@ TEST(TimerTest, ExpirationMatchesConstructionTime) {
     auto t = steady_clock::now() + seconds(5);
     Timer timer(TimerId(1), []() {}, t, milliseconds(0));
 
-    EXPECT_EQ(timer.expiration(), t);
+    EXPECT_EQ(timer.get_expiration(), t);
 }
 
-TEST(TimerTest, IdPersistsAfterRestart) {
+TEST(TimerTest, IdPersistsAfterReschedule) {
     Timer timer(TimerId(99), []() {},
                 steady_clock::now(), milliseconds(100));
 
-    timer.restart(steady_clock::now());
-    EXPECT_EQ(timer.id().value(), 99U);
+    timer.reschedule(steady_clock::now());
+    EXPECT_EQ(timer.get_id().value(), 99U);
 }

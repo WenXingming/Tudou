@@ -1,6 +1,6 @@
 // ============================================================================
 // HttpContext.h
-// HTTP 请求解析上下文，负责把 llhttp 的回调流收敛成稳定的 HttpRequest。
+// HTTP 请求解析上下文，负责管理单连接 HTTP 解析状态，把 llhttp 的回调流收敛成稳定的 HttpRequest。以 parse() 作为唯一对外解析门面。
 //
 // 成员函数调用树（[公有]/[私有] 标注接口层级）：
 //
@@ -47,7 +47,7 @@
 #include <string>
 #include "tudou/http/HttpRequest.h"
 #include "llhttp.h"
-// 负责管理单连接 HTTP 解析状态，并以 parse() 作为唯一对外解析门面。
+
 class HttpContext {
 public:
     enum class ParseResult {
@@ -81,29 +81,19 @@ private:
         return static_cast<HttpContext*>(parser->data);
     }
 
-    void on_message_begin_impl();
-    void on_url_impl(const char* at, size_t length);
-    void on_header_field_impl(const char* at, size_t length);
-    void on_header_value_impl(const char* at, size_t length);
-    void on_body_impl(const char* at, size_t length);
-    void on_message_complete_impl();
     void reset_message_state();
-    void append_request_target_fragment(const char* at, size_t length);
-    void capture_request_method();
-    void apply_request_target(); // 将原始 URL 拆成 path 和 query。
-    void capture_http_version(); // 从 llhttp 当前状态提取 HTTP 版本。
     void flush_pending_header(); // 提交已经闭合的一组 header 键值。
 
 private:
-    llhttp_t parser_;                       // llhttp 解析器实例，持有当前协议状态机。
-    llhttp_settings_t settings_;            // llhttp 回调配置，绑定到当前上下文。
+    llhttp_t parser_;                   // llhttp 解析器实例，持有当前协议状态机。
+    llhttp_settings_t settings_;        // llhttp 回调配置，绑定到当前上下文。
 
-    HttpRequest request_;                   // 当前正在构建的 HTTP 请求对象。
+    HttpRequest request_;               // 当前正在构建的 HTTP 请求对象。
 
-    bool messageComplete_;                  // 当前请求是否已经完成解析。
-    std::string currentUrl_;                // 当前请求目标缓存，解决 request line 跨片段时的覆盖问题。
+    bool messageComplete_;              // 当前请求是否已经完成解析。
+    std::string currentUrl_;            // 当前请求目标缓存，解决 request line 跨片段时的覆盖问题。
 
-    std::string currentHeaderField_;        // 当前尚未提交的 Header Field 片段缓存。
-    std::string currentHeaderValue_;        // 当前尚未提交的 Header Value 片段缓存。
-    bool lastWasValue_;                     // 标记最近一次回调是否为 Header Value，用于识别一个头部是否闭合。
+    std::string currentHeaderField_;    // 当前尚未提交的 Header Field 片段缓存。
+    std::string currentHeaderValue_;    // 当前尚未提交的 Header Value 片段缓存。
+    bool lastWasValue_;                 // 标记最近一次回调是否为 Header Value，用于识别一个头部是否闭合。
 };

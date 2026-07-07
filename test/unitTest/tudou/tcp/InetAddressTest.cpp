@@ -5,7 +5,7 @@
 
 #include <stdexcept>
 
-#include "base/InetAddress.h"
+#include "tudou/tcp/InetAddress.h"
 
 TEST(InetAddressTest, ConstructFromIpAndPortExposesNormalizedAccessors) {
     InetAddress address("127.0.0.1", 8080);

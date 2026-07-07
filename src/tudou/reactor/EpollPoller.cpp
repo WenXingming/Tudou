@@ -14,7 +14,7 @@ EpollPoller::EpollPoller(EventLoop* loop)
     : loop_(loop)
     , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 确保 exec 后 fd 被自动关闭，避免 fork 的子进程误继承父进程的 epollFd 导致资源泄漏或竞争
     , channels_()
-    , eventList_(initEventListSize) {
+    , eventList_(kInitEventListSize_) {
     if (epollFd_.fd() < 0) {
         spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
@@ -41,21 +41,15 @@ void EpollPoller::update_channel(Channel* channel) {
     }
     const int operation = (findIt == channels_.end()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
 
-    // 构造 ev
+    // 调用 epoll_ctl 注册/修改 fd 和事件，失败记录日志并断言
     struct epoll_event ev;
     std::memset(&ev, 0, sizeof(ev));
     ev.events = channel->get_events();
     ev.data.ptr = channel; // 注意：epoll_event.data 是 union，data.fd 和 data.ptr 不能同时使用
 
-    // 调用 epoll_ctl 注册/修改 fd 和事件，失败记录日志并断言
     int epollCtlRet = epoll_ctl(epollFd_.fd(), operation, fd, &ev);
     if (epollCtlRet != 0) {
-        spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})",
-            operation == EPOLL_CTL_ADD ? "ADD" : "MOD",
-            fd,
-            channel->get_events(),
-            errno,
-            strerror(errno));
+        spdlog::error("epoll_ctl {} failed, fd={}, events={}, errno={} ({})", operation == EPOLL_CTL_ADD ? "ADD" : "MOD", fd, channel->get_events(), errno, strerror(errno));
         assert(false);
     }
 
@@ -117,8 +111,8 @@ void EpollPoller::collect_active_channels(int numReady) {
     }
 }
 
+// 根据负载因子自动扩缩 eventList，避免就绪事件被截断或内存浪费
 void EpollPoller::resize_event_list(int numReady) {
-    // 根据负载因子自动扩缩 eventList，避免就绪事件被截断或内存浪费
     constexpr double expandThreshold = 0.9;
     constexpr double shrinkThreshold = 0.25;
     constexpr double expandRatio = 1.5;
@@ -128,7 +122,8 @@ void EpollPoller::resize_event_list(int numReady) {
     if (loadFactor >= expandThreshold) {
         eventList_.resize(static_cast<size_t>(eventList_.size() * expandRatio));
     }
-    else if (eventList_.size() > initEventListSize && loadFactor <= shrinkThreshold) {
-        eventList_.resize(static_cast<size_t>(eventList_.size() * shrinkRatio));
+    else if (eventList_.size() > kInitEventListSize_ && loadFactor <= shrinkThreshold) {
+        size_t newSize = std::min(static_cast<size_t>(kInitEventListSize_), static_cast<size_t>(eventList_.size() * shrinkRatio));
+        eventList_.resize(newSize);
     }
 }

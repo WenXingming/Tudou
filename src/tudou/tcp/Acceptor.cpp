@@ -65,13 +65,14 @@ void Acceptor::accept_idle_connection() {
     // 1. 关闭 idle fd 腾出 1 个 fd 名额。
     idleFd_ = Socket(-1);
 
-    // 2. 重试 accept 拉走内核队列中的挂起连接，直接接管其 fd 作为新的 idle fd。
-    //    fd 占用数不变（关 1 个 + 开 1 个），对端会收到连接重置，fd 耗尽状态下不可避免。
+    // 2. 重试 accept 拉走内核队列中的挂起连接，因作用域结束自动关闭，通知客户端连接重置。
     sockaddr_in clientAddr{};
-    Socket connSocket = listenSocket_.accept(&clientAddr);
-    if (connSocket.fd() >= 0) {
-        idleFd_ = std::move(connSocket);
+    {
+        Socket connSocket = listenSocket_.accept(&clientAddr);
     }
+
+    // 3. 重新打开 /dev/null 恢复占位，用于下一次 EMFILE 恢复。
+    idleFd_ = Socket(::open("/dev/null", O_RDONLY | O_CLOEXEC));
 }
 
 void Acceptor::handle_connect_callback(Socket connSocket, const InetAddress& peerAddr) {

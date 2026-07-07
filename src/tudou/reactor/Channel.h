@@ -57,7 +57,7 @@ class EpollPoller;
 class Channel {
 public:
     using EventCallback = std::function<void(Channel&)>;
-    friend class EpollPoller; // 仅 Poller 有权通过 set_revents() 写入就绪事件。
+    friend class EpollPoller;           // 仅 Poller 有权通过 set_revents() 写入就绪事件。
 
     explicit Channel(EventLoop* loop, int fd);
     Channel(const Channel&) = delete;
@@ -96,21 +96,21 @@ private:
     void handle_error_callback();
 
 private:
-    static const uint32_t kNoneEvent;
-    static const uint32_t kReadEvent;
-    static const uint32_t kWriteEvent;
+    static const uint32_t kNoneEvent_;
+    static const uint32_t kReadEvent_;
+    static const uint32_t kWriteEvent_;
 
-    EventLoop* loop_; // 所属 EventLoop，非 owning。
+    EventLoop* loop_;                   // 所属 EventLoop，非 owning。
 
-    int fd_; // 当前 Channel 绑定的 fd。
-    uint32_t events_; // 当前感兴趣事件掩码。
-    uint32_t revents_; // Poller 返回的本轮就绪事件掩码。
+    int fd_;                            // 当前 Channel 绑定的 fd。
+    uint32_t events_;                   // 当前感兴趣事件掩码。
+    uint32_t revents_;                  // Poller 返回的本轮就绪事件掩码。
 
-    std::weak_ptr<void> tie_; // 用于在回调期间暂时保活所有者对象。
-    bool isTied_; // 是否已启用 tie 机制。
+    std::weak_ptr<void> tie_;           // 用于在回调期间暂时保活所有者对象。
+    bool isTied_;                       // 是否已启用 tie 机制。
 
-    EventCallback readCallback_; // 读事件回调。
-    EventCallback writeCallback_; // 写事件回调，可选。
-    EventCallback closeCallback_; // 关闭事件回调，可选。
-    EventCallback errorCallback_; // 错误事件回调，可选。
+    EventCallback readCallback_;        // 读事件回调。
+    EventCallback writeCallback_;       // 写事件回调，可选。
+    EventCallback closeCallback_;       // 关闭事件回调，可选。
+    EventCallback errorCallback_;       // 错误事件回调，可选。
 };

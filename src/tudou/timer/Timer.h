@@ -13,11 +13,11 @@
 // │   └── operator<(other) const                # [公有] 允许 TimerId 作为有序容器 key
 // └── Timer
 //     ├── Timer(id, callback, expiration, interval)  # [公有] 保存回调契约、到期时间与重复周期
-//     ├── id() const                            # [公有] 返回定时器 ID
-//     ├── expiration() const                    # [公有] 返回当前到期时间
+//     ├── get_id() const                        # [公有] 返回定时器 ID
+//     ├── get_expiration() const                # [公有] 返回当前到期时间
 //     ├── is_repeat() const                     # [公有] 判断是否为周期定时器
 //     ├── run() const                           # [公有] 执行已注入回调
-//     └── restart(now)                          # [公有] 重复定时器按当前时刻推进下一次到期时间
+//     └── reschedule(now)                       # [公有] 重复定时器按当前时刻推进下一次到期时间
 // ============================================================================
 
 #pragma once
@@ -39,7 +39,7 @@ public:
     bool operator==(const TimerId& other) const { return value_ == other.value_; }
 
 private:
-    uint64_t value_; // 0 表示无效。
+    uint64_t value_;                        // 0 表示无效。
 };
 
 
@@ -51,15 +51,15 @@ public:
 
     Timer(TimerId id, Callback callback, Timestamp expiration, std::chrono::milliseconds interval);
 
-    TimerId id() const { return id_; }
-    Timestamp expiration() const { return expiration_; }
+    TimerId get_id() const { return id_; }
+    Timestamp get_expiration() const { return expiration_; }
     bool is_repeat() const { return interval_.count() > 0; }
     void run() const;
-    void restart(Timestamp now);
+    void reschedule(Timestamp now);
 
 private:
     TimerId id_;
     Callback callback_;
     Timestamp expiration_;
-    std::chrono::milliseconds interval_; // 0 表示一次性定时器。
+    std::chrono::milliseconds interval_;    // 0 表示一次性定时器。
 };

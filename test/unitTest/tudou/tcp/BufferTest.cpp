@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "tudou/net/Buffer.h"
+#include "tudou/tcp/Buffer.h"
 
 TEST(BufferTest, ReadFromBufferTruncatesToReadableBytes) {
     Buffer buffer;

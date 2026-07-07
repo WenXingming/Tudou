@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "tudou/http/SslContext.h"
+#include "tudou/http/TlsConfig.h"
 #include "tudou/http/TlsConnection.h"
 
 namespace {
@@ -164,7 +164,7 @@ TEST(TlsConnectionTest, NullSslHandleTransitionsToErrorState) {
 }
 
 TEST(TlsConnectionTest, HandshakeEncryptAndDecryptRoundTrip) {
-    SslContext serverContext;
+    TlsConfig serverContext;
     ASSERT_TRUE(serverContext.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
 
     SSL* serverSsl = serverContext.create_ssl();

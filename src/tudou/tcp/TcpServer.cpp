@@ -8,7 +8,7 @@
 #include <cassert>
 #include <vector>
 
-#include "base/InetAddress.h"
+#include "tudou/tcp/InetAddress.h"
 #include "spdlog/spdlog.h"
 #include "tudou/tcp/Acceptor.h"
 #include "tudou/tcp/ConnectionHeartbeat.h"
@@ -207,15 +207,11 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
         });
 
     if (errorCallback_) {
-        conn->set_error_callback([this](const TcpConnectionPtr& activeConn) {
-            errorCallback_(activeConn);
-            });
+        conn->set_error_callback(errorCallback_);
     }
 
     if (writeCompleteCallback_) {
-        conn->set_write_complete_callback([this](const TcpConnectionPtr& activeConn) {
-            writeCompleteCallback_(activeConn);
-            });
+        conn->set_write_complete_callback(writeCompleteCallback_);
     }
 
     if (highWaterMarkCallback_) {

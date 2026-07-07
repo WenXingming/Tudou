@@ -68,11 +68,11 @@ private:
     void append_body(std::string& output) const;
 
 private:
-    std::string httpVersion_;     // 响应行中的 HTTP 版本。
-    int statusCode_;              // 响应状态码。
-    std::string statusMessage_;   // 响应状态描述。
-    Headers headers_;             // 响应头集合。
-    std::string body_;            // 响应体。
-    bool closeConnection_;        // 标记响应后连接是否应关闭。
+    std::string httpVersion_;           // 响应行中的 HTTP 版本。
+    int statusCode_;                    // 响应状态码。
+    std::string statusMessage_;         // 响应状态描述。
+    Headers headers_;                   // 响应头集合。
+    std::string body_;                  // 响应体。
+    bool closeConnection_;              // 标记响应后连接是否应关闭。
 };
 

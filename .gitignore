@@ -1,12 +1,23 @@
+# vscode
 .vscode/
+
+# build
 build/
 cmake-build*/
+
+# clion
 .idea/
+
+# configs
 configs/static-file-http-server/assets/Homepage/
 configs/file-link-server/storage/*
-*.log
-configs/static-file-http-server/assets/Homepage
 configs/
+
+# logs
+*.log
 
 # Claude
 .claude/
+
+# skills
+.agents

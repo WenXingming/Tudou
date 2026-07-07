@@ -35,22 +35,19 @@ public:
     void refresh();
 
 private:
-    void start_in_loop();
-    void stop_in_loop();
-    void refresh_in_loop();
     void check_timeout();
     bool is_timeout(std::chrono::steady_clock::time_point now) const;
 
 private:
-    EventLoop* loop_; // 连接所属的 EventLoop，定时器调度和回调均在此线程执行。
+    EventLoop* loop_;                                           // 连接所属的 EventLoop，定时器调度和回调均在此线程执行。
 
-    double checkIntervalSeconds_; // 空闲检测周期（秒）。
-    double idleTimeoutSeconds_;   // 连接最大空闲时长（秒），超过此时间未收到对端数据则断开。
-    std::chrono::steady_clock::time_point lastActiveTime_; // 最近一次被 refresh 的时间点。
+    double checkIntervalSeconds_;                               // 空闲检测周期（秒）。
+    double idleTimeoutSeconds_;                                 // 连接最大空闲时长（秒），超过此时间未收到对端数据则断开。
+    std::chrono::steady_clock::time_point lastActiveTime_;      // 最近一次被 refresh 的时间点。
 
-    TimerId timerId_; // 当前周期定时器 ID，用于 stop() 时取消。
+    TimerId timerId_;                                           // 当前周期定时器 ID，用于 stop() 时取消。
 
-    std::weak_ptr<TcpConnection> conn_; // 弱引用所属连接，连接销毁后自动失效。
+    std::weak_ptr<TcpConnection> conn_;                         // 弱引用所属连接，连接销毁后自动失效。
 
-    bool running_; // 检测是否处于运行状态，避免重复启动或停止。
+    bool running_;                                              // 检测是否处于运行状态，避免重复启动或停止。
 };

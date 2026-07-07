@@ -22,8 +22,8 @@
 #include <functional>
 #include <memory>
 
-#include "base/InetAddress.h"
-#include "tudou/net/Socket.h"
+#include "tudou/tcp/InetAddress.h"
+#include "tudou/tcp/Socket.h"
 
 class EventLoop;
 class Channel;
@@ -47,11 +47,11 @@ private:
     void accept_idle_connection();           // fd 耗尽恢复：关闭 idle fd → accept 拉走挂起连接 → 关连接 → 重建 idle fd。
 
 private:
-    EventLoop* loop_; // Acceptor 运行所在的事件循环（线程），负责调度事件回调
+    EventLoop* loop_;                       // Acceptor 运行所在的事件循环（线程），负责调度事件回调
 
-    Socket listenSocket_;                    // 监听 socket 的 RAII 句柄，析构时自动关闭 fd
-    std::unique_ptr<Channel> channel_;       // 监听 socket 对应的事件通道（声明在后，确保析构时先反注册再关 fd）
-    Socket idleFd_{-1};                      // 预留的空闲 fd（pipe 写端），fd 耗尽时关闭它腾出名额重试 accept，防 busy-loop。
+    Socket listenSocket_;                   // 监听 socket 的 RAII 句柄，析构时自动关闭 fd
+    std::unique_ptr<Channel> channel_;      // 监听 socket 对应的事件通道（声明在后，确保析构时先反注册再关 fd）
+    Socket idleFd_{-1};                     // 预留的空闲 fd（pipe 写端），fd 耗尽时关闭它腾出名额重试 accept，防 busy-loop。
 
     NewConnectCallback newConnectCallback_;
 };

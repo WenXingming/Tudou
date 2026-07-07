@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "tudou/http/SslContext.h"
+#include "tudou/http/TlsConfig.h"
 
 namespace {
 
@@ -14,8 +14,8 @@ std::string cert_path(const char* fileName) {
 
 } // namespace
 
-TEST(SslContextTest, InitWithValidCertificateCreatesServerSsl) {
-    SslContext context;
+TEST(TlsConfigTest, InitWithValidCertificateCreatesServerSsl) {
+    TlsConfig context;
 
     ASSERT_TRUE(context.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
     EXPECT_TRUE(context.is_initialized());
@@ -25,8 +25,8 @@ TEST(SslContextTest, InitWithValidCertificateCreatesServerSsl) {
     SSL_free(ssl);
 }
 
-TEST(SslContextTest, FailedReinitializationClearsPreviousContext) {
-    SslContext context;
+TEST(TlsConfigTest, FailedReinitializationClearsPreviousContext) {
+    TlsConfig context;
 
     ASSERT_TRUE(context.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
     EXPECT_TRUE(context.is_initialized());

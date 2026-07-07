@@ -34,50 +34,44 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <queue>
+#include <set>
 
-#include "tudou/net/Socket.h"
+#include "base/ScopedFd.h"
 #include "tudou/timer/Timer.h"
 
 class Channel;
 class EventLoop;
 
-// TimerQueue 负责在 EventLoop 线程内维护 timerfd 与双索引定时器集合。
 class TimerQueue {
 public:
     using Timestamp = std::chrono::steady_clock::time_point;
-    using TimerKey = std::pair<Timestamp, TimerId>;
+    using TimerEntry = std::pair<Timestamp, std::shared_ptr<Timer>>;
 
     explicit TimerQueue(EventLoop* loop);
     ~TimerQueue();
-
     TimerQueue(const TimerQueue&) = delete;
     TimerQueue& operator=(const TimerQueue&) = delete;
 
-    // 线程安全：索引修改统一投递到 EventLoop 线程执行。
     TimerId add_timer(std::function<void()> callback, Timestamp when, std::chrono::milliseconds interval);
-
-    // 线程安全：索引修改统一投递到 EventLoop 线程执行。
     void erase_timer(TimerId timerId);
 
 private:
-    void on_timerfd_read(); // timerfd 可读后的统一处理入口。
+    void on_timerfd_read(); // timerfd 可读后的统一处理入口，注册到 channel
 
-    // 根据最早到期时间同步 timerfd 状态。
+    int create_timerfd();
     void sync_timerfd();
     void reset_timerfd(Timestamp expiration);
     void disarm_timerfd();
 
-    static int create_timerfd();
-    static void read_timerfd(int timerFd);
+    void read_timerfd(int timerFd);
 
 private:
-    EventLoop* loop_; // 所属 EventLoop，限定所有索引操作的线程边界。
-    Socket timerFd_{ -1 }; // timerfd 负责把最早到期时间映射成可读事件，声明在 timerChannel_ 之前，保证逆序析构时 Channel 先注销再关闭 fd。
-    std::unique_ptr<Channel> timerChannel_; // 监听 timerfd 可读事件的 Channel。
+    EventLoop* loop_;                                                                       // 所属 EventLoop，限定所有索引操作的线程边界。
+    ScopedFd timerFd_;                                                                      // timerfd 负责把最早到期时间映射成可读事件，声明在 timerChannel_ 之前，保证构造顺序和析构逆序
+    std::unique_ptr<Channel> timerChannel_;                                                 // 监听 timerfd 可读事件的 Channel。
 
-    std::atomic<uint64_t> nextTimerId_; // 跨线程注册定时器时使用的单调递增 ID 生成器。
+    std::atomic<uint64_t> nextTimerId_;                                                     // 跨线程注册定时器时使用的单调递增 ID 生成器。
 
-    std::priority_queue<TimerKey, std::vector<TimerKey>, std::greater<>> expireHeap_; // 按到期时间升序排序的辅助结构
-    std::map<TimerId, std::shared_ptr<Timer>> timersById_; // times 的管理结构
+    std::set<TimerEntry> expireSet_;                                                        // 按到期时间升序排序的辅助结构
+    std::map<TimerId, std::shared_ptr<Timer>> timersById_;                                  // times 的管理结构
 };

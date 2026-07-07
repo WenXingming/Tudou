@@ -1,6 +1,6 @@
 // ============================================================================
 // EpollPoller.h
-// epoll 封装层，负责注册 Channel、等待就绪事件并回放到 Channel。
+// EpollPoller 是 EventLoop 的底层 I/O 复用器，epoll 封装层，只管理 epoll 相关细节，负责注册 Channel、等待就绪事件并回放到 Channel。
 //
 // 成员函数调用树（[公有]/[私有] 标注接口层级）：
 //
@@ -18,7 +18,7 @@
 // ============================================================================
 
 #pragma once
-#include "tudou/net/Socket.h"
+#include "base/ScopedFd.h"
 
 #include <sys/epoll.h>
 #include <vector>
@@ -27,29 +27,28 @@
 class EventLoop;
 class Channel;
 
-// EpollPoller 是 EventLoop 的底层 I/O 复用器，只管理 epoll 相关细节。
 class EpollPoller {
 public:
     explicit EpollPoller(EventLoop* loop);
     ~EpollPoller();
 
-    const std::vector<Channel*>& poll(int timeoutMs); // epoll 主入口：等待、翻译、调节容量，返回就绪 Channel 列表引用。
-    void update_channel(Channel* channel); // 把 Channel 的当前兴趣集同步到 epoll。
+    const std::vector<Channel*>& poll(int timeoutMs);
+    void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
     bool has_channel(Channel* channel) const;
 
 private:
     int collect_ready_num(int timeoutMs);
-    void collect_active_channels(int numReady); // 从 epoll 结果中收集就绪 Channel 并回填 revents_。
-    void resize_event_list(int numReady); // 按负载调节 eventList_ 容量。
+    void collect_active_channels(int numReady);
+    void resize_event_list(int numReady);
 
 private:
-    EventLoop* loop_; // 所属 EventLoop，限定线程边界。
+    EventLoop* loop_;                                       // 所属 EventLoop，限定线程边界。
 
-    Socket epollFd_{ -1 }; // epoll 文件描述符。
-    std::unordered_map<int, Channel*> channels_; // fd 到 Channel 的注册表，不拥有 Channel。
+    ScopedFd epollFd_;                                      // epoll 文件描述符。
+    std::unordered_map<int, Channel*> channels_;            // fd 到 Channel 的注册表，不拥有 Channel。
 
-    static constexpr size_t initEventListSize = 16; // 初始事件列表容量。static 节省空间，避免每个实例多占 8 字节
-    std::vector<epoll_event> eventList_; // epoll_wait 使用的结果缓冲区，后续按需扩容和缩容。
-    std::vector<Channel*> activeChannels_; // 每轮 poll 的就绪 Channel 列表，复用避免反复堆分配。
+    static constexpr size_t kInitEventListSize_ = 16;       // 初始事件列表容量。static 节省空间，避免每个实例多占 8 字节
+    std::vector<epoll_event> eventList_;                    // epoll_wait 使用的结果缓冲区，后续按需扩容和缩容。
+    std::vector<Channel*> activeChannels_;                  // 每轮 poll 的就绪 Channel 列表，复用避免反复堆分配。
 };

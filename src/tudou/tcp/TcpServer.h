@@ -127,9 +127,9 @@ private:
     // 外层哈希(EventLoop*)：在 start() 阶段一次性初始化完毕，运行期为纯只读结构，多线程并发查找（find）天然安全。
     // 内层哈希(ConnectionRecords)：严格遵守 Thread-Per-Core 原则，只有该 loop 所属线程才有权执行增删改查。因此全程无锁。
     std::unordered_map<EventLoop*, ConnectionRecords> connectionRecordsByLoop_;
-    std::atomic<size_t> activeConnectionCount_; // 只用于 shutdown 触发所有连接关闭后同步等待所有连接销毁完成
-    std::mutex shutdownMutex_;                  // 保护 shutdownCondition_ 的 wait/notify 握手，不保护 activeConnectionCount_ 本身
-    std::condition_variable shutdownCondition_;    // 替代 busy-wait，由 shutdown lambda 在计数归零时唤醒主线程
+    std::atomic<size_t> activeConnectionCount_;     // 只用于 shutdown 触发所有连接关闭后同步等待所有连接销毁完成
+    std::mutex shutdownMutex_;                      // 保护 shutdownCondition_ 的 wait/notify 握手，不保护 activeConnectionCount_ 本身
+    std::condition_variable shutdownCondition_;     // 替代 busy-wait，由 shutdown lambda 在计数归零时唤醒主线程
     std::atomic<ServerState> state_;
 
     ConnectionCallback connectionCallback_;
