@@ -68,6 +68,7 @@ public:
     ParseResult parse(const char* data, size_t len); // 执行一次 llhttp 解析并返回当前解析状态。
 
     const HttpRequest& get_request() const { return request_; }
+    size_t get_consumed_bytes() const { return consumedBytes_; }
     void reset();
 
 private:
@@ -96,4 +97,5 @@ private:
     std::string currentHeaderField_;    // 当前尚未提交的 Header Field 片段缓存。
     std::string currentHeaderValue_;    // 当前尚未提交的 Header Value 片段缓存。
     bool lastWasValue_;                 // 标记最近一次回调是否为 Header Value，用于识别一个头部是否闭合。
+    size_t consumedBytes_;              // 单次 parse 中已消费的字节数。
 };

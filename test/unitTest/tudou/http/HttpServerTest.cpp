@@ -155,3 +155,64 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
 
     ::close(fds[1]);
 }
+
+TEST(HttpServerTest, ProcessPipelinedRequests) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    EventLoop loop(20);
+    HttpServer server("127.0.0.1", 8080, 0);
+    auto conn = make_connection(loop, fds[0]);
+    int routeCalls = 0;
+
+    server.add_get_route("/first", [&](const HttpRequest& request, HttpResponse& response) {
+        routeCalls++;
+        (void)request;
+        response.set_status(200, "OK");
+        response.set_body("first_response");
+        });
+    server.add_get_route("/second", [&](const HttpRequest& request, HttpResponse& response) {
+        routeCalls++;
+        (void)request;
+        response.set_status(200, "OK");
+        response.set_body("second_response");
+        });
+
+    server.on_connect(conn);
+    conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
+        server.on_message(activeConn);
+        });
+    conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
+        if (routeCalls == 2) {
+            loop.quit();
+        }
+        });
+    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
+        server.on_close(conn);
+        });
+
+    // 发送粘连的两个 HTTP 请求
+    const std::string request =
+        "GET /first HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "\r\n"
+        "GET /second HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "\r\n";
+    ASSERT_EQ(::write(fds[1], request.data(), request.size()), static_cast<ssize_t>(request.size()));
+
+    loop.run_after(0.5, [&]() {
+        loop.quit();
+        });
+    loop.loop();
+
+    const std::string response = read_available(fds[1]);
+    EXPECT_EQ(routeCalls, 2);
+    EXPECT_NE(response.find("first_response"), std::string::npos);
+    EXPECT_NE(response.find("second_response"), std::string::npos);
+
+    conn->force_close();
+    EXPECT_TRUE(server.connectionStates_.empty());
+
+    ::close(fds[1]);
+}

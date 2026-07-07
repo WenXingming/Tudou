@@ -15,7 +15,8 @@ HttpContext::HttpContext() :
     currentUrl_(),
     currentHeaderField_(),
     currentHeaderValue_(),
-    lastWasValue_(false) {
+    lastWasValue_(false),
+    consumedBytes_(0) {
 
     // llhttp 的静态回调全部桥接回当前对象，保证解析器状态和请求构建状态始终同源。
     llhttp_settings_init(&settings_);
@@ -31,12 +32,21 @@ HttpContext::HttpContext() :
 
 HttpContext::ParseResult HttpContext::parse(const char* data, size_t len) {
     assert(data != nullptr || len == 0);
+    consumedBytes_ = 0;
 
-    // 解析门面只负责执行状态机并返回显式状态，不再把“是否完整”拆成额外查询契约。
     const llhttp_errno_t err = llhttp_execute(&parser_, data, len);
 
-    // llhttp 无错误时表示本批输入已经被当前状态机接收；完整性直接体现在返回值里。
-    if (err == HPE_OK || err == HPE_PAUSED_UPGRADE || err == HPE_PAUSED) {
+    if (err == HPE_OK) {
+        consumedBytes_ = len;
+        return messageComplete_ ? ParseResult::Complete : ParseResult::NeedMoreData;
+    }
+    else if (err == HPE_PAUSED || err == HPE_PAUSED_UPGRADE) {
+        const char* errorPos = llhttp_get_error_pos(&parser_);
+        if (errorPos != nullptr) {
+            consumedBytes_ = static_cast<size_t>(errorPos - data);
+        } else {
+            consumedBytes_ = len;
+        }
         return messageComplete_ ? ParseResult::Complete : ParseResult::NeedMoreData;
     }
 
@@ -47,6 +57,7 @@ void HttpContext::reset() {
     // reset 同时清空 DTO 状态和 llhttp 内部状态机，确保下一条报文从干净边界开始。
     reset_message_state();
     llhttp_reset(&parser_);
+    llhttp_resume(&parser_);
     parser_.data = this;
 }
 
@@ -108,7 +119,7 @@ int HttpContext::on_message_complete(llhttp_t* parser) {
 
     ctx->request_.set_version("HTTP/" + std::to_string(parser->http_major) + "." + std::to_string(parser->http_minor));
     ctx->messageComplete_ = true;
-    return 0;
+    return HPE_PAUSED; // 返回 HPE_PAUSED 指示 llhttp 暂停解析
 }
 
 void HttpContext::reset_message_state() {

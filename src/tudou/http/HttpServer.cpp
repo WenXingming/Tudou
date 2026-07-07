@@ -104,17 +104,38 @@ void HttpServer::on_message(const TcpConnectionPtr& conn) {
         return;
     }
 
-    // 主线只保留“收数据 -> 解析 -> 分支响应”三个步骤，避免 TLS/状态仓库细节打断阅读。
-    switch (state->httpContext.parse(payload.data(), payload.size())) {
-    case HttpContext::ParseResult::NeedMoreData:
-        log_incomplete_request(conn);
-        return;
-    case HttpContext::ParseResult::Rejected:
-        reject_bad_request(conn, *state);
-        return;
-    case HttpContext::ParseResult::Complete:
-        reply_complete_request(conn, *state);
-        return;
+    // 通过 while 循环逐个解析并消费粘包/管道化发送的 HTTP 请求，解决多请求丢弃漏洞。
+    size_t consumed = 0;
+    while (consumed < payload.size()) {
+        const char* currentData = payload.data() + consumed;
+        size_t currentLen = payload.size() - consumed;
+
+        HttpContext::ParseResult result = state->httpContext.parse(currentData, currentLen);
+        size_t lastConsumed = state->httpContext.get_consumed_bytes();
+        consumed += lastConsumed;
+
+        switch (result) {
+        case HttpContext::ParseResult::NeedMoreData:
+            log_incomplete_request(conn);
+            break;
+        case HttpContext::ParseResult::Rejected:
+            reject_bad_request(conn, *state);
+            return;
+        case HttpContext::ParseResult::Complete:
+            reply_complete_request(conn, *state);
+
+            // 安全护栏：若响应中设置了 Connection: close 导致连接被 force_close() 关闭，
+            // 对应的 ConnectionState 已经在 on_close 里被从 HttpServer 清理，必须退出防止野指针崩溃。
+            if (!find_connection_state(conn)) {
+                return;
+            }
+            break;
+        }
+
+        // 防死循环保护：如果未消费任何字节且未完成，直接跳出
+        if (lastConsumed == 0 && result == HttpContext::ParseResult::NeedMoreData) {
+            break;
+        }
     }
 }
 
