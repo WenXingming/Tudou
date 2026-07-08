@@ -7,13 +7,18 @@
 
 #include "tudou/reactor/EventLoop.h"
 #include "EventLoopThread.h"
+#include "spdlog/spdlog.h"
 
-EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
+#include <pthread.h>
+#include <sched.h>
+
+EventLoopThread::EventLoopThread(const ThreadInitCallback& cb, int cpuCore)
     : loop_(nullptr)
     , thread_()
     , loopMutex_()
     , loopCondition_()
-    , initCallback_(cb) {
+    , initCallback_(cb)
+    , cpuCore_(cpuCore) {
 
     // 启动后台线程，创建 EventLoop 并阻塞等待就绪。
     thread_ = std::thread(&EventLoopThread::thread_func, this);
@@ -40,6 +45,19 @@ EventLoop * EventLoopThread::get_loop(){
 }
 
 void EventLoopThread::thread_func() {
+    // 绑定 CPU 亲和性
+    if (cpuCore_ >= 0) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(cpuCore_, &cpuset);
+        pthread_t currentThread = ::pthread_self();
+        if (::pthread_setaffinity_np(currentThread, sizeof(cpu_set_t), &cpuset) != 0) {
+            spdlog::warn("EventLoopThread: Failed to set CPU affinity to core {}", cpuCore_);
+        } else {
+            spdlog::info("EventLoopThread: Successfully bound thread to CPU core {}", cpuCore_);
+        }
+    }
+
     // 创建该线程专属的 EventLoop，执行初始化回调，然后通知构造函数可以返回。
     {
         std::lock_guard<std::mutex> lock(loopMutex_);

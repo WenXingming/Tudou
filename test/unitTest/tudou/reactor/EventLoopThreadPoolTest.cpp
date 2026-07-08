@@ -32,3 +32,9 @@ TEST(EventLoopThreadPoolTest, GetNextLoopRoundRobinsAcrossIoLoops) {
     EXPECT_NE(firstLoop, secondLoop);
     EXPECT_EQ(firstLoop, thirdLoop);
 }
+
+TEST(EventLoopThreadPoolTest, SetCpuAffinityDoesNotThrowOrError) {
+    EventLoopThreadPool pool("affinity_test", 2, EventLoopThreadPool::ThreadInitCallback(), true);
+    
+    EXPECT_NO_THROW(pool.start());
+}

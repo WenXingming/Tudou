@@ -35,7 +35,7 @@ class EventLoopThreadPool {
 public:
     using ThreadInitCallback = std::function<void(EventLoop*)>;
 
-    EventLoopThreadPool(const std::string& name = std::string(), int numThreads = 0, const ThreadInitCallback& cb = ThreadInitCallback());
+    EventLoopThreadPool(const std::string& name = std::string(), int numThreads = 0, const ThreadInitCallback& cb = ThreadInitCallback(), bool pinCpu = false);
     EventLoopThreadPool(const EventLoopThreadPool&) = delete;
     EventLoopThreadPool& operator=(const EventLoopThreadPool&) = delete;
     ~EventLoopThreadPool();
@@ -66,4 +66,5 @@ private:
     bool started_;                                                      // 是否已经完成启动。
 
     ThreadInitCallback initCallback_;                                   // IO loop 初始化回调。
+    bool pinCpu_;                                                       // 是否启用 CPU 亲和性。
 };

@@ -50,7 +50,12 @@ void TcpServer::start() {
 
     // 创建并启动 IO 线程池，初始化 main loop 和 acceptor
     assert(loopThreadPool_ == nullptr);
-    loopThreadPool_ = std::make_unique<EventLoopThreadPool>("TcpServerLoopPool", static_cast<int>(ioLoopNum_));
+    loopThreadPool_ = std::make_unique<EventLoopThreadPool>(
+        "TcpServerLoopPool",
+        static_cast<int>(ioLoopNum_),
+        EventLoopThreadPool::ThreadInitCallback(),
+        pinCpu_
+    );
     loopThreadPool_->start();
 
     // 连接记录哈希表的外层以 EventLoop* 为键，start() 阶段一次性初始化完毕，运行期为纯只读结构，多线程并发查找（find）天然安全。

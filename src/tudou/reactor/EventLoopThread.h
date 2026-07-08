@@ -28,7 +28,7 @@ class EventLoopThread {
 public:
     using ThreadInitCallback = std::function<void(EventLoop*)>;
 
-    explicit EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback());
+    explicit EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback(), int cpuCore = -1);
     EventLoopThread(const EventLoopThread&) = delete;
     EventLoopThread& operator=(const EventLoopThread&) = delete;
     ~EventLoopThread();
@@ -45,5 +45,6 @@ private:
     std::mutex loopMutex_;                      // 保护 loop_ 并与 loopCondition_ 配对使用。
     std::condition_variable loopCondition_;     // 等待 loop_ 创建完成的条件变量。
 
-    ThreadInitCallback initCallback_;           // EventLoop 创建后、进入 loop 前执行的初始化回调。
+    ThreadInitCallback initCallback_;           // EventLoop 创建后、进入 loop 前执行 of 初始化回调。
+    int cpuCore_;                               // 绑定的 CPU 核心 ID，若小于 0 则不绑定。
 };

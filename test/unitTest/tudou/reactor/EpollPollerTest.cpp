@@ -22,7 +22,8 @@ TEST(EpollPollerTest, ChannelRegisterAndUnregisterViaEventLoop) {
     EventLoop loop(20);
     auto ch = std::make_shared<Channel>(&loop, fds[0]);
 
-    EXPECT_TRUE(loop.has_channel(ch.get()));
+    // 惰性注册模式下，新构造的 Channel 尚未关联任何事件，不应立刻登记在 Loop 中
+    EXPECT_FALSE(loop.has_channel(ch.get()));
 
     ch->enable_reading();
     EXPECT_TRUE(loop.has_channel(ch.get()));

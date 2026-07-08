@@ -76,6 +76,8 @@ public:
     void set_high_water_mark_callback(HighWaterMarkCallback cb, size_t highWaterMark = 64 * 1024 * 1024);
     // 为之后创建的所有连接启用统一的空闲检测；策略对象的生命周期由 TcpServer 统一编排。
     void set_connection_heartbeat(double checkIntervalSeconds, double idleTimeoutSeconds);
+    // 启用或禁用 CPU 亲和性设置
+    void enable_cpu_affinity(bool enable = true) { pinCpu_ = enable; }
     const std::string& get_ip() const { return ip_; }
     uint16_t get_port() const { return port_; }
     int get_num_threads() const { return static_cast<int>(ioLoopNum_ + 1); }
@@ -141,4 +143,5 @@ private:
 
     size_t highWaterMark_;
     ConnectionHeartbeatOptions connectionHeartbeatOptions_;
+    bool pinCpu_ = false;                                               // 是否开启 CPU 亲和性。
 };
