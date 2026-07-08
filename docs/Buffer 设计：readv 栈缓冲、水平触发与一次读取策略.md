@@ -396,7 +396,7 @@ const int cnt = (writableBytes < sizeof(extraBuf)) ? 2 : 1;
 
 如果没有应用层写缓冲区，业务层就必须自己维护“还剩多少字节没发、下次从哪里继续发”，会非常混乱。
 
-Tudou 当前做法是：
+Tudou 原有做法是：
 
 1. `TcpConnection::send_in_loop()` 先把待发送数据 append 到 `writeBuffer_`
 2. 然后让 `Channel` 关注 `EPOLLOUT`
@@ -416,6 +416,35 @@ Tudou 当前做法是：
 - 写空后立刻关闭 `EPOLLOUT`
 
 这也是 `writeBuffer_` 与 Channel 事件管理配合的意义。
+
+### 3.3.1 写路径 Scatter-Gather I/O (writev) 向量合并写入优化
+
+当发送缓冲区中已经存在积压数据时，如果有新数据需要发送，直接调用 `write_to_buffer()` 追加拷贝会带来两个代价：
+1. **用户态内存分配与拷贝开销**：新数据需要追加入 `std::vector`，可能引发扩容和元素拷贝。
+2. **多余的系统调用与事件驱动成本**：本来可以直接发送的数据，不得不全堆入缓冲区等待下次可写事件触发，拉长了数据路径。
+
+为了解决该痛点，Tudou 引入了基于 `writev` 的 Scatter-Gather I/O 优化：
+
+* **核心思路**：将 `writeBuffer_` 中的积压数据（通过已暴露为公有的 `readable_start_ptr()` 获取指针）和新发送的 `msg` 分别作为两段独立的向量 `iovec` 传入 `::writev` 写入套接字：
+  ```cpp
+  struct iovec iov[2];
+  iov[0].iov_base = const_cast<char*>(writeBuffer_->readable_start_ptr());
+  iov[0].iov_len = oldLen;
+  iov[1].iov_base = const_cast<char*>(msg.data());
+  iov[1].iov_len = msg.size();
+  ssize_t n = ::writev(connSocket_.fd(), iov, 2);
+  ```
+* **零拷贝读游标推进 (`advance_read_index`)**：为了规避 `writev` 写入成功后消费缓冲区数据时，调用原有 `read_from_buffer(len)` 接口产生临时的 `std::string` 堆内存拷贝与分配，我们在 `Buffer` 中专门扩展了公有接口 `advance_read_index(size_t len)`：
+  ```cpp
+  void Buffer::advance_read_index(size_t len) {
+      assert(len <= readable_bytes());
+      maintain_read_index(len); // 仅前移读游标，0 拷贝，0 分配
+  }
+  ```
+* **写流控状态机的细粒度处理**：
+  * **完全发完**：如果写入字节数 `bytesWritten >= oldLen + msg.size()`，旧缓冲与新数据全部发送成功，直接关掉 `EPOLLOUT` 关注，并触发 `handle_write_complete_callback()`。
+  * **旧缓冲发完，新数据部分发完**：清空旧缓冲，并将新数据未发完的部分追加到 `writeBuffer_` 中。
+  * **旧缓冲仅部分发完，新数据完全没发**：仅推进旧缓冲的已发字节数游标，新数据整体追加到 `writeBuffer_` 中，继续注册 `EPOLLOUT` 等待下一次 Reactor 可写回调刷走。
 
 ---
 
@@ -634,6 +663,11 @@ while (true) {
 
 这让系统整体的调度行为更平衡。
 
+### 4.5 写路径上通过 writev 减少数据拷贝与系统调用
+
+- **零拷贝合并发送**：在有积压时使用 `writev` 将缓冲区数据和新消息合并为单次系统调用发送，减少了频繁 write 的开销，且避免了用户态的大字符串拼接和动态扩容。
+- **游标指针移动**：新增 `advance_read_index` 方法，避免了缓冲区推进时拷贝产生的临时对象，保持写入与清除路径的轻量化。
+
 ---
 
 ## 5. 面试时怎么讲
@@ -646,7 +680,7 @@ while (true) {
 
 ### 5.1 30 秒版本
 
-在非阻塞 Reactor 里，应用层 Buffer 主要用来承接内核 socket 缓冲区和上层协议之间的状态，处理半包、短写和收发进度。Tudou 的 Buffer 用一个连续数组和读写索引维护 prepend、readable、writable 三段区域，输入路径参考 muduo：常驻 Buffer 默认只做成 1 KB 级别，但在 `read_from_fd()` 里会额外借一块 64 KB 栈上 `extraBuf`，用一次 `readv` 同时读入两段内存。这样既避免每连接常驻大缓冲区，又常常能在一次系统调用里拿回足够多数据。当前仓库没有打开 `EPOLLET`，所以是 LT；而 `TcpConnection::on_read()` 每次事件只读一次，这和 LT 很匹配，因为只要内核里还有未读数据，后续 epoll 还会继续通知。这样做的好处是低延迟、公平性更好，避免热点连接在一次回调里把 loop 长时间占住。
+在非阻塞 Reactor 里，应用层 Buffer 主要用来承接内核 socket 缓冲区和上层协议之间的状态，处理半包、短写和收发进度。Tudou 的 Buffer 用一个连续数组和读写索引维护 prepend、readable、writable 三段区域，输入路径参考 muduo：常驻 Buffer 默认只做成 1 KB 级别，但在 `read_from_fd()` 里会额外借一块 64 KB 栈上 `extraBuf`，用一次 `readv` 同时读入两段内存。这样既避免每连接常驻大缓冲区，又常常能在一次系统调用里拿回足够多数据。在写入路径上，Tudou 支持基于 `writev` 的 Scatter-Gather I/O 优化，在有积压时直接利用两段向量将积压缓冲区与新数据一起发出，并配合 `advance_read_index` 零拷贝向前移动读游标，消除用户态字符串拼接及堆内存拷贝开销。当前仓库没有打开 `EPOLLET`，所以是 LT；而 `TcpConnection::on_read()` 每次事件只读一次，这和 LT 很匹配，因为只要内核里还有未读数据，后续 epoll 还会继续通知。这样做的好处是低延迟、公平性更好，避免热点连接在一次回调里把 loop 长时间占住。
 
 ### 5.2 2 分钟版本
 
@@ -690,15 +724,16 @@ while (true) {
 
 ## 6. 一句话总结
 
-**Tudou 当前的 Buffer 设计，本质上是在做三件事：**
+**Tudou 当前的 Buffer 设计，本质上是在做四件事：**
 
-1. 用小常驻内存保存连接状态
-2. 用 `readv + 栈上 extrabuf` 吸收突发读流量，减少系统调用
-3. 用 LT 保证“每次事件只读一次”仍然正确，从而把调度重点放在低延迟和公平性上
+1. 用小常驻内存保存连接状态；
+2. 用 `readv + 栈上 extrabuf` 吸收突发读流量，减少读系统调用；
+3. 用 `writev` 配合 `advance_read_index` 在有积压时合并发送新旧数据，减少写系统调用并杜绝用户态拷贝；
+4. 用 LT 保证“每次事件只读一次”仍然正确，从而把调度重点放在低延迟和公平性上。
 
 如果把它压成一句最适合面试的话，可以这么说：
 
-> 我们没有把每个连接的 Buffer 预分配得很大，而是让常驻 Buffer 保持小，读路径用一次 `readv` 同时写入 Buffer 尾部和栈上临时大块 `extraBuf`，这样能同时兼顾内存和系统调用成本。当前 epoll 语义是 LT，所以 `TcpConnection::on_read()` 每次事件只读一次也不会丢数据，未读完的数据后续还会继续收到通知，这比 ET 下循环读到 `EAGAIN` 更有利于事件循环的公平性和低延迟。`
+> 我们让连接的常驻 Buffer 保持初始 1 KB 大小以节省内存，当发生突发大流量读时，临时借用 64 KB 的栈上空间配合 `readv` 单次系统调用读取。在写路径上有积压时，引入 `writev` 将缓冲区残留与新发送数据合并发出，并通过 `advance_read_index` 零拷贝移动缓冲区读游标以规避用户态的拼接拷贝。整套系统在 LT 水平触发机制下运行，“每次可读只读一次”，在保证吞吐率的同时，大幅提升了多连接调度的公平性并降低了尾延迟。
 
 ---
 

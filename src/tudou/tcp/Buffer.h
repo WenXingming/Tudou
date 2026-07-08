@@ -63,6 +63,7 @@ public:
 
     std::string read_from_buffer(size_t len);           // 读取指定字节并推进读指针。
     std::string read_from_buffer();
+    void advance_read_index(size_t len);                // 仅推进读指针而不产生任何拷贝。
     void write_to_buffer(const char* data, size_t len); // 顺序追加原始字节。
     void write_to_buffer(const std::string& str);
 
@@ -71,10 +72,10 @@ public:
 
     size_t readable_bytes() const;
     size_t writable_bytes() const;
+    const char* readable_start_ptr() const;
 
 private:
     size_t prependable_bytes() const;
-    const char* readable_start_ptr() const;
     void maintain_read_index(size_t len);
     void maintain_all_index();
     void make_space(size_t len); // 优先复用 prepend 区，不够再扩容。

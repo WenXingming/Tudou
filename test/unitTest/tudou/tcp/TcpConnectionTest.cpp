@@ -118,3 +118,48 @@ TEST(TcpConnectionTest, SendFromAnotherThreadIsQueuedBackToLoop) {
 
     ::close(fds[1]);
 }
+
+TEST(TcpConnectionTest, WritevSendsGatheredBuffersSuccessfully) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+
+    EventLoop loop(50);
+    auto conn = make_connection(loop, fds[0]);
+
+    conn->set_close_callback([](const std::shared_ptr<TcpConnection>&) {});
+    
+    bool writeCompleted = false;
+    conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
+        writeCompleted = true;
+        loop.quit();
+    });
+
+    // 1. 灌满套接字发送缓冲区以模拟网络积压
+    fill_send_buffer_until_would_block(fds[0]);
+
+    // 2. 发送 "hello" -> 无法发出，被积压到 writeBuffer_
+    conn->send("hello");
+
+    // 3. 在有积压时再次发送 "world" -> 此时在 send_in_loop 内触发 writev 路径并安全返回
+    conn->send("world");
+
+    // 4. 清理对端接收缓冲区，解除积压，让 Reactor 写事件可以刷数据
+    char temp[65536];
+    while (::read(fds[1], temp, sizeof(temp)) > 0);
+
+    loop.run_after(0.2, [&]() { loop.quit(); });
+    loop.loop();
+
+    // 5. 校验对端收到的聚合数据
+    std::string received;
+    char buf[1024];
+    ssize_t n = ::read(fds[1], buf, sizeof(buf));
+    if (n > 0) {
+        received.append(buf, n);
+    }
+
+    EXPECT_TRUE(writeCompleted);
+    EXPECT_EQ(received, "helloworld");
+
+    ::close(fds[1]);
+}

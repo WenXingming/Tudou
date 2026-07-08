@@ -4,6 +4,7 @@
 # build
 build/
 cmake-build*/
+build-all/
 
 # clion
 .idea/

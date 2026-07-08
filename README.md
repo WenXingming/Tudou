@@ -30,15 +30,16 @@
 
 ## 项目亮点 ✨
 
-| 方向 | 当前能力 |
-| --- | --- |
-| Reactor 模型 | one loop per thread；1 个 main loop 负责接入，N 个 IO loop 负责连接读写与事件处理 |
-| TCP 核心 | EventLoop、EpollPoller、Channel、Acceptor、TcpServer、TcpConnection、Buffer |
-| HTTP 能力 | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册 |
-| HTTPS 能力 | HttpServer 在 `start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态 |
-| 路由能力 | 支持 method + path 精确匹配、前缀路由兜底、自定义 404 / 405 处理器 |
-| 定时与保活 | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连 |
-| 工程配套 | CMake 构建、单元测试、集成测试可执行程序、示例配置、架构与设计文档 |
+
+| 方向         | 当前能力                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| Reactor 模型 | one loop per thread；1 个 main loop 负责接入，N 个 IO loop 负责连接读写与事件处理                    |
+| TCP 核心     | EventLoop、EpollPoller、Channel、Acceptor、TcpServer、TcpConnection、Buffer                          |
+| HTTP 能力    | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册               |
+| HTTPS 能力   | HttpServer 在`start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态 |
+| 路由能力     | 支持 method + path 精确匹配、前缀路由兜底、自定义 404 / 405 处理器                                   |
+| 定时与保活   | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连                           |
+| 工程配套     | CMake 构建、单元测试、集成测试可执行程序、示例配置、架构与设计文档                                   |
 
 <a id="架构总览"></a>
 
@@ -152,7 +153,7 @@ flowchart LR
     Pool --> IoLoops[IO EventLoops]
     IoLoops --> Poller
     IoLoops --> TimerQueue[TimerQueue \n Timer]
-    
+  
 
     TcpServer --> Conn[TcpConnection]
     Conn --> Channel
@@ -203,12 +204,13 @@ Transfer/sec:     83.90MB
 
 性能摘要：
 
-| 场景 | 压测参数 | 对象 | 平均延迟 | Requests/sec | Transfer/sec |
-| --- | --- | --- | --- | --- | --- |
-| 单 Reactor | 1 线程 / 200 连接 | Tudou | 1.71ms | 133001.24 | 12.81MB |
-| 单 Reactor | 1 线程 / 200 连接 | muduo `hello_http_server` | 1.44 ms | 134009.31 | 12.91 MB |
-| 多 Reactor | 10 线程 / 10 * 200 连接 | Tudou（1 main loop + 10 io loop） | 144.58 us | 871058.98 | 83.90 MB |
-| 多 Reactor | 10 线程 / 10 * 200 连接 | muduo `hello_http_server`（1 main loop + 10 io loop） | 179.99 us | 902394.26 | 86.92 MB |
+
+| 场景       | 压测参数                | 对象                                                 | 平均延迟  | Requests/sec | Transfer/sec |
+| ------------ | ------------------------- | ------------------------------------------------------ | ----------- | -------------- | -------------- |
+| 单 Reactor | 1 线程 / 200 连接       | Tudou                                                | 1.71ms    | 133001.24    | 12.81MB      |
+| 单 Reactor | 1 线程 / 200 连接       | muduo`hello_http_server`                             | 1.44 ms   | 134009.31    | 12.91 MB     |
+| 多 Reactor | 10 线程 / 10 * 200 连接 | Tudou（1 main loop + 10 io loop）                    | 144.58 us | 871058.98    | 83.90 MB     |
+| 多 Reactor | 10 线程 / 10 * 200 连接 | muduo`hello_http_server`（1 main loop + 10 io loop） | 179.99 us | 902394.26    | 86.92 MB     |
 
 这些数据说明 Tudou 已经具备不错的并发处理能力，并且已经和知名网络库 muduo 处于同一数量级；后续会尝试继续优化性能。
 
@@ -237,14 +239,15 @@ Transfer/sec:     61.58MB
 
 ### 依赖项
 
-| 依赖 | 是否需要 | 用途 |
-| --- | --- | --- |
-| g++ / clang++ | 必需 | 建议使用支持 C++17 的编译器；核心库按 C++14 编写，单元测试目标当前使用 C++17 |
-| CMake 3.25+ | 必需 | 项目构建与 FetchContent 依赖管理 |
-| OpenSSL (`libssl-dev`) | 必需 | 核心库链接依赖，提供 HTTPS / SHA-256 等能力 |
-| Google Test (`libgtest-dev`) | 可选 | 构建并运行单元测试 |
-| libcurl (`libcurl4-openssl-dev`) | StarMind 需要 | 调用 OpenAI-compatible LLM API |
-| llhttp / spdlog | 自动解析 | 优先使用兼容的系统包，未找到时通过 FetchContent 下载固定版本 |
+
+| 依赖                             | 是否需要      | 用途                                                                         |
+| ---------------------------------- | --------------- | ------------------------------------------------------------------------------ |
+| g++ / clang++                    | 必需          | 建议使用支持 C++17 的编译器；核心库按 C++14 编写，单元测试目标当前使用 C++17 |
+| CMake 3.25+                      | 必需          | 项目构建与 FetchContent 依赖管理                                             |
+| OpenSSL (`libssl-dev`)           | 必需          | 核心库链接依赖，提供 HTTPS / SHA-256 等能力                                  |
+| Google Test (`libgtest-dev`)     | 可选          | 构建并运行单元测试                                                           |
+| libcurl (`libcurl4-openssl-dev`) | StarMind 需要 | 调用 OpenAI-compatible LLM API                                               |
+| llhttp / spdlog                  | 自动解析      | 优先使用兼容的系统包，未找到时通过 FetchContent 下载固定版本                 |
 
 Ubuntu 一键安装示例：
 
@@ -355,10 +358,11 @@ int main() {
 
 如果你更关心完整可运行项目，而不是最小 API 示例，请直接看下面两个示例程序。
 
-| 目标 | 配置目录 | 适用场景 | 亮点 |
-| --- | --- | --- | --- |
-| `static-server` | [configs/static-file-http-server](./configs/static-file-http-server) | 静态资源托管 | GET / HEAD、前缀路由、简单文件缓存、测试证书 HTTPS |
-| `StarMind` | [configs/starmind](./configs/starmind) | AI 聊天 Web 服务 | 登录鉴权、会话管理、OpenAI-compatible LLM API、前端页面 |
+
+| 目标            | 配置目录                                                             | 适用场景         | 亮点                                                    |
+| ----------------- | ---------------------------------------------------------------------- | ------------------ | --------------------------------------------------------- |
+| `static-server` | [configs/static-file-http-server](./configs/static-file-http-server) | 静态资源托管     | GET / HEAD、前缀路由、简单文件缓存、测试证书 HTTPS      |
+| `StarMind`      | [configs/starmind](./configs/starmind)                               | AI 聊天 Web 服务 | 登录鉴权、会话管理、OpenAI-compatible LLM API、前端页面 |
 
 ### static-server 示例
 

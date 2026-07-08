@@ -50,6 +50,11 @@ std::string Buffer::read_from_buffer() {
     return read_from_buffer(readable_bytes());
 }
 
+void Buffer::advance_read_index(size_t len) {
+    assert(len <= readable_bytes());
+    maintain_read_index(len);
+}
+
 void Buffer::write_to_buffer(const char* data, size_t len) {
     if (data == nullptr || len == 0) {
         return;

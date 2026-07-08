@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cstring>
 #include <unistd.h>
+#include <sys/uio.h>
 
 #include "spdlog/spdlog.h"
 
@@ -80,9 +81,10 @@ void TcpConnection::send_in_loop(const std::string& msg) {
         return;
     }
 
-    // 缓冲为空时尝试直接写，减少数据拷贝和系统调用开销。完整写入则直接完成，无需注册写事件；未完全写入则把剩余数据追加到缓冲区，并注册写事件以便后续发送。
     size_t writtenLen = 0;
     const size_t oldLen = writeBuffer_->readable_bytes();
+
+    // 场景 1：当前无积压，直接 write 写入新数据
     if (oldLen == 0 && !channel_->is_writing()) {
         const ssize_t n = ::write(connSocket_.fd(), msg.data(), msg.size());
 
@@ -98,14 +100,54 @@ void TcpConnection::send_in_loop(const std::string& msg) {
             writtenLen = static_cast<size_t>(n);
         }
 
-        // 判断是否完整写入。是：触发回调后直接返回，无需后续剩余数据追加到缓冲区
+        // 判断是否完整写入。是：触发回调后直接返回
         if (writtenLen == msg.size()) {
             handle_write_complete_callback();
             return;
         }
     }
+    // 场景 2：当前发送缓冲中已有积压，使用 writev 合并发送积压缓冲和新 msg，省去在用户态拷贝拼接的开销
+    else if (oldLen > 0) {
+        struct iovec iov[2];
+        iov[0].iov_base = const_cast<char*>(writeBuffer_->readable_start_ptr());
+        iov[0].iov_len = oldLen;
+        iov[1].iov_base = const_cast<char*>(msg.data());
+        iov[1].iov_len = msg.size();
 
-    writeBuffer_->write_to_buffer(msg.data() + writtenLen, msg.size() - writtenLen);
+        const ssize_t n = ::writev(connSocket_.fd(), iov, 2);
+        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            spdlog::error("TcpConnection::send_in_loop() writev failed, errno={} ({})", errno, strerror(errno));
+            handle_error_callback();
+            close_connection(*channel_);
+            return;
+        }
+
+        if (n >= 0) {
+            size_t bytesWritten = static_cast<size_t>(n);
+            if (bytesWritten >= oldLen) {
+                // 积压缓冲区数据全部成功发送
+                writeBuffer_->advance_read_index(oldLen); // 清空旧缓冲
+                size_t msgBytesWritten = bytesWritten - oldLen;
+                writtenLen = msgBytesWritten;
+
+                if (writtenLen == msg.size()) {
+                    // 新旧数据全发完
+                    channel_->disable_writing();
+                    handle_write_complete_callback();
+                    return;
+                }
+            } else {
+                // 积压缓冲区仅部分发送，新 msg 完全没发
+                writeBuffer_->advance_read_index(bytesWritten); // 仅消费掉已发出的旧数据
+                writtenLen = 0;
+            }
+        }
+    }
+
+    // 将未发出数据追加到应用层发送缓冲，注册写事件驱动 Reactor 后续发送
+    if (writtenLen < msg.size()) {
+        writeBuffer_->write_to_buffer(msg.data() + writtenLen, msg.size() - writtenLen);
+    }
     channel_->enable_writing();
 
     // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
