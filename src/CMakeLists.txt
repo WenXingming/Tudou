@@ -7,6 +7,7 @@ add_library(tudou STATIC
     tudou/rpc/json/JsonRpcRouter.cpp
     tudou/rpc/json/JsonRpcServer.cpp
     tudou/rpc/protocol/RpcCodec.cpp
+    tudou/rpc/protobuf/ProtobufRouter.cpp
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
     tudou/http/TlsConfig.cpp
