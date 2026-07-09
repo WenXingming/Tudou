@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package tudou.rpc.test;
+package tudou.rpc.binary.test;
 
 option cc_generic_services = true;
 

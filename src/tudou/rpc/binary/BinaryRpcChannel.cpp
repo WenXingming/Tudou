@@ -1,13 +1,13 @@
 /**
- * @file ProtobufChannel.cpp
- * @brief 基于 Protobuf RPC 协议支持单连接多路复用的客户端通道实现
+ * @file BinaryRpcChannel.cpp
+ * @brief 基于二进制 RPC 协议支持单连接多路复用的客户端通道实现
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
-#include "ProtobufChannel.h"
-#include "tudou/rpc/protocol/RpcCodec.h"
-#include "protocol.pb.h"
+#include "BinaryRpcChannel.h"
+#include "tudou/rpc/binary/BinaryRpcCodec.h"
+#include "binary_rpc.pb.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -19,11 +19,12 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-ProtobufChannel::ProtobufChannel(const std::string& ip, uint16_t port) {
+BinaryRpcChannel::BinaryRpcChannel(const std::string& ip, uint16_t port) {
     clientFd_ = ::socket(AF_INET, SOCK_STREAM, 0);
     if (clientFd_ < 0) {
-        throw std::runtime_error("ProtobufChannel: Failed to create socket");
+        throw std::runtime_error("BinaryRpcChannel: Failed to create socket");
     }
 
     struct sockaddr_in servAddr;
@@ -33,12 +34,12 @@ ProtobufChannel::ProtobufChannel(const std::string& ip, uint16_t port) {
     
     if (::inet_pton(AF_INET, ip.c_str(), &servAddr.sin_addr) != 1) {
         ::close(clientFd_);
-        throw std::runtime_error("ProtobufChannel: Invalid IP address: " + ip);
+        throw std::runtime_error("BinaryRpcChannel: Invalid IP address: " + ip);
     }
 
     if (::connect(clientFd_, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) {
         ::close(clientFd_);
-        throw std::runtime_error("ProtobufChannel: Failed to connect to server " + ip + ":" + std::to_string(port));
+        throw std::runtime_error("BinaryRpcChannel: Failed to connect to server " + ip + ":" + std::to_string(port));
     }
 
     // 连接成功后，启动专职的后台接收解包线程
@@ -47,7 +48,7 @@ ProtobufChannel::ProtobufChannel(const std::string& ip, uint16_t port) {
     });
 }
 
-ProtobufChannel::~ProtobufChannel() {
+BinaryRpcChannel::~BinaryRpcChannel() {
     running_ = false;
     
     if (clientFd_ >= 0) {
@@ -61,14 +62,14 @@ ProtobufChannel::~ProtobufChannel() {
     }
 
     // 清理析构时可能仍挂起未返回的请求
-    cleanup_pending_requests("ProtobufChannel: Channel is being destructed");
+    cleanup_pending_requests("BinaryRpcChannel: Channel is being destructed");
 }
 
-void ProtobufChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
-                                google::protobuf::RpcController* /* controller */,
-                                const google::protobuf::Message* request,
-                                google::protobuf::Message* response,
-                                google::protobuf::Closure* done) {
+void BinaryRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
+                                 google::protobuf::RpcController* /* controller */,
+                                 const google::protobuf::Message* request,
+                                 google::protobuf::Message* response,
+                                 google::protobuf::Closure* done) {
     uint64_t seq = nextSequenceId_++;
 
     // 1. 创建同步唤醒的 Response 上下文，并注册存入全局映射表
@@ -79,7 +80,7 @@ void ProtobufChannel::CallMethod(const google::protobuf::MethodDescriptor* metho
     {
         std::lock_guard<std::mutex> lock(mapMutex_);
         if (!running_) {
-            throw std::runtime_error("ProtobufChannel: Channel is closed");
+            throw std::runtime_error("BinaryRpcChannel: Channel is closed");
         }
         pendingRequests_[seq] = context;
     }
@@ -92,19 +93,19 @@ void ProtobufChannel::CallMethod(const google::protobuf::MethodDescriptor* metho
     if (!meta.SerializeToString(&metaRaw)) {
         std::lock_guard<std::mutex> lock(mapMutex_);
         pendingRequests_.erase(seq);
-        throw std::runtime_error("ProtobufChannel: Failed to serialize RpcMeta");
+        throw std::runtime_error("BinaryRpcChannel: Failed to serialize RpcMeta");
     }
 
     std::string bodyRaw;
     if (!request->SerializeToString(&bodyRaw)) {
         std::lock_guard<std::mutex> lock(mapMutex_);
         pendingRequests_.erase(seq);
-        throw std::runtime_error("ProtobufChannel: Failed to serialize Request Message");
+        throw std::runtime_error("BinaryRpcChannel: Failed to serialize Request Message");
     }
 
     // 3. 编码协议二进制帧
     Buffer writeBuf;
-    RpcCodec::encode(&writeBuf, RpcMessageType::Request, seq, metaRaw, bodyRaw);
+    BinaryRpcCodec::encode(&writeBuf, RpcMessageType::Request, seq, metaRaw, bodyRaw);
     std::string bytesToSend = writeBuf.read_from_buffer();
 
     // 4. 并发写入 Socket 缓存。必须加锁保护，防止多线程并发写入时发生数据流交错损坏
@@ -117,7 +118,7 @@ void ProtobufChannel::CallMethod(const google::protobuf::MethodDescriptor* metho
                 if (n < 0 && errno == EINTR) {
                     continue;
                 }
-                throw std::runtime_error("ProtobufChannel: Failed to write bytes to socket");
+                throw std::runtime_error("BinaryRpcChannel: Failed to write bytes to socket");
             }
             totalSent += n;
         }
@@ -137,7 +138,7 @@ void ProtobufChannel::CallMethod(const google::protobuf::MethodDescriptor* metho
     }
 }
 
-void ProtobufChannel::receive_loop() {
+void BinaryRpcChannel::receive_loop() {
     Buffer readBuf;
     char temp[1024];
     RpcHeader respHeader;
@@ -151,16 +152,16 @@ void ProtobufChannel::receive_loop() {
                 continue;
             }
             // 对端断开或 Socket 被 shutdown/close 发生异常，退出接收循环并清理待处理事务
-            cleanup_pending_requests("ProtobufChannel: Connection closed prematurely");
+            cleanup_pending_requests("BinaryRpcChannel: Connection closed prematurely");
             break;
         }
 
         readBuf.write_to_buffer(temp, nr);
 
         while (running_) {
-            RpcCodec::DecodeResult result = RpcCodec::decode(&readBuf, respHeader, respMetaRaw, respBodyRaw);
+            BinaryRpcCodec::DecodeResult result = BinaryRpcCodec::decode(&readBuf, respHeader, respMetaRaw, respBodyRaw);
             
-            if (result == RpcCodec::DecodeResult::Success) {
+            if (result == BinaryRpcCodec::DecodeResult::Success) {
                 std::shared_ptr<ResponseContext> context;
                 
                 // 加锁提取并从 Map 移走该 sequenceId，防止二次操作
@@ -179,16 +180,16 @@ void ProtobufChannel::receive_loop() {
                         context->promise.set_value(); // 【核心唤醒】
                     } else {
                         context->promise.set_exception(std::make_exception_ptr(
-                            std::runtime_error("ProtobufChannel: Failed to parse Response Message")
+                            std::runtime_error("BinaryRpcChannel: Failed to parse Response Message")
                         ));
                     }
                 }
             }
-            else if (result == RpcCodec::DecodeResult::HalfPack || result == RpcCodec::DecodeResult::Empty) {
+            else if (result == BinaryRpcCodec::DecodeResult::HalfPack || result == BinaryRpcCodec::DecodeResult::Empty) {
                 break; // 半包继续等待接收
             }
-            else if (result == RpcCodec::DecodeResult::Error) {
-                cleanup_pending_requests("ProtobufChannel: Detected binary protocol decode error");
+            else if (result == BinaryRpcCodec::DecodeResult::Error) {
+                cleanup_pending_requests("BinaryRpcChannel: Detected binary protocol decode error");
                 running_ = false;
                 break;
             }
@@ -196,7 +197,7 @@ void ProtobufChannel::receive_loop() {
     }
 }
 
-void ProtobufChannel::cleanup_pending_requests(const std::string& reason) {
+void BinaryRpcChannel::cleanup_pending_requests(const std::string& reason) {
     std::lock_guard<std::mutex> lock(mapMutex_);
     for (auto& pair : pendingRequests_) {
         // 向所有挂起线程注入 exception，防止调用线程发生无限死锁挂起
@@ -207,5 +208,6 @@ void ProtobufChannel::cleanup_pending_requests(const std::string& reason) {
     pendingRequests_.clear();
 }
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

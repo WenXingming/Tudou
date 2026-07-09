@@ -1,5 +1,5 @@
 /**
- * @file RpcCodec.h
+ * @file BinaryRpcCodec.h
  * @brief Tudou 二进制 RPC 帧编解码器声明
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
@@ -9,12 +9,13 @@
 
 #include <string>
 #include "tudou/tcp/Buffer.h"
-#include "TudouProtocol.h"
+#include "Protocol.h"
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-class RpcCodec {
+class BinaryRpcCodec {
 public:
     enum class DecodeResult {
         Success,    // 成功解析出一个完整的 RPC 二进制数据包
@@ -23,8 +24,8 @@ public:
         Error       // 魔数不匹配或版本号不对，代表发生协议损坏/非法请求
     };
 
-    RpcCodec() = default;
-    ~RpcCodec() = default;
+    BinaryRpcCodec() = default;
+    ~BinaryRpcCodec() = default;
 
     /**
      * @brief 将 RPC 报文编码为符合 Tudou 协议的大端二进制数据流并顺序追加进 Buffer。
@@ -54,5 +55,6 @@ public:
                                std::string& outBodyBytes);
 };
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

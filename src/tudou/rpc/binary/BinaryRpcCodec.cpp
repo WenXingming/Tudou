@@ -1,11 +1,11 @@
 /**
- * @file RpcCodec.cpp
+ * @file BinaryRpcCodec.cpp
  * @brief Tudou 二进制 RPC 帧编解码器实现
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
-#include "RpcCodec.h"
+#include "BinaryRpcCodec.h"
 #include <endian.h>
 #include <arpa/inet.h>
 #include <cstring>
@@ -13,12 +13,13 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-void RpcCodec::encode(Buffer* buf,
-                      RpcMessageType type,
-                      uint64_t sequenceId,
-                      const std::string& metaBytes,
-                      const std::string& bodyBytes) {
+void BinaryRpcCodec::encode(Buffer* buf,
+                            RpcMessageType type,
+                            uint64_t sequenceId,
+                            const std::string& metaBytes,
+                            const std::string& bodyBytes) {
     RpcHeader header;
     header.magic = htons(kRpcMagic);
     header.version = kRpcVersion;
@@ -41,10 +42,10 @@ void RpcCodec::encode(Buffer* buf,
     }
 }
 
-RpcCodec::DecodeResult RpcCodec::decode(Buffer* buf,
-                                         RpcHeader& outHeader,
-                                         std::string& outMetaBytes,
-                                         std::string& outBodyBytes) {
+BinaryRpcCodec::DecodeResult BinaryRpcCodec::decode(Buffer* buf,
+                                                    RpcHeader& outHeader,
+                                                    std::string& outMetaBytes,
+                                                    std::string& outBodyBytes) {
     // 缓冲区大小不足以解析出一个固定头部 (20 字节)
     if (buf->readable_bytes() < kRpcHeaderSize) {
         return DecodeResult::Empty;
@@ -98,5 +99,6 @@ RpcCodec::DecodeResult RpcCodec::decode(Buffer* buf,
     return DecodeResult::Success;
 }
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

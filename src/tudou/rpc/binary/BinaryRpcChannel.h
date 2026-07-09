@@ -1,6 +1,6 @@
 /**
- * @file ProtobufChannel.h
- * @brief 基于 Protobuf RPC 协议支持单连接多路复用的客户端通道声明
+ * @file BinaryRpcChannel.h
+ * @brief 基于二进制 RPC 协议支持单连接多路复用的客户端通道声明
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
@@ -18,22 +18,23 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-class ProtobufChannel : public google::protobuf::RpcChannel {
+class BinaryRpcChannel : public google::protobuf::RpcChannel {
 public:
     /**
      * @brief 构造函数，建立连接并拉起后台接收线程
      */
-    ProtobufChannel(const std::string& ip, uint16_t port);
+    BinaryRpcChannel(const std::string& ip, uint16_t port);
     
     /**
      * @brief 析构函数，优雅释放后台线程并清理挂起请求
      */
-    ~ProtobufChannel() override;
+    ~BinaryRpcChannel() override;
 
     // 禁用拷贝构造和赋值
-    ProtobufChannel(const ProtobufChannel&) = delete;
-    ProtobufChannel& operator=(const ProtobufChannel&) = delete;
+    BinaryRpcChannel(const BinaryRpcChannel&) = delete;
+    BinaryRpcChannel& operator=(const BinaryRpcChannel&) = delete;
 
     /**
      * @brief 客户端 Stub 调用的核心纯虚函数覆写。
@@ -53,7 +54,7 @@ private:
     };
 
     /**
-     * @brief 后台接收线程的循环体，专职从 Socket 读取字节并进行 RpcCodec 拆包分发
+     * @brief 后台接收线程的循环体，专职从 Socket 读取字节并进行 BinaryRpcCodec 拆包分发
      */
     void receive_loop();
 
@@ -76,5 +77,6 @@ private:
     std::unordered_map<uint64_t, std::shared_ptr<ResponseContext>> pendingRequests_;
 };
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

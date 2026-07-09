@@ -1,5 +1,5 @@
 /**
- * @file ProtobufRouter.h
+ * @file BinaryRpcRouter.h
  * @brief 基于 Protobuf 运行时反射机制的动态 RPC 路由器声明
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
@@ -17,15 +17,16 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-class ProtobufRouter {
+class BinaryRpcRouter {
 public:
-    ProtobufRouter();
-    ~ProtobufRouter();
+    BinaryRpcRouter();
+    ~BinaryRpcRouter();
 
     // 禁用拷贝构造和赋值
-    ProtobufRouter(const ProtobufRouter&) = delete;
-    ProtobufRouter& operator=(const ProtobufRouter&) = delete;
+    BinaryRpcRouter(const BinaryRpcRouter&) = delete;
+    BinaryRpcRouter& operator=(const BinaryRpcRouter&) = delete;
 
     /**
      * @brief 注册一个具体的 Protobuf RPC 业务服务对象。
@@ -56,5 +57,6 @@ private:
     std::unordered_map<std::string, ServiceInfo> services_;
 };
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

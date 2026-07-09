@@ -1,14 +1,14 @@
 /**
- * @file ProtobufChannelTest.cpp
- * @brief 基于 Protobuf RPC 协议支持单连接多路复用的客户端通道集成测试
+ * @file BinaryRpcChannelTest.cpp
+ * @brief 基于二进制 RPC 协议支持单连接多路复用的客户端通道集成测试
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/protobuf/ProtobufServer.h"
-#include "tudou/rpc/protobuf/ProtobufChannel.h"
-#include "protocol.pb.h"
+#include "tudou/rpc/binary/BinaryRpcServer.h"
+#include "tudou/rpc/binary/BinaryRpcChannel.h"
+#include "binary_rpc.pb.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>
@@ -25,6 +25,7 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 namespace test {
 
 namespace {
@@ -77,13 +78,13 @@ public:
     }
 };
 
-class ProtobufChannelTest : public ::testing::Test {
+class BinaryRpcChannelTest : public ::testing::Test {
 protected:
     void SetUp() override {
         port = reserve_free_port();
         ASSERT_GT(port, 0);
 
-        server = std::make_unique<ProtobufServer>("127.0.0.1", port, 0);
+        server = std::make_unique<BinaryRpcServer>("127.0.0.1", port, 0);
         server->register_service(std::make_shared<TestEchoServiceImpl>());
 
         serverThread = std::thread([this]() {
@@ -100,14 +101,14 @@ protected:
         }
     }
 
-    std::unique_ptr<ProtobufServer> server;
+    std::unique_ptr<BinaryRpcServer> server;
     std::thread serverThread;
     uint16_t port = 0;
 };
 
 // 1. 验证常规的单路调用成功
-TEST_F(ProtobufChannelTest, InvokesSingleCallSuccessfully) {
-    ProtobufChannel channel("127.0.0.1", port);
+TEST_F(BinaryRpcChannelTest, InvokesSingleCallSuccessfully) {
+    BinaryRpcChannel channel("127.0.0.1", port);
     TestEchoService_Stub stub(&channel);
 
     EchoRequest request;
@@ -119,8 +120,8 @@ TEST_F(ProtobufChannelTest, InvokesSingleCallSuccessfully) {
 }
 
 // 2. 【核心多路复用】验证多线程在单连接上发起并发调用时，回包内容精准匹配不发生混淆或交错
-TEST_F(ProtobufChannelTest, ExecutesConcurrentMultiplexedCallsSuccessfully) {
-    ProtobufChannel channel("127.0.0.1", port);
+TEST_F(BinaryRpcChannelTest, ExecutesConcurrentMultiplexedCallsSuccessfully) {
+    BinaryRpcChannel channel("127.0.0.1", port);
     TestEchoService_Stub stub(&channel);
 
     constexpr int kThreadNum = 10;
@@ -153,8 +154,8 @@ TEST_F(ProtobufChannelTest, ExecutesConcurrentMultiplexedCallsSuccessfully) {
 }
 
 // 3. 【核心容错逻辑】验证在长耗时 RPC 任务执行中途，Channel 被主动析构时，挂起线程能被正确唤醒并抛出异常
-TEST_F(ProtobufChannelTest, ThrowsExceptionOnPrematureChannelDestruction) {
-    auto channel = std::make_unique<ProtobufChannel>("127.0.0.1", port);
+TEST_F(BinaryRpcChannelTest, ThrowsExceptionOnPrematureChannelDestruction) {
+    auto channel = std::make_unique<BinaryRpcChannel>("127.0.0.1", port);
     TestEchoService_Stub stub(channel.get());
 
     EchoRequest req;
@@ -179,5 +180,6 @@ TEST_F(ProtobufChannelTest, ThrowsExceptionOnPrematureChannelDestruction) {
 }
 
 } // namespace test
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

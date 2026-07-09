@@ -1,5 +1,5 @@
 /**
- * @file TudouProtocol.h
+ * @file Protocol.h
  * @brief Tudou 二进制 RPC 协议帧结构定义
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
@@ -35,6 +35,7 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
 // 协议头部魔数，用以快速识别合法请求 (TD = 0x5444)
 constexpr uint16_t kRpcMagic = 0x5444;
@@ -61,5 +62,6 @@ struct RpcHeader {
 // 头部总大小固定为 20 字节
 constexpr size_t kRpcHeaderSize = sizeof(RpcHeader);
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

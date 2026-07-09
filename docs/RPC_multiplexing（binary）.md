@@ -1,6 +1,6 @@
-# Tudou Protobuf RPC 单连接多路复用设计文档
+# Tudou Binary RPC 单连接多路复用设计文档
 
-本文档详细阐述了 Tudou Protobuf RPC 客户端通道（`ProtobufChannel`）在单连接多线程多路复用（Single-Connection Multiplexing）特性上的技术架构与并发模型设计。
+本文档详细阐述了 Tudou Binary RPC 客户端通道（`BinaryRpcChannel`）在单连接多线程多路复用（Single-Connection Multiplexing）特性上的技术架构与并发模型设计。
 
 ---
 
@@ -48,7 +48,7 @@
 
 ### C. 后台单线程解包分发 (`receive_loop`)
 客户端内部在连接建立后，会启动一个专职的后台接收线程，死循环执行阻塞 `::read`：
-1. 收到数据流后，循环调用 `RpcCodec::decode` 进行二进制解包。
+1. 收到数据流后，循环调用 `BinaryRpcCodec::decode` 进行二进制解包。
 2. 解出完整的响应包后，读取包头中的 `sequenceId`。
 3. 加锁从 `pendingRequests_` 中检索并移除对应的上下文，反序列化消息体填入 `response` 字段，最终调用 `promise.set_value()`。
 4. 挂起中的业务线程在 `future.get()` 处被操作系统唤醒，拿到返回结果继续向下执行。
@@ -68,10 +68,10 @@ Tudou RPC 实现了极其严密的安全扫尾清场机制：
 
 ## 5. 架构反思与深层技术讨论
 
-### A. 直接修改 `ProtobufChannel` 还是派生新子类？
-在开发多路复用通道时，我们选择直接修改原 `ProtobufChannel`，这是基于以下权衡的架构决定：
-- **方案对比**：若新增 `MultiplexedProtobufChannel` 类，虽然符合“开闭原则（OCP）”，但会导致客户端 API 碎片化，且大量 Socket 握手和 `RpcCodec` 编码代码重复率极高。
-- **最佳实践**：在如 gRPC 和 brpc 这样成熟的工业级框架中，`Channel` 类本身依然保持极薄的业务代理属性，它们通过**“组合模式”**将具体的“TCP 多路复用和连接维护”委托给底层的 `Socket/Transport` 组件。因此，在 Tudou RPC 的演进阶段，直接在 `ProtobufChannel` 上重构是最聚焦且最易用的选择，未来重构方向也是进行底层职责剥离，而非增加 Channel 子类。
+### A. 直接修改 `BinaryRpcChannel` 还是派生新子类？
+在开发多路复用通道时，我们选择直接修改原 `BinaryRpcChannel`，这是基于以下权衡的架构决定：
+- **方案对比**：若新增 `MultiplexedBinaryRpcChannel` 类，虽然符合“开闭原则（OCP）”，但会导致客户端 API 碎片化，且大量 Socket 握手和 `BinaryRpcCodec` 编码代码重复率极高。
+- **最佳实践**：在如 gRPC 和 brpc 这样成熟的工业级框架中，`Channel` 类本身依然保持极薄的业务代理属性，它们通过**“组合模式”**将具体的“TCP 多路复用和连接维护”委托给底层的 `Socket/Transport` 组件。因此，在 Tudou RPC 的演进阶段，直接在 `BinaryRpcChannel` 上重构是最聚焦且最易用的选择，未来重构方向也是进行底层职责剥离，而非增加 Channel 子类。
 
 ### B. JSON-RPC 客户端是否也应该实现多路复用？
 在技术可行性与实际工程价值之间，存在以下分水岭：

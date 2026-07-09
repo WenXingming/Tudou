@@ -1,14 +1,14 @@
 /**
- * @file ProtobufServerTest.cpp
- * @brief 基于 Protobuf RPC 协议的二进制 TCP 服务端集成环回测试
+ * @file BinaryRpcServerTest.cpp
+ * @brief 基于二进制 RPC 协议的二进制 TCP 服务端集成环回测试
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/protobuf/ProtobufServer.h"
-#include "tudou/rpc/protocol/RpcCodec.h"
-#include "protocol.pb.h"
+#include "tudou/rpc/binary/BinaryRpcServer.h"
+#include "tudou/rpc/binary/BinaryRpcCodec.h"
+#include "binary_rpc.pb.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>
@@ -23,6 +23,7 @@
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 namespace test {
 
 namespace {
@@ -95,14 +96,14 @@ public:
     }
 };
 
-class ProtobufServerTest : public ::testing::Test {
+class BinaryRpcServerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         port = reserve_free_port();
         ASSERT_GT(port, 0);
 
         // 创建 RPC 服务端并监听分配好的确定端口
-        server = std::make_unique<ProtobufServer>("127.0.0.1", port, 0);
+        server = std::make_unique<BinaryRpcServer>("127.0.0.1", port, 0);
         server->register_service(std::make_shared<TestEchoServiceImpl>());
 
         // 启动后台 Reactor 循环线程
@@ -118,19 +119,19 @@ protected:
         }
     }
 
-    std::unique_ptr<ProtobufServer> server;
+    std::unique_ptr<BinaryRpcServer> server;
     std::thread serverThread;
     uint16_t port = 0;
 };
 
-TEST_F(ProtobufServerTest, ExecutesLoopbackBinaryRpcSuccessfully) {
+TEST_F(BinaryRpcServerTest, ExecutesLoopbackBinaryRpcSuccessfully) {
     // 1. 重试连接到服务端端口
     int clientFd = connect_with_retry(port);
     ASSERT_GE(clientFd, 0);
 
     // 2. 编码元信息 (Meta)
     RpcMeta meta;
-    meta.set_service_name("tudou.rpc.test.TestEchoService");
+    meta.set_service_name("tudou.rpc.binary.test.TestEchoService");
     meta.set_method_name("Echo");
     std::string metaRaw;
     ASSERT_TRUE(meta.SerializeToString(&metaRaw));
@@ -143,7 +144,7 @@ TEST_F(ProtobufServerTest, ExecutesLoopbackBinaryRpcSuccessfully) {
 
     // 4. 组装发送字节流
     Buffer writeBuf;
-    RpcCodec::encode(&writeBuf, RpcMessageType::Request, 8888, metaRaw, bodyRaw);
+    BinaryRpcCodec::encode(&writeBuf, RpcMessageType::Request, 8888, metaRaw, bodyRaw);
     std::string bytesToSend = writeBuf.read_from_buffer();
 
     // 5. 通过 TCP 发送数据
@@ -162,11 +163,11 @@ TEST_F(ProtobufServerTest, ExecutesLoopbackBinaryRpcSuccessfully) {
         ASSERT_GT(nr, 0);
         readBuf.write_to_buffer(temp, nr);
 
-        RpcCodec::DecodeResult decResult = RpcCodec::decode(&readBuf, respHeader, respMetaRaw, respBodyRaw);
-        if (decResult == RpcCodec::DecodeResult::Success) {
+        BinaryRpcCodec::DecodeResult decResult = BinaryRpcCodec::decode(&readBuf, respHeader, respMetaRaw, respBodyRaw);
+        if (decResult == BinaryRpcCodec::DecodeResult::Success) {
             break;
         }
-        ASSERT_NE(decResult, RpcCodec::DecodeResult::Error);
+        ASSERT_NE(decResult, BinaryRpcCodec::DecodeResult::Error);
     }
 
     // 7. 验证返回数据正确性
@@ -181,5 +182,6 @@ TEST_F(ProtobufServerTest, ExecutesLoopbackBinaryRpcSuccessfully) {
 }
 
 } // namespace test
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

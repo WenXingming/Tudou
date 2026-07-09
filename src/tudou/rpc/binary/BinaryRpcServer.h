@@ -1,6 +1,6 @@
 /**
- * @file ProtobufServer.h
- * @brief 基于 Protobuf RPC 协议的二进制 TCP 服务端声明
+ * @file BinaryRpcServer.h
+ * @brief 基于二进制 RPC 协议的二进制 TCP 服务端声明
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
@@ -8,22 +8,23 @@
 #pragma once
 
 #include "tudou/tcp/TcpServer.h"
-#include "tudou/rpc/protobuf/ProtobufRouter.h"
+#include "tudou/rpc/binary/BinaryRpcRouter.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-class ProtobufServer {
+class BinaryRpcServer {
 public:
-    ProtobufServer(const std::string& ip, uint16_t port, int numThreads = 0);
-    ~ProtobufServer();
+    BinaryRpcServer(const std::string& ip, uint16_t port, int numThreads = 0);
+    ~BinaryRpcServer();
 
     // 禁用拷贝构造和赋值
-    ProtobufServer(const ProtobufServer&) = delete;
-    ProtobufServer& operator=(const ProtobufServer&) = delete;
+    BinaryRpcServer(const BinaryRpcServer&) = delete;
+    BinaryRpcServer& operator=(const BinaryRpcServer&) = delete;
 
     /**
      * @brief 启动 TCP 服务端，阻塞或在多线程 Reactor 中监听端口
@@ -52,11 +53,12 @@ private:
 
 private:
     std::unique_ptr<TcpServer> tcpServer_;
-    ProtobufRouter router_;
+    BinaryRpcRouter router_;
 
     // 半包缓冲区，key 为连接裸指针，用以处理 TCP 粘包/半包
     std::unordered_map<TcpConnection*, std::string> connectionBuffers_;
 };
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

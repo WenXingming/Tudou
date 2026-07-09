@@ -1,4 +1,4 @@
-protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS tudou/rpc/protocol/protocol.proto)
+protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS tudou/rpc/binary/binary_rpc.proto)
 
 add_library(tudou STATIC
     tudou/tcp/InetAddress.cpp
@@ -9,10 +9,10 @@ add_library(tudou STATIC
     tudou/rpc/json/JsonRpcRouter.cpp
     tudou/rpc/json/JsonRpcServer.cpp
     tudou/rpc/json/JsonRpcClient.cpp
-    tudou/rpc/protocol/RpcCodec.cpp
-    tudou/rpc/protobuf/ProtobufRouter.cpp
-    tudou/rpc/protobuf/ProtobufServer.cpp
-    tudou/rpc/protobuf/ProtobufChannel.cpp
+    tudou/rpc/binary/BinaryRpcCodec.cpp
+    tudou/rpc/binary/BinaryRpcRouter.cpp
+    tudou/rpc/binary/BinaryRpcServer.cpp
+    tudou/rpc/binary/BinaryRpcChannel.cpp
     ${RPC_PROTO_SRCS}
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
