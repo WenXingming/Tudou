@@ -8,6 +8,15 @@
 
 #include <openssl/ssl.h>
 
+#if defined(__linux__) && defined(SSL_OP_ENABLE_KTLS)
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
+#endif
+
 namespace {
 
 constexpr int kTlsBufferSize = 16384;
@@ -198,4 +207,46 @@ bool TlsConnection::ensure_tls_session(const char* action) const {
 void TlsConnection::mark_error(const char* message) {
     state_ = State::ERROR;
     spdlog::error("{}", message);
+}
+
+bool TlsConnection::enable_ktls_offload(int fd) {
+#if defined(__linux__) && defined(SSL_OP_ENABLE_KTLS) && defined(BIO_get_ktls_send)
+    // 1. Enable TCP ULP (Upper Layer Protocol) "tls"
+    int ret = ::setsockopt(fd, IPPROTO_TCP, 31, "tls", sizeof("tls"));
+    if (ret < 0 && errno != EEXIST) {
+        spdlog::error("TlsConnection: Failed to set TCP_ULP to tls, fd={}, error={}", fd, std::strerror(errno));
+        return false;
+    }
+
+    // 2. Wrap fd into a Socket BIO
+    BIO* s_bio = BIO_new_socket(fd, BIO_NOCLOSE);
+    if (!s_bio) {
+        spdlog::error("TlsConnection: Failed to create socket BIO, fd={}", fd);
+        return false;
+    }
+
+    // 3. Bind the Socket BIO to the SSL session (wbio & rbio)
+    // SSL_set_bio takes ownership of the socket BIO.
+    // The previous memory BIOs (rbio_, wbio_) are automatically freed.
+    SSL_set_bio(ssl_, s_bio, s_bio);
+    rbio_ = nullptr;
+    wbio_ = nullptr;
+
+    // 4. Trigger OpenSSL to write session keys into the kernel
+    // A 1-byte write forces OpenSSL to run the internal kTLS setup.
+    ::SSL_write(ssl_, " ", 1);
+
+    // 5. Verify that kTLS has been successfully offloaded for sending
+    if (!BIO_get_ktls_send(s_bio)) {
+        spdlog::error("TlsConnection: OpenSSL failed to offload TX keys to kernel, fd={}", fd);
+        return false;
+    }
+
+    spdlog::info("TlsConnection: Successfully offloaded TX keys to kTLS kernel space, fd={}", fd);
+    return true;
+#else
+    (void)fd;
+    spdlog::warn("TlsConnection: kTLS is not supported/enabled in this compilation, offload ignored.");
+    return false;
+#endif
 }

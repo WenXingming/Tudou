@@ -8,13 +8,15 @@
 #include "StaticFileHttpServer.h"
 
 #include <ctime>
-#include <fstream>
 #include <iomanip>
 #include <locale>
+#include <memory>
 #include <sstream>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 
+#include "base/ScopedFd.h"
 #include "tudou/http/HttpServer.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
@@ -108,13 +110,16 @@ void set_head_ok(HttpResponse& resp, const std::string& contentType, std::time_t
     resp.set_close_connection(false);
 }
 
-void set_file_ok(HttpResponse& resp, const std::string& contentType, const std::string& body) {
+void set_file_ok(HttpResponse& resp,
+    const std::string& contentType,
+    std::shared_ptr<ScopedFd> file,
+    long long size) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(200, "OK");
     resp.set_header("Content-Type", contentType);
-    resp.set_header("Content-Length", std::to_string(body.size()));
+    resp.set_header("Content-Length", std::to_string(size));
     resp.set_header("Connection", "Keep-Alive");
-    resp.set_body(body);
+    resp.set_file_body(std::move(file), static_cast<size_t>(size));
     resp.set_close_connection(false);
 }
 
@@ -128,6 +133,20 @@ StaticFileHttpServer::StaticFileHttpServer(StaticFileServerConfig cfg)
     : cfg_(std::move(cfg))
     , httpServer_(new HttpServer(cfg_.ip, cfg_.port, cfg_.threadNum)) {
 
+    if (cfg_.enableSsl) {
+        if (!httpServer_->enable_ssl(cfg_.sslCertPath, cfg_.sslKeyPath)) {
+            spdlog::critical("StaticFileHttpServer: Failed to enable SSL with cert={} and key={}", cfg_.sslCertPath, cfg_.sslKeyPath);
+            throw std::runtime_error("SSL initialization failed");
+        }
+        if (cfg_.enableKtls) {
+            if (!httpServer_->set_tls_mode(TlsMode::KernelTls)) {
+                spdlog::warn("StaticFileHttpServer: Kernel TLS requested but not supported, falling back to Memory BIO.");
+            } else {
+                spdlog::info("StaticFileHttpServer: kTLS offloading enabled.");
+            }
+        }
+    }
+
     httpServer_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {
         on_http_request(req, resp);
         });
@@ -137,7 +156,6 @@ StaticFileHttpServer::~StaticFileHttpServer() = default;
 
 void StaticFileHttpServer::start() {
     spdlog::info("StaticFileHttpServer listening on {}:{} with baseDir={}", cfg_.ip, cfg_.port, cfg_.baseDir);
-    httpServer_->enable_ssl("certs/test-cert.pem", "certs/test-key.pem");
     httpServer_->start();
 }
 
@@ -172,7 +190,6 @@ void StaticFileHttpServer::on_http_request(const HttpRequest& req, HttpResponse&
 }
 
 void StaticFileHttpServer::package_file_response(const std::string& realPath, HttpResponse& resp) {
-    // 先尝试缓存，再尝试磁盘
     std::time_t mtime = 0;
     long long fileSize = 0;
     if (!get_file_meta(realPath, mtime, fileSize)) {
@@ -180,36 +197,13 @@ void StaticFileHttpServer::package_file_response(const std::string& realPath, Ht
         return;
     }
 
-    std::string content;
-
-    // 查缓存
-    {
-        std::lock_guard<std::mutex> lock(fileCacheMutex_);
-        auto it = fileCache_.find(realPath);
-        if (it != fileCache_.end() && it->second.mtime == mtime && it->second.size == fileSize) {
-            content = it->second.content;
-        }
+    int fd = ::open(realPath.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        set_not_found(resp);
+        return;
     }
 
-    // 缓存未命中，从磁盘读取并更新缓存
-    if (content.empty() && fileSize > 0) {
-        std::ifstream ifs(realPath, std::ios::binary);
-        if (!ifs) {
-            set_not_found(resp);
-            return;
-        }
-        std::ostringstream oss;
-        oss << ifs.rdbuf();
-        content = oss.str();
-
-        std::lock_guard<std::mutex> lock(fileCacheMutex_);
-        CacheEntry& entry = fileCache_[realPath];
-        entry.content = content;
-        entry.mtime = mtime;
-        entry.size = fileSize;
-    }
-
-    set_file_ok(resp, guess_content_type(realPath), content);
+    set_file_ok(resp, guess_content_type(realPath), std::make_shared<ScopedFd>(fd), fileSize);
 }
 
 // ---------------------------------------------------------------------------

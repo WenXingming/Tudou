@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
+#include <unistd.h>
 
+#include "base/ScopedFd.h"
 #include "tudou/http/HttpResponse.h"
 
 namespace {
@@ -55,6 +58,29 @@ TEST(HttpResponseTest, PackageToStringReflectsCloseConnectionContract) {
 
     EXPECT_NE(packaged.find("Connection: close\r\n"), std::string::npos);
     EXPECT_NE(packaged.find("\r\n\r\ndone"), std::string::npos);
+}
+
+TEST(HttpResponseTest, FileBodySerializesOnlyHeaders) {
+    HttpResponse response;
+    auto file = std::make_shared<ScopedFd>(::dup(STDOUT_FILENO));
+    ASSERT_TRUE(file->valid());
+
+    response.set_status(200, "OK");
+    response.set_header("Content-Length", "12");
+    response.set_body("do-not-serialize");
+    response.set_file_body(file, 12, 3);
+
+    const std::string packaged = response.package_to_string();
+
+    EXPECT_TRUE(response.has_file_body());
+    EXPECT_EQ(response.get_file_fd(), file->fd());
+    EXPECT_EQ(response.get_file_size(), 12U);
+    EXPECT_EQ(response.get_file_offset(), 3U);
+    EXPECT_TRUE(response.get_body().empty());
+    EXPECT_NE(packaged.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
+    EXPECT_NE(packaged.find("Content-Length: 12\r\n"), std::string::npos);
+    EXPECT_NE(packaged.find("\r\n\r\n"), std::string::npos);
+    EXPECT_EQ(packaged.find("do-not-serialize"), std::string::npos);
 }
 
 TEST(HttpResponseTest, PlainTextFactoryBuildsDefaultErrorShape) {

@@ -8,9 +8,7 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <string>
-#include <unordered_map>
 
 #include "StaticFileServerConfig.h"
 
@@ -33,12 +31,4 @@ private:
 
     StaticFileServerConfig cfg_;
     std::unique_ptr<HttpServer> httpServer_;
-
-    struct CacheEntry {
-        std::string content;
-        std::time_t mtime;
-        long long   size;
-    };
-    mutable std::mutex fileCacheMutex_;
-    mutable std::unordered_map<std::string, CacheEntry> fileCache_;
 };

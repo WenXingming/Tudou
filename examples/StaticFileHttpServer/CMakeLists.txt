@@ -7,4 +7,5 @@ add_executable(static-server ${source_files})
 target_link_libraries(static-server PRIVATE
     Tudou::tudou
     spdlog::spdlog
+    CLI11::CLI11
 )

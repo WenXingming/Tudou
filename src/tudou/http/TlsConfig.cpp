@@ -22,6 +22,10 @@ bool TlsConfig::init(const std::string& certFile, const std::string& keyFile) {
     // TLS 1.2 是当前服务端的最低安全线，统一在上下文层配置。
     SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
 
+#ifdef SSL_OP_ENABLE_KTLS
+    SSL_CTX_set_options(ctx_, SSL_OP_ENABLE_KTLS);
+#endif
+
     if (SSL_CTX_use_certificate_file(ctx_, certFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
         spdlog::critical("TlsConfig: Failed to load certificate file: {}", certFile);
         reset_context();
@@ -65,4 +69,11 @@ void TlsConfig::reset_context() {
 
     SSL_CTX_free(ctx_);
     ctx_ = nullptr;
+}
+
+void TlsConfig::restrict_to_tls12() {
+    if (ctx_) {
+        ::SSL_CTX_set_max_proto_version(ctx_, TLS1_2_VERSION);
+        spdlog::debug("TlsConfig: Restricted max protocol version to TLS 1.2 for kTLS");
+    }
 }

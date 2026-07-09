@@ -68,6 +68,7 @@ public:
         std::string& plaintext,
         std::string& outboundCiphertext); // 喂入密文并返回本轮可消费的明文与待发送密文。
     bool write_plaintext(const std::string& plaintext, std::string& ciphertext); // 把明文编码成可直接发送的 TLS 密文。
+    bool enable_ktls_offload(int fd); // 切换 Memory BIO 为 Socket BIO 并激活内核 kTLS
 
     State get_state() const { return state_; }
     bool is_handshaking() const { return state_ == State::HANDSHAKING; }

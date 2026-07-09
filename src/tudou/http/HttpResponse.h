@@ -27,13 +27,22 @@
 // ============================================================================
 
 #pragma once
+#include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
+
+class ScopedFd;
 
 // HttpResponse 只负责表达协议结果，不参与底层发送流程。
 class HttpResponse {
 public:
     using Headers = std::unordered_map<std::string, std::string>;
+    struct FileBody {
+        std::shared_ptr<ScopedFd> file;
+        size_t size = 0;
+        size_t offset = 0;
+    };
 
 public:
     HttpResponse();
@@ -57,8 +66,14 @@ public:
 
     bool has_header(const std::string& field) const;
     const Headers& get_headers() const { return headers_; }
-    void set_body(const std::string& _body) { body_ = _body; }
+    void set_body(const std::string& body);
     const std::string& get_body() const { return body_; }
+    void set_file_body(std::shared_ptr<ScopedFd> file, size_t size, size_t offset = 0);
+    bool has_file_body() const;
+    const FileBody& get_file_body() const { return fileBody_; }
+    int get_file_fd() const;
+    size_t get_file_size() const { return hasFileBody_ ? fileBody_.size : 0; }
+    size_t get_file_offset() const { return hasFileBody_ ? fileBody_.offset : 0; }
     void set_close_connection(bool _on) { closeConnection_ = _on; }
     bool get_close_connection() const { return closeConnection_; }
 
@@ -73,6 +88,7 @@ private:
     std::string statusMessage_;         // 响应状态描述。
     Headers headers_;                   // 响应头集合。
     std::string body_;                  // 响应体。
+    FileBody fileBody_;                 // 可选文件响应体，和 body_ 互斥。
+    bool hasFileBody_;                  // 标记 fileBody_ 是否承载响应体语义。
     bool closeConnection_;              // 标记响应后连接是否应关闭。
 };
-

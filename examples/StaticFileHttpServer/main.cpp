@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <csignal>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,8 @@ static void set_logger(const std::string& logPath) {
 }
 
 int main(int argc, char* argv[]) {
+    std::signal(SIGPIPE, SIG_IGN);
+
     StaticFileServerConfig cfg;
     std::string error;
     if (!load_static_server_config(argc, argv, cfg, error)) {

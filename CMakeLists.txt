@@ -56,6 +56,23 @@ if(NOT TARGET spdlog::spdlog)
     tudou_fetch_spdlog()
 endif()
 
+if(TUDOU_BUILD_EXAMPLES)
+    if(NOT TARGET CLI11::CLI11)
+        find_package(CLI11 CONFIG QUIET)
+    endif()
+
+    if(NOT TARGET CLI11::CLI11)
+        FetchContent_Declare(
+            CLI11
+            URL https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.4.2.tar.gz
+            URL_HASH SHA256=f2d893a65c3b1324c50d4e682c0cdc021dd0477ae2c048544f39eed6654b699a
+        )
+        # Avoid installing CLI11 to system directories by setting CLI11_INSTALL to OFF
+        set(CLI11_INSTALL OFF CACHE INTERNAL "")
+        FetchContent_MakeAvailable(CLI11)
+    endif()
+endif()
+
 add_subdirectory(src)
 
 if(TUDOU_BUILD_EXAMPLES)

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cerrno>
+#include <cstdlib>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -10,6 +11,7 @@
 #include <string>
 #include <thread>
 
+#include "base/ScopedFd.h"
 #include "tudou/tcp/InetAddress.h"
 #include "tudou/reactor/EventLoop.h"
 #include "tudou/tcp/Socket.h"
@@ -37,6 +39,20 @@ void fill_send_buffer_until_would_block(int fd) {
         ASSERT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK) << strerror(errno);
         return;
     }
+}
+
+std::string read_available(int fd) {
+    std::string output;
+    char buf[4096];
+    while (true) {
+        const ssize_t n = ::read(fd, buf, sizeof(buf));
+        if (n > 0) {
+            output.append(buf, n);
+            continue;
+        }
+        break;
+    }
+    return output;
 }
 
 } // namespace
@@ -87,6 +103,79 @@ TEST(TcpConnectionTest, SendTriggersHighWaterMarkCallbackWhenCrossingThreshold) 
     EXPECT_EQ(conn->get_write_buffer_size(), 5U);
 
     ::close(fds[1]);
+}
+
+TEST(TcpConnectionTest, SendFileWaitsForBufferedHeader) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+
+    char path[] = "/tmp/tudou-sendfile-test-XXXXXX";
+    int fileFd = ::mkstemp(path);
+    ASSERT_GE(fileFd, 0);
+    ASSERT_EQ(::unlink(path), 0);
+
+    const std::string fileBody = "file-body";
+    ASSERT_EQ(::write(fileFd, fileBody.data(), fileBody.size()), static_cast<ssize_t>(fileBody.size()));
+    ASSERT_EQ(::lseek(fileFd, 0, SEEK_SET), 0);
+    auto file = std::make_shared<ScopedFd>(fileFd);
+
+    EventLoop loop(50);
+    auto conn = make_connection(loop, fds[0]);
+    bool writeCompleted = false;
+
+    conn->set_close_callback([](const std::shared_ptr<TcpConnection>&) {});
+    conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
+        writeCompleted = true;
+        loop.quit();
+        });
+
+    fill_send_buffer_until_would_block(fds[0]);
+    conn->send("header:");
+    conn->send_file(file, fileBody.size());
+
+    (void)read_available(fds[1]);
+
+    loop.run_after(0.2, [&]() { loop.quit(); });
+    loop.loop();
+
+    EXPECT_TRUE(writeCompleted);
+    EXPECT_EQ(read_available(fds[1]), "header:" + fileBody);
+
+    ::close(fds[1]);
+}
+
+TEST(TcpConnectionTest, SendFileRejectsNonRegularFile) {
+    int socketFds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, socketFds), 0);
+
+    int pipeFds[2] = { -1, -1 };
+    ASSERT_EQ(::pipe(pipeFds), 0);
+    auto file = std::make_shared<ScopedFd>(pipeFds[0]);
+
+    EventLoop loop;
+    auto conn = make_connection(loop, socketFds[0]);
+    bool errored = false;
+    bool closed = false;
+    bool writeCompleted = false;
+
+    conn->set_error_callback([&](const std::shared_ptr<TcpConnection>&) {
+        errored = true;
+        });
+    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
+        closed = true;
+        });
+    conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
+        writeCompleted = true;
+        });
+
+    conn->send_file(file, 4);
+
+    EXPECT_TRUE(errored);
+    EXPECT_TRUE(closed);
+    EXPECT_FALSE(writeCompleted);
+
+    ::close(pipeFds[1]);
+    ::close(socketFds[1]);
 }
 
 TEST(TcpConnectionTest, SendFromAnotherThreadIsQueuedBackToLoop) {

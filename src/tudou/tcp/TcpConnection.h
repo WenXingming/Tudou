@@ -55,6 +55,7 @@
 #include "tudou/tcp/Socket.h"
 
 class EventLoop;
+class ScopedFd;
 class TcpConnection;
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
@@ -75,6 +76,8 @@ public:
 
     void send(const std::string& msg);
     void send(std::string&& msg);
+    void send_file(std::shared_ptr<ScopedFd> file, size_t size, size_t offset = 0);
+    void send_file_with_header(const std::string& header, std::shared_ptr<ScopedFd> file, size_t size, size_t offset = 0);
     std::string receive();
 
     void set_tcp_no_delay(bool on);
@@ -99,6 +102,10 @@ private:
     explicit TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr);
 
     void send_in_loop(const std::string& msg);
+    void send_file_in_loop(std::shared_ptr<ScopedFd> file, size_t size, size_t offset);
+    void send_file_with_header_in_loop(const std::string& header, std::shared_ptr<ScopedFd> file, size_t size, size_t offset);
+    bool has_pending_file() const { return hasPendingFile_; }
+    void send_pending_file_in_loop();
     void on_read(Channel& channel);
     void handle_message_callback();
     void on_write(Channel& channel);
@@ -112,6 +119,12 @@ private:
     void handle_high_water_mark_callback();
 
 private:
+    struct PendingFileSend {
+        std::shared_ptr<ScopedFd> file;
+        size_t offset = 0;
+        size_t remaining = 0;
+    };
+
     EventLoop* loop_;                                   // 所属 EventLoop，所有回调均在此线程执行。
 
     Socket connSocket_;                                 // 连接 socket 的 RAII 句柄，析构时自动关闭 fd（必须在 channel_ 之前声明）
@@ -124,6 +137,8 @@ private:
     std::unique_ptr<Buffer> writeBuffer_;               // 应用层写缓冲。
 
     size_t highWaterMark_;                              // 发送缓冲高水位阈值（字节）。
+    PendingFileSend pendingFile_;                       // 等待 sendfile 继续发送的文件段。
+    bool hasPendingFile_;                               // 是否存在未完成的文件发送。
 
     MessageCallback messageCallback_;                   // 消息到达时触发（必选）。
     CloseCallback closeCallback_;                       // 连接关闭时触发（必选）。

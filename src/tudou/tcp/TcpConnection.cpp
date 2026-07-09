@@ -9,13 +9,25 @@
 #include <cerrno>
 #include <cstring>
 #include <unistd.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 
 #include "spdlog/spdlog.h"
 
+#include "base/ScopedFd.h"
 #include "tudou/tcp/Buffer.h"
 #include "tudou/reactor/Channel.h"
 #include "tudou/reactor/EventLoop.h"
+
+namespace {
+
+bool is_regular_file(int fd) {
+    struct stat st;
+    return ::fstat(fd, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+} // namespace
 
 std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop, Socket connSocket, const InetAddress& localAddr, const InetAddress& peerAddr) {
     std::shared_ptr<TcpConnection> conn(new TcpConnection(loop, std::move(connSocket), localAddr, peerAddr));
@@ -33,6 +45,8 @@ TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddre
     readBuffer_(std::make_unique<Buffer>()),
     writeBuffer_(std::make_unique<Buffer>()),
     highWaterMark_(64 * 1024 * 1024),
+    pendingFile_(),
+    hasPendingFile_(false),
     messageCallback_(nullptr),
     closeCallback_(nullptr),
     errorCallback_(nullptr),
@@ -78,6 +92,13 @@ void TcpConnection::send(std::string&& msg) {
 void TcpConnection::send_in_loop(const std::string& msg) {
     assert(loop_->is_in_loop_thread());
     if (isClosed_) {
+        return;
+    }
+
+    if (has_pending_file()) {
+        spdlog::error("TcpConnection::send_in_loop() cannot preserve order while file send is pending");
+        handle_error_callback();
+        close_connection(*channel_);
         return;
     }
 
@@ -151,6 +172,115 @@ void TcpConnection::send_in_loop(const std::string& msg) {
     channel_->enable_writing();
 
     // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
+    const size_t newLen = writeBuffer_->readable_bytes();
+    if (highWaterMarkCallback_ && oldLen < highWaterMark_ && newLen >= highWaterMark_) {
+        handle_high_water_mark_callback();
+    }
+}
+
+void TcpConnection::send_file(std::shared_ptr<ScopedFd> file, size_t size, size_t offset) {
+    if (!loop_->is_in_loop_thread()) {
+        std::shared_ptr<TcpConnection> self = shared_from_this();
+        loop_->queue_in_loop([self, file = std::move(file), size, offset]() {
+            self->send_file_in_loop(file, size, offset);
+            });
+        return;
+    }
+
+    send_file_in_loop(std::move(file), size, offset);
+}
+
+void TcpConnection::send_file_with_header(const std::string& header, std::shared_ptr<ScopedFd> file, size_t size, size_t offset) {
+    if (!loop_->is_in_loop_thread()) {
+        std::shared_ptr<TcpConnection> self = shared_from_this();
+        loop_->queue_in_loop([self, header, file = std::move(file), size, offset]() {
+            self->send_file_with_header_in_loop(header, file, size, offset);
+            });
+        return;
+    }
+
+    send_file_with_header_in_loop(header, std::move(file), size, offset);
+}
+
+void TcpConnection::send_file_in_loop(std::shared_ptr<ScopedFd> file, size_t size, size_t offset) {
+    assert(loop_->is_in_loop_thread());
+    if (isClosed_ || size == 0) {
+        return;
+    }
+
+    if (!file || !file->valid()) {
+        spdlog::error("TcpConnection::send_file_in_loop() got invalid file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    if (!is_regular_file(file->fd())) {
+        spdlog::error("TcpConnection::send_file_in_loop() requires a regular file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    if (has_pending_file()) {
+        spdlog::error("TcpConnection::send_file_in_loop() already has a pending file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    pendingFile_ = PendingFileSend{ std::move(file), offset, size };
+    hasPendingFile_ = true;
+
+    if (writeBuffer_->readable_bytes() > 0 || channel_->is_writing()) {
+        channel_->enable_writing();
+        return;
+    }
+
+    send_pending_file_in_loop();
+    if (!has_pending_file()) {
+        handle_write_complete_callback();
+    }
+}
+
+void TcpConnection::send_file_with_header_in_loop(const std::string& header, std::shared_ptr<ScopedFd> file, size_t size, size_t offset) {
+    assert(loop_->is_in_loop_thread());
+    if (isClosed_) {
+        return;
+    }
+
+    if (size == 0) {
+        send_in_loop(header);
+        return;
+    }
+
+    if (!file || !file->valid()) {
+        spdlog::error("TcpConnection::send_file_with_header_in_loop() got invalid file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    if (!is_regular_file(file->fd())) {
+        spdlog::error("TcpConnection::send_file_with_header_in_loop() requires a regular file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    if (has_pending_file()) {
+        spdlog::error("TcpConnection::send_file_with_header_in_loop() already has a pending file");
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
+    }
+
+    const size_t oldLen = writeBuffer_->readable_bytes();
+    writeBuffer_->write_to_buffer(header);
+    pendingFile_ = PendingFileSend{ std::move(file), offset, size };
+    hasPendingFile_ = true;
+    channel_->enable_writing();
+
     const size_t newLen = writeBuffer_->readable_bytes();
     if (highWaterMarkCallback_ && oldLen < highWaterMark_ && newLen >= highWaterMark_) {
         handle_high_water_mark_callback();
@@ -240,23 +370,73 @@ void TcpConnection::handle_message_callback() {
 void TcpConnection::on_write(Channel& channel) {
     assert(loop_->is_in_loop_thread());
 
-    int savedErrno = 0;
-    const ssize_t n = writeBuffer_->write_to_fd(channel.get_fd(), &savedErrno);
-    if (n < 0) {
-        if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
+    if (writeBuffer_->readable_bytes() > 0) {
+        int savedErrno = 0;
+        const ssize_t n = writeBuffer_->write_to_fd(channel.get_fd(), &savedErrno);
+        if (n < 0) {
+            if (savedErrno == EAGAIN || savedErrno == EWOULDBLOCK) {
+                return;
+            }
+
+            spdlog::error("TcpConnection::on_write() failed, errno={} ({})", savedErrno, strerror(savedErrno));
+            handle_error_callback();
+            close_connection(channel);
             return;
         }
 
-        spdlog::error("TcpConnection::on_write() failed, errno={} ({})", savedErrno, strerror(savedErrno));
-        handle_error_callback();
-        close_connection(channel);
+        if (writeBuffer_->readable_bytes() > 0) {
+            return;
+        }
+    }
+
+    if (has_pending_file()) {
+        send_pending_file_in_loop();
+        if (has_pending_file()) {
+            return;
+        }
+    }
+
+    channel.disable_writing();
+    handle_write_complete_callback();
+}
+
+void TcpConnection::send_pending_file_in_loop() {
+    assert(loop_->is_in_loop_thread());
+    if (!has_pending_file()) {
         return;
     }
 
-    if (writeBuffer_->readable_bytes() == 0) {
-        channel.disable_writing();
-        handle_write_complete_callback();
+    off_t offset = static_cast<off_t>(pendingFile_.offset);
+    const ssize_t n = ::sendfile(connSocket_.fd(), pendingFile_.file->fd(), &offset, pendingFile_.remaining);
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            channel_->enable_writing();
+            return;
+        }
+
+        spdlog::error("TcpConnection::send_pending_file_in_loop() failed, errno={} ({})", errno, strerror(errno));
+        handle_error_callback();
+        close_connection(*channel_);
+        return;
     }
+
+    if (n == 0) {
+        pendingFile_ = PendingFileSend{};
+        hasPendingFile_ = false;
+        return;
+    }
+
+    const size_t sent = static_cast<size_t>(n);
+    pendingFile_.offset = static_cast<size_t>(offset);
+    pendingFile_.remaining -= sent;
+
+    if (pendingFile_.remaining == 0) {
+        pendingFile_ = PendingFileSend{};
+        hasPendingFile_ = false;
+        return;
+    }
+
+    channel_->enable_writing();
 }
 
 void TcpConnection::handle_write_complete_callback() {
@@ -314,4 +494,3 @@ void TcpConnection::handle_high_water_mark_callback() {
 
     highWaterMarkCallback_(shared_from_this());
 }
-

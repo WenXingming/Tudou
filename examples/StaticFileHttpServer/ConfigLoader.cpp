@@ -1,36 +1,20 @@
 /**
  * @file ConfigLoader.cpp
- * @brief StaticFileHttpServer 配置加载实现
+ * @brief StaticFileHttpServer 配置加载实现（基于 CLI11 声明式绑定）
  * @author wenxingming
- * @date 2025-12-17
  * @project: https://github.com/WenXingming/Tudou
  */
 
 #include "ConfigLoader.h"
 
-#include <cerrno>
-#include <fstream>
 #include <iostream>
-#include <map>
-#include <string>
+#include <fstream>
 #include <vector>
-
+#include <cstring>
 #include <sys/stat.h>
+#include <CLI/CLI.hpp>
 
 namespace {
-
-// ---------------------------------------------------------------------------
-// 通用工具
-// ---------------------------------------------------------------------------
-
-std::string trim(const std::string& str) {
-    const size_t first = str.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return "";
-    }
-    const size_t last = str.find_last_not_of(" \t\r\n");
-    return str.substr(first, last - first + 1);
-}
 
 bool file_exists(const std::string& path) {
     std::ifstream f(path.c_str());
@@ -74,124 +58,26 @@ bool ensure_dir_recursive(const std::string& dir) {
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Key-Value 配置文件解析
-// ---------------------------------------------------------------------------
-
-using ConfigMap = std::map<std::string, std::string>;
-
-ConfigMap load_kv_config(const std::string& filename) {
-    ConfigMap config;
-    std::ifstream file(filename.c_str());
-    if (!file.is_open()) {
-        return config;
-    }
-    std::string line;
-    while (std::getline(file, line)) {
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos) {
-            line = line.substr(0, commentPos);
-        }
-        line = trim(line);
-        if (line.empty()) continue;
-
-        const size_t eq = line.find('=');
-        if (eq == std::string::npos) continue;
-
-        const std::string key = trim(line.substr(0, eq));
-        const std::string value = trim(line.substr(eq + 1));
-        if (!key.empty()) {
-            config[key] = value;
-        }
-    }
-    return config;
-}
-
-std::string get_string_or(const ConfigMap& cfg, const std::string& key, const std::string& defaultValue) {
-    auto it = cfg.find(key);
-    return (it != cfg.end()) ? it->second : defaultValue;
-}
-
-int get_int_or(const ConfigMap& cfg, const std::string& key, int defaultValue) {
-    auto it = cfg.find(key);
-    if (it == cfg.end()) return defaultValue;
-    try {
-        std::string s = trim(it->second);
-        size_t idx = 0;
-        const int v = std::stoi(s, &idx);
-        return (idx == s.size()) ? v : defaultValue;
-    }
-    catch (...) {
-        return defaultValue;
-    }
-}
-
-uint16_t get_u16_or(const ConfigMap& cfg, const std::string& key, uint16_t defaultValue) {
-    const int v = get_int_or(cfg, key, static_cast<int>(defaultValue));
-    return (v >= 0 && v <= 65535) ? static_cast<uint16_t>(v) : defaultValue;
-}
-
-// ---------------------------------------------------------------------------
-// 命令行解析
-// ---------------------------------------------------------------------------
-
-bool try_parse_server_root_from_args(int argc, char* argv[],
-    std::string& outRoot,
-    std::string& outError) {
-    outRoot.clear();
-    outError.clear();
-    if (argc <= 1 || argv == nullptr) {
-        return false;
-    }
-
-    for (int i = 1; i < argc; ++i) {
-        const std::string a = (argv[i] != nullptr) ? std::string(argv[i]) : std::string();
-
-        if (a == "-h" || a == "--help") {
-            outError =
-                "Usage:\n"
-                "  StaticFileHttpServer -r <serverRoot>\n"
-                "  StaticFileHttpServer -h\n\n"
-                "serverRoot should contain: conf/server.conf, assets/, log/ ...\n";
-            return false;
-        }
-
-        if (a == "-r" || a == "--root") {
-            if (i + 1 >= argc || argv[i + 1] == nullptr) {
-                outError = "Missing value for " + a + ". Usage: StaticFileHttpServer -r <serverRoot>";
-                return false;
-            }
-            outRoot = argv[i + 1];
-            return true;
-        }
-    }
-
-    return false;
-}
-
 } // namespace
-
-// ===========================================================================
-// Public API
-// ===========================================================================
 
 bool load_static_server_config(int argc, char* argv[],
     StaticFileServerConfig& out,
     std::string& outError) {
     outError.clear();
-    out = StaticFileServerConfig{};
 
-    // 1. 尝试从命令行参数获取 serverRoot
+    // 1. 两阶段参数解析：扫描命令行仅寻找 --root / -r 参数以定位配置文件
     std::string serverRoot;
-    std::string argError;
-    const bool hasRootArg = try_parse_server_root_from_args(argc, argv, serverRoot, argError);
-    if (!argError.empty()) {
-        outError = std::move(argError);
-        return false;
+    for (int i = 1; i < argc; ++i) {
+        if (argv[i] != nullptr && (std::strcmp(argv[i], "-r") == 0 || std::strcmp(argv[i], "--root") == 0)) {
+            if (i + 1 < argc && argv[i + 1] != nullptr) {
+                serverRoot = argv[i + 1];
+            }
+            break;
+        }
     }
 
-    // 2. 如果命令行未指定，搜索默认位置
-    if (!hasRootArg) {
+    // 2. 如果命令行未指定 root，按优先级在默认路径中搜索包含 conf/server.conf 的目录
+    if (serverRoot.empty()) {
         const std::vector<std::string> searchRoots = {
             "/etc/static-file-http-server/",
             "./static-file-http-server/",
@@ -206,40 +92,65 @@ bool load_static_server_config(int argc, char* argv[],
             }
         }
         if (serverRoot.empty()) {
-            outError =
-                "No configuration found in default locations.\n"
-                "Specify server root with -r <serverRoot>, or create conf/server.conf under one of:\n"
-                "  /etc/static-file-http-server/\n"
-                "  ./static-file-http-server/\n"
-                "  ./\n"
-                "  /home/wxm/Tudou/configs/static-file-http-server/\n";
+            outError = "No configuration found in default locations. Please specify server root with -r <serverRoot>.";
             return false;
         }
     }
 
     serverRoot = normalize_server_root(serverRoot);
-
-    // 3. 校验并加载配置文件
     const std::string configPath = serverRoot + "conf/server.conf";
-    if (!file_exists(configPath)) {
-        outError = "Config not found: " + configPath;
+
+    // 3. 构建 CLI11 应用进行全量参数绑定解析（优先命令行，次之 INI 配置文件）
+    CLI::App app{"Tudou StaticFileHttpServer - A high performance zero-copy static file server"};
+    
+    // 设置允许从 INI 格式加载的字段
+    app.add_option("-r,--root", serverRoot, "Server root directory containing assets, conf, etc.");
+    app.add_option("--ip", out.ip, "Bind listen IP")->configurable();
+    app.add_option("--port", out.port, "Bind listen port")->configurable();
+    app.add_option("--threadNum", out.threadNum, "Worker reactor thread count")->configurable();
+    
+    // SSL / kTLS 参数，并声明其为可配置
+    app.add_option("--enableSsl", out.enableSsl, "Enable SSL/HTTPS")->configurable();
+    app.add_option("--sslCert", out.sslCertPath, "Path to SSL certificate PEM file")->configurable();
+    app.add_option("--sslKey", out.sslKeyPath, "Path to SSL private key PEM file")->configurable();
+    app.add_option("--enableKtls", out.enableKtls, "Enable Kernel TLS (kTLS) zero-copy offloading")->configurable();
+
+    // 指定 INI 配置文件默认值
+    app.set_config("--config", configPath, "Path to server.conf INI config", false);
+
+    try {
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError& e) {
+        if (e.get_exit_code() == 0) {
+            // 若为 --help 导致正常退出，直接向用户展示美化版帮助文本
+            std::cout << app.help() << std::endl;
+        } else {
+            outError = "CLI11 parse error: " + std::string(e.what());
+        }
         return false;
     }
-    const ConfigMap config = load_kv_config(configPath);
 
-    // 4. 确保日志目录存在
+    // 4. 解析完成后的最终依赖与路径组装
+    out.serverRoot = serverRoot;
+    out.configPath = configPath;
+    out.baseDir = serverRoot + "assets/";
+    out.logPath = serverRoot + "log/server.log";
+
+    // 证书和私钥若为相对路径，自动转换为相对于 serverRoot 的路径
+    if (out.enableSsl) {
+        if (!out.sslCertPath.empty() && out.sslCertPath[0] != '/') {
+            out.sslCertPath = serverRoot + out.sslCertPath;
+        }
+        if (!out.sslKeyPath.empty() && out.sslKeyPath[0] != '/') {
+            out.sslKeyPath = serverRoot + out.sslKeyPath;
+        }
+    }
+
+    // 确保日志目录存在
     const std::string logDir = serverRoot + "log/";
     if (!ensure_dir_recursive(logDir)) {
         std::cerr << "Warning: failed to ensure log directory: " << logDir << std::endl;
     }
 
-    // 5. 填充输出
-    out.ip = get_string_or(config, "ip", "0.0.0.0");
-    out.port = get_u16_or(config, "port", 80);
-    out.threadNum = get_int_or(config, "threadNum", 0);
-    out.baseDir = serverRoot + "assets/";
-    out.serverRoot = serverRoot;
-    out.configPath = configPath;
-    out.logPath = serverRoot + "log/server.log";
     return true;
 }

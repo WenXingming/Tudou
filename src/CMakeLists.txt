@@ -4,6 +4,7 @@ add_library(tudou STATIC
     tudou/http/HttpRequest.cpp
     tudou/http/HttpResponse.cpp
     tudou/http/HttpServer.cpp
+    tudou/http/TlsProbe.cpp
     tudou/http/Router.cpp
     tudou/http/TlsConfig.cpp
     tudou/http/TlsConnection.cpp

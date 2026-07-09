@@ -19,6 +19,7 @@ public:
     SSL* create_ssl() const; // 为一个新连接创建 SSL 会话对象。
 
     bool is_initialized() const { return ctx_ != nullptr; }
+    void restrict_to_tls12();
 
 private:
     void reset_context();
