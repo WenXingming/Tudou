@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package tudou.rpc;
+
+message RpcMeta {
+    string service_name = 1;
+    string method_name = 2;
+}

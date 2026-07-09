@@ -1,3 +1,5 @@
+protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS tudou/rpc/protocol/protocol.proto)
+
 add_library(tudou STATIC
     tudou/tcp/InetAddress.cpp
     tudou/http/HttpContext.cpp
@@ -8,6 +10,8 @@ add_library(tudou STATIC
     tudou/rpc/json/JsonRpcServer.cpp
     tudou/rpc/protocol/RpcCodec.cpp
     tudou/rpc/protobuf/ProtobufRouter.cpp
+    tudou/rpc/protobuf/ProtobufServer.cpp
+    ${RPC_PROTO_SRCS}
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
     tudou/http/TlsConfig.cpp
@@ -34,6 +38,7 @@ target_compile_features(tudou PUBLIC cxx_std_14)
 target_include_directories(tudou
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
