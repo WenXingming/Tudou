@@ -4,6 +4,7 @@ add_library(tudou STATIC
     tudou/http/HttpRequest.cpp
     tudou/http/HttpResponse.cpp
     tudou/http/HttpServer.cpp
+    tudou/rpc/JsonRpcService.cpp
     tudou/http/TlsProbe.cpp
     tudou/http/Router.cpp
     tudou/http/TlsConfig.cpp
@@ -39,6 +40,7 @@ find_package(OpenSSL REQUIRED)
 target_link_libraries(tudou
     PUBLIC
         llhttp::llhttp
+        nlohmann_json::nlohmann_json
     PRIVATE
         spdlog::spdlog
         Threads::Threads

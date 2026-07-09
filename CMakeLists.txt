@@ -73,6 +73,14 @@ if(TUDOU_BUILD_EXAMPLES)
     endif()
 endif()
 
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    FetchContent_Declare(
+        json
+        URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.tar.gz
+    )
+    FetchContent_MakeAvailable(json)
+endif()
+
 add_subdirectory(src)
 
 if(TUDOU_BUILD_EXAMPLES)
