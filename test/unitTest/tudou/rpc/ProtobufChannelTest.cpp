@@ -1,6 +1,6 @@
 /**
  * @file ProtobufChannelTest.cpp
- * @brief 基于 Protobuf RPC 协议的二进制客户端传输通道集成测试
+ * @brief 基于 Protobuf RPC 协议支持单连接多路复用的客户端通道集成测试
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
@@ -19,6 +19,9 @@
 #include <thread>
 #include <chrono>
 #include <memory>
+#include <vector>
+#include <stdexcept>
+#include <atomic>
 
 namespace tudou {
 namespace rpc {
@@ -26,7 +29,7 @@ namespace test {
 
 namespace {
 
-// 探测并预留空闲测试端口
+// 预留端口
 uint16_t reserve_free_port() {
     const int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
     if (fd < 0) {
@@ -54,13 +57,19 @@ uint16_t reserve_free_port() {
 
 } // namespace
 
-// 实现 Echo 业务逻辑
+// 实现业务逻辑，增加了延时方法以模拟长耗时 RPC 任务
 class TestEchoServiceImpl : public TestEchoService {
 public:
     void Echo(google::protobuf::RpcController*,
               const EchoRequest* request,
               EchoResponse* response,
               google::protobuf::Closure* done) override {
+        
+        // 如果输入数据包含 "slow_call"，则故意延迟处理以测试中途断开连接
+        if (request->message().find("slow_call") != std::string::npos) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+
         response->set_message("Echo: " + request->message());
         if (done) {
             done->Run();
@@ -74,16 +83,13 @@ protected:
         port = reserve_free_port();
         ASSERT_GT(port, 0);
 
-        // 创建 RPC 服务端并监听分配好的端口
         server = std::make_unique<ProtobufServer>("127.0.0.1", port, 0);
         server->register_service(std::make_shared<TestEchoServiceImpl>());
 
-        // 启动后台线程运行服务器
         serverThread = std::thread([this]() {
             server->start();
         });
 
-        // 稍微等待 Reactor 运行
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
@@ -99,25 +105,77 @@ protected:
     uint16_t port = 0;
 };
 
-// 验证客户端使用生成的 Stub 发起强类型 RPC 请求能够顺利完成环回
-TEST_F(ProtobufChannelTest, InvokesStubCallSuccessfully) {
-    // 实例化物理通信管道（内部自动发起 TCP connect）
+// 1. 验证常规的单路调用成功
+TEST_F(ProtobufChannelTest, InvokesSingleCallSuccessfully) {
     ProtobufChannel channel("127.0.0.1", port);
-
-    // 实例化 protoc 编译器生成的 Service 客户端代理 Stub
     TestEchoService_Stub stub(&channel);
 
     EchoRequest request;
-    request.set_message("Strong-typed RPC Verification!");
-
+    request.set_message("Single RPC verification");
     EchoResponse response;
 
-    // 发起强类型同步调用！此过程会将参数通过 channel 打包网络传输并等待解包回填
-    // 按照用户指示，暂不传递 RpcController (传入 nullptr)
     stub.Echo(nullptr, &request, &response, nullptr);
+    EXPECT_EQ(response.message(), "Echo: Single RPC verification");
+}
 
-    // 断言返回值完全一致
-    EXPECT_EQ(response.message(), "Echo: Strong-typed RPC Verification!");
+// 2. 【核心多路复用】验证多线程在单连接上发起并发调用时，回包内容精准匹配不发生混淆或交错
+TEST_F(ProtobufChannelTest, ExecutesConcurrentMultiplexedCallsSuccessfully) {
+    ProtobufChannel channel("127.0.0.1", port);
+    TestEchoService_Stub stub(&channel);
+
+    constexpr int kThreadNum = 10;
+    std::vector<std::thread> workers;
+    workers.reserve(kThreadNum);
+
+    std::atomic<int> successCount{0};
+
+    for (int index = 0; index < kThreadNum; ++index) {
+        workers.emplace_back([&stub, index, &successCount]() {
+            EchoRequest req;
+            req.set_message("msg_" + std::to_string(index));
+            EchoResponse resp;
+
+            // 并发发起调用，所有线程均在后台同一 RpcChannel 上跑 write/promise/read 流程
+            stub.Echo(nullptr, &req, &resp, nullptr);
+
+            if (resp.message() == "Echo: msg_" + std::to_string(index)) {
+                successCount++;
+            }
+        });
+    }
+
+    for (auto& w : workers) {
+        w.join();
+    }
+
+    // 断言所有并发调用的返回全部精准无差错还原
+    EXPECT_EQ(successCount.load(), kThreadNum);
+}
+
+// 3. 【核心容错逻辑】验证在长耗时 RPC 任务执行中途，Channel 被主动析构时，挂起线程能被正确唤醒并抛出异常
+TEST_F(ProtobufChannelTest, ThrowsExceptionOnPrematureChannelDestruction) {
+    auto channel = std::make_unique<ProtobufChannel>("127.0.0.1", port);
+    TestEchoService_Stub stub(channel.get());
+
+    EchoRequest req;
+    req.set_message("slow_call_test");
+    EchoResponse resp;
+
+    // 启动一个后台线程执行 slow 任务调用
+    std::thread callerThread([&stub, &req, &resp]() {
+        EXPECT_THROW({
+            stub.Echo(nullptr, &req, &resp, nullptr);
+        }, std::runtime_error);
+    });
+
+    // 稍微等待调用发出，并正在服务端 sleep 时
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // 主动析构客户端 Channel，模拟连接超时被清理或通道生命周期结束
+    channel.reset();
+
+    // 阻塞的 callerThread 应当由于析构中的 cleanup_pending_requests 写入异常而立即被唤醒，不会永远卡死！
+    callerThread.join();
 }
 
 } // namespace test
