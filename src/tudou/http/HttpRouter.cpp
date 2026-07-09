@@ -1,9 +1,9 @@
 // ============================================================================
-// Router.cpp
+// HttpRouter.cpp
 // HTTP 路由器实现，严格按精确匹配、405 判定、前缀兜底、404 回退的顺序分发。
 // ============================================================================
 
-#include "tudou/http/Router.h"
+#include "tudou/http/HttpRouter.h"
 
 #include <algorithm>
 #include <sstream>
@@ -20,11 +20,11 @@ std::size_t RouteKeyHash::operator()(const RouteKey& key) const {
     return methodHash ^ (pathHash + 0x9e3779b97f4a7c15ULL + (methodHash << 6) + (methodHash >> 2));
 }
 
-Router::Router() = default;
+HttpRouter::HttpRouter() = default;
 
-Router::~Router() = default;
+HttpRouter::~HttpRouter() = default;
 
-DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) const {
+DispatchResult HttpRouter::dispatch(const HttpRequest& req, HttpResponse& resp) const {
     // 先命中最具体的精确路由，避免兜底规则提前吞掉明确业务入口。
     const Handler* exactHandler = find_exact_handler(req);
     if (exactHandler != nullptr) {
@@ -51,38 +51,38 @@ DispatchResult Router::dispatch(const HttpRequest& req, HttpResponse& resp) cons
     return DispatchResult::NotFound;
 }
 
-void Router::add_route(const std::string& method, const std::string& path, Handler handler) {
+void HttpRouter::add_route(const std::string& method, const std::string& path, Handler handler) {
     // 精确路由表与允许方法索引必须同步维护，否则 405 分支会丢失 Allow 契约。
     exactRoutes_[RouteKey{ method, path }] = std::move(handler);
     allowedMethodsByPath_[path].insert(method);
 }
 
-void Router::add_get_route(const std::string& path, Handler handler) {
+void HttpRouter::add_get_route(const std::string& path, Handler handler) {
     add_route("GET", path, std::move(handler));
 }
 
-void Router::add_post_route(const std::string& path, Handler handler) {
+void HttpRouter::add_post_route(const std::string& path, Handler handler) {
     add_route("POST", path, std::move(handler));
 }
 
-void Router::add_head_route(const std::string& path, Handler handler) {
+void HttpRouter::add_head_route(const std::string& path, Handler handler) {
     add_route("HEAD", path, std::move(handler));
 }
 
-void Router::add_prefix_route(const std::string& prefix, Handler handler) {
+void HttpRouter::add_prefix_route(const std::string& prefix, Handler handler) {
     // 前缀路由依赖注册顺序表达优先级，因此这里保留线性容器。
     prefixRoutes_.push_back(PrefixRoute{ prefix, std::move(handler) });
 }
 
-void Router::set_not_found_handler(Handler handler) {
+void HttpRouter::set_not_found_handler(Handler handler) {
     notFoundHandler_ = std::move(handler);
 }
 
-void Router::set_method_not_allowed_handler(Handler handler) {
+void HttpRouter::set_method_not_allowed_handler(Handler handler) {
     methodNotAllowedHandler_ = std::move(handler);
 }
 
-const Router::Handler* Router::find_exact_handler(const HttpRequest& req) const {
+const HttpRouter::Handler* HttpRouter::find_exact_handler(const HttpRequest& req) const {
     // method + path 是路由器的最小判定单元，先查精确表可以避免额外分支计算。
     const auto routeIt = exactRoutes_.find(RouteKey{ req.get_method(), req.get_path() });
     if (routeIt == exactRoutes_.end()) {
@@ -91,7 +91,7 @@ const Router::Handler* Router::find_exact_handler(const HttpRequest& req) const 
     return &routeIt->second;
 }
 
-const Router::AllowedMethods* Router::find_allowed_methods(const std::string& path) const {
+const HttpRouter::AllowedMethods* HttpRouter::find_allowed_methods(const std::string& path) const {
     // 单独维护路径索引，是为了把“路径不存在”和“方法不允许”严格区分开。
     const auto methodsIt = allowedMethodsByPath_.find(path);
     if (methodsIt == allowedMethodsByPath_.end()) {
@@ -100,7 +100,7 @@ const Router::AllowedMethods* Router::find_allowed_methods(const std::string& pa
     return &methodsIt->second;
 }
 
-void Router::write_method_not_allowed_response(
+void HttpRouter::write_method_not_allowed_response(
     const HttpRequest& req,
     const AllowedMethods& allowedMethods,
     HttpResponse& resp) const {
@@ -119,7 +119,7 @@ void Router::write_method_not_allowed_response(
     }
 }
 
-std::string Router::format_allow_header(const AllowedMethods& allowedMethods) const {
+std::string HttpRouter::format_allow_header(const AllowedMethods& allowedMethods) const {
     if (allowedMethods.empty()) {
         return "";
     }
@@ -142,7 +142,7 @@ std::string Router::format_allow_header(const AllowedMethods& allowedMethods) co
     return oss.str();
 }
 
-const Router::Handler* Router::find_prefix_handler(const std::string& path) const {
+const HttpRouter::Handler* HttpRouter::find_prefix_handler(const std::string& path) const {
     // 前缀兜底的优先级等于注册顺序，因此这里必须保持线性扫描。
     for (const PrefixRoute& prefixRoute : prefixRoutes_) {
         if (path.size() >= prefixRoute.prefix.size()
@@ -153,7 +153,7 @@ const Router::Handler* Router::find_prefix_handler(const std::string& path) cons
     return nullptr;
 }
 
-void Router::write_not_found_response(const HttpRequest& req, HttpResponse& resp) const {
+void HttpRouter::write_not_found_response(const HttpRequest& req, HttpResponse& resp) const {
     // 自定义 404 处理器只接管响应内容，不改变 dispatch 对未命中分支的判定。
     if (notFoundHandler_) {
         notFoundHandler_(req, resp);

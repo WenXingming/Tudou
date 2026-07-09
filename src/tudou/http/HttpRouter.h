@@ -58,14 +58,14 @@ struct RouteKeyHash {
     std::size_t operator()(const RouteKey& key) const;
 };
 
-// Router 负责将 HTTP 请求按精确匹配、405 判定、前缀兜底、404 回退的固定流程线性分发。
-class Router {
+// HttpRouter 负责将 HTTP 请求按精确匹配、405 判定、前缀兜底、404 回退的固定流程线性分发。
+class HttpRouter {
 public:
     using Handler = std::function<void(const HttpRequest&, HttpResponse&)>;
     using AllowedMethods = std::unordered_set<std::string>;
 
-    Router();
-    ~Router();
+    HttpRouter();
+    ~HttpRouter();
 
     DispatchResult dispatch(const HttpRequest& req, HttpResponse& resp) const; // 路由分发总入口。
 

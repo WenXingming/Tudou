@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include <spdlog/spdlog.h>
-#include "tudou/rpc/JsonRpcServer.h"
+#include "tudou/rpc/json/JsonRpcServer.h"
 
 int main() {
     // 设置日志等级为 info

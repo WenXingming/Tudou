@@ -1,18 +1,18 @@
 /**
- * @file JsonRpcServiceTest.cpp
- * @brief JSON-RPC 2.0 协议处理器单元测试
+ * @file JsonRpcRouterTest.cpp
+ * @brief JSON-RPC 2.0 协议路由器单元测试
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/JsonRpcService.h"
+#include "tudou/rpc/json/JsonRpcRouter.h"
 
-class JsonRpcServiceTest : public ::testing::Test {
+class JsonRpcRouterTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 注册测试函数 add: 接收包含两个数字的数组，返回它们的和
-        service.register_method("add", [](const nlohmann::json& params) {
+        router.register_method("add", [](const nlohmann::json& params) {
             if (!params.is_array() || params.size() != 2) {
                 throw std::invalid_argument("params must be an array of size 2");
             }
@@ -20,25 +20,25 @@ protected:
         });
 
         // 注册测试函数 echo: 直接返回收到的参数
-        service.register_method("echo", [](const nlohmann::json& params) {
+        router.register_method("echo", [](const nlohmann::json& params) {
             return params;
         });
 
         // 注册测试通知函数 notify_test: 改变外部标志位，无返回值
-        service.register_method("notify_test", [this](const nlohmann::json&) {
+        router.register_method("notify_test", [this](const nlohmann::json&) {
             notificationTriggered = true;
             return nullptr;
         });
     }
 
-    JsonRpcService service;
+    JsonRpcRouter router;
     bool notificationTriggered = false;
 };
 
 // 1. 测试合法请求的执行
-TEST_F(JsonRpcServiceTest, ProcessesValidRequestSuccessfully) {
+TEST_F(JsonRpcRouterTest, ProcessesValidRequestSuccessfully) {
     std::string request = R"({"jsonrpc": "2.0", "method": "add", "params": [3, 4], "id": 1})";
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);
@@ -50,10 +50,10 @@ TEST_F(JsonRpcServiceTest, ProcessesValidRequestSuccessfully) {
 }
 
 // 2. 测试参数无效（-32602）错误捕获
-TEST_F(JsonRpcServiceTest, HandlesInvalidParamsException) {
+TEST_F(JsonRpcRouterTest, HandlesInvalidParamsException) {
     // 传入非数组的 params 参数，add 处理器会抛出 std::invalid_argument
     std::string request = R"({"jsonrpc": "2.0", "method": "add", "params": "not_an_array", "id": 2})";
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);
@@ -65,9 +65,9 @@ TEST_F(JsonRpcServiceTest, HandlesInvalidParamsException) {
 }
 
 // 3. 测试方法未找到（-32601）错误捕获
-TEST_F(JsonRpcServiceTest, HandlesMethodNotFound) {
+TEST_F(JsonRpcRouterTest, HandlesMethodNotFound) {
     std::string request = R"({"jsonrpc": "2.0", "method": "missing_method", "params": [], "id": 3})";
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);
@@ -79,9 +79,9 @@ TEST_F(JsonRpcServiceTest, HandlesMethodNotFound) {
 }
 
 // 4. 测试语法解析失败（-32700）错误捕获
-TEST_F(JsonRpcServiceTest, HandlesJsonParseError) {
+TEST_F(JsonRpcRouterTest, HandlesJsonParseError) {
     std::string request = R"({"jsonrpc": "2.0", "method": "add", "params": [1, 2)"; // 格式损坏的 JSON
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);
@@ -93,10 +93,10 @@ TEST_F(JsonRpcServiceTest, HandlesJsonParseError) {
 }
 
 // 5. 测试协议格式不合规（-32600）错误捕获
-TEST_F(JsonRpcServiceTest, HandlesInvalidRequestStruct) {
+TEST_F(JsonRpcRouterTest, HandlesInvalidRequestStruct) {
     // 缺失 jsonrpc 版本声明
     std::string request = R"({"method": "add", "params": [1, 2], "id": 5})";
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);
@@ -108,20 +108,20 @@ TEST_F(JsonRpcServiceTest, HandlesInvalidRequestStruct) {
 }
 
 // 6. 测试 Notification (通知) 机制，即不包含 id 属性，无需回复且正常执行逻辑
-TEST_F(JsonRpcServiceTest, NotificationExecutesWithoutResponse) {
+TEST_F(JsonRpcRouterTest, NotificationExecutesWithoutResponse) {
     std::string request = R"({"jsonrpc": "2.0", "method": "notify_test"})";
     EXPECT_FALSE(notificationTriggered);
 
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
-    // 规范要求：通知不得产生任何响应文本
+    // 规范要求：通知不得产生 any 响应文本
     EXPECT_TRUE(responseStr.empty());
     // 断言业务处理器成功被调用并修改了标志位
     EXPECT_TRUE(notificationTriggered);
 }
 
 // 7. 测试 Batch Requests (批量打包请求)
-TEST_F(JsonRpcServiceTest, ProcessesBatchRequestsCorrectly) {
+TEST_F(JsonRpcRouterTest, ProcessesBatchRequestsCorrectly) {
     // 打包三个请求：2 个常规请求，1 个通知
     std::string request = R"([
         {"jsonrpc": "2.0", "method": "add", "params": [1, 2], "id": 10},
@@ -130,7 +130,7 @@ TEST_F(JsonRpcServiceTest, ProcessesBatchRequestsCorrectly) {
     ])";
 
     EXPECT_FALSE(notificationTriggered);
-    std::string responseStr = service.dispatch(request);
+    std::string responseStr = router.dispatch(request);
     
     ASSERT_FALSE(responseStr.empty());
     nlohmann::json response = nlohmann::json::parse(responseStr);

@@ -34,8 +34,8 @@ void JsonRpcServer::start() {
     spdlog::info("JsonRpcServer: Started listening on {}:{}", tcpServer_->get_ip(), tcpServer_->get_port());
 }
 
-void JsonRpcServer::register_method(const std::string& name, JsonRpcService::RpcHandler handler) {
-    service_.register_method(name, std::move(handler));
+void JsonRpcServer::register_method(const std::string& name, JsonRpcRouter::RpcHandler handler) {
+    router_.register_method(name, std::move(handler));
 }
 
 void JsonRpcServer::on_connection(const TcpConnectionPtr& conn) {
@@ -72,7 +72,7 @@ void JsonRpcServer::on_message(const TcpConnectionPtr& conn) {
         }
 
         // 调度核心业务处理
-        std::string responseStr = service_.dispatch(requestStr);
+        std::string responseStr = router_.dispatch(requestStr);
 
         // 如果不是 Notification，将响应追加换行符发回对端
         if (!responseStr.empty()) {

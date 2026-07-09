@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 #include "tudou/tcp/TcpServer.h"
-#include "tudou/rpc/JsonRpcService.h"
+#include "tudou/rpc/json/JsonRpcRouter.h"
 
 class JsonRpcServer {
 public:
@@ -45,7 +45,7 @@ public:
     /**
      * @brief 向底层的 RPC 协议服务注册业务方法处理器
      */
-    void register_method(const std::string& name, JsonRpcService::RpcHandler handler);
+    void register_method(const std::string& name, JsonRpcRouter::RpcHandler handler);
 
 private:
     void on_connection(const TcpConnectionPtr& conn);
@@ -53,7 +53,7 @@ private:
     void on_close(const TcpConnectionPtr& conn);
 
     std::unique_ptr<TcpServer> tcpServer_;
-    JsonRpcService service_;
+    JsonRpcRouter router_;
 
     // 每个连接的应用层接收缓冲区，用于解决 TCP 粘包和半包
     std::unordered_map<TcpConnection*, std::string> connectionBuffers_;

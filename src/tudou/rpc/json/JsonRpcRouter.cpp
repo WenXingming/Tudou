@@ -1,25 +1,25 @@
 /**
- * @file JsonRpcService.cpp
- * @brief JSON-RPC 2.0 核心分发服务实现
+ * @file JsonRpcRouter.cpp
+ * @brief JSON-RPC 2.0 核心分发路由实现
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
 
-#include "JsonRpcService.h"
+#include "JsonRpcRouter.h"
 
 #include <exception>
 #include <stdexcept>
 #include <spdlog/spdlog.h>
 
-JsonRpcService::JsonRpcService() = default;
-JsonRpcService::~JsonRpcService() = default;
+JsonRpcRouter::JsonRpcRouter() = default;
+JsonRpcRouter::~JsonRpcRouter() = default;
 
-void JsonRpcService::register_method(const std::string& name, RpcHandler handler) {
+void JsonRpcRouter::register_method(const std::string& name, RpcHandler handler) {
     methods_[name] = std::move(handler);
-    spdlog::info("JsonRpcService: Method registered successfully, name={}", name);
+    spdlog::info("JsonRpcRouter: Method registered successfully, name={}", name);
 }
 
-std::string JsonRpcService::dispatch(const std::string& requestStr) {
+std::string JsonRpcRouter::dispatch(const std::string& requestStr) {
     if (requestStr.empty()) {
         return make_error_response(nullptr, -32600, "Invalid Request (empty body)").dump();
     }
@@ -29,7 +29,7 @@ std::string JsonRpcService::dispatch(const std::string& requestStr) {
         root = nlohmann::json::parse(requestStr);
     }
     catch (const nlohmann::json::parse_error& e) {
-        spdlog::error("JsonRpcService: JSON parse failed, error={}", e.what());
+        spdlog::error("JsonRpcRouter: JSON parse failed, error={}", e.what());
         return make_error_response(nullptr, -32700, "Parse error").dump();
     }
 
@@ -61,7 +61,7 @@ std::string JsonRpcService::dispatch(const std::string& requestStr) {
     return singleResponse.dump();
 }
 
-nlohmann::json JsonRpcService::dispatch_single(const nlohmann::json& req) {
+nlohmann::json JsonRpcRouter::dispatch_single(const nlohmann::json& req) {
     // 1. 基础的协议语法规范性校验
     if (!req.is_object()) {
         return make_error_response(nullptr, -32600, "Invalid Request (not an object)");
@@ -94,7 +94,7 @@ nlohmann::json JsonRpcService::dispatch_single(const nlohmann::json& req) {
     // 2. 匹配业务方法
     auto it = methods_.find(methodName);
     if (it == methods_.end()) {
-        spdlog::warn("JsonRpcService: Method not found, name={}", methodName);
+        spdlog::warn("JsonRpcRouter: Method not found, name={}", methodName);
         return make_error_response(id, -32601, "Method not found");
     }
 
@@ -115,20 +115,20 @@ nlohmann::json JsonRpcService::dispatch_single(const nlohmann::json& req) {
     }
     catch (const nlohmann::json::exception& e) {
         // 通常是 params 参数读取类型不匹配异常，归为 Invalid params 错误
-        spdlog::error("JsonRpcService: Invalid params exception for method={}, error={}", methodName, e.what());
+        spdlog::error("JsonRpcRouter: Invalid params exception for method={}, error={}", methodName, e.what());
         return make_error_response(id, -32602, "Invalid params: " + std::string(e.what()));
     }
     catch (const std::invalid_argument& e) {
-        spdlog::error("JsonRpcService: Invalid argument for method={}, error={}", methodName, e.what());
+        spdlog::error("JsonRpcRouter: Invalid argument for method={}, error={}", methodName, e.what());
         return make_error_response(id, -32602, "Invalid params: " + std::string(e.what()));
     }
     catch (const std::exception& e) {
         // 服务端内部异常，归为 Internal error
-        spdlog::error("JsonRpcService: Internal error for method={}, error={}", methodName, e.what());
+        spdlog::error("JsonRpcRouter: Internal error for method={}, error={}", methodName, e.what());
         return make_error_response(id, -32603, "Internal error: " + std::string(e.what()));
     }
     catch (...) {
-        spdlog::error("JsonRpcService: Unknown internal exception for method={}", methodName);
+        spdlog::error("JsonRpcRouter: Unknown internal exception for method={}", methodName);
         return make_error_response(id, -32603, "Internal error: Unknown exception");
     }
 
@@ -145,7 +145,7 @@ nlohmann::json JsonRpcService::dispatch_single(const nlohmann::json& req) {
     return resp;
 }
 
-nlohmann::json JsonRpcService::make_error_response(const nlohmann::json& id, int code, const std::string& message) {
+nlohmann::json JsonRpcRouter::make_error_response(const nlohmann::json& id, int code, const std::string& message) {
     nlohmann::json resp;
     resp["jsonrpc"] = "2.0";
     

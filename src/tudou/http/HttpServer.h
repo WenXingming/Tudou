@@ -60,11 +60,11 @@
 #include "tudou/http/TlsConfig.h"
 #include "tudou/http/TlsConnection.h"
 #include "tudou/http/TlsMode.h"
-#include "tudou/http/Router.h"
+#include "tudou/http/HttpRouter.h"
 
 class HttpServer {
 public:
-    using Handler = Router::Handler;
+    using Handler = HttpRouter::Handler;
 
     HttpServer(std::string ip, uint16_t port, int threadNum = 0);
     HttpServer(const HttpServer&) = delete;
@@ -134,7 +134,7 @@ private:
     std::unordered_map<TcpConnection*, std::shared_ptr<ConnectionState>> connectionStates_;     // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
     std::mutex contextsMutex_;                                                                  // 保护连接级状态映射。
 
-    Router router_;                                                                             // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
+    HttpRouter router_;                                                                             // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
 
     TlsMode tlsMode_;                                                                           // HTTPS 连接使用的 TLS 传输模式。
     std::unique_ptr<TlsConfig> tlsConfig_;                                                      // 全局 TLS 配置，持有证书与私钥。

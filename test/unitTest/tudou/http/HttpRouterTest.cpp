@@ -4,7 +4,7 @@
 
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
-#include "tudou/http/Router.h"
+#include "tudou/http/HttpRouter.h"
 
 namespace {
 
@@ -28,8 +28,8 @@ std::string find_header(const HttpResponse& response, const std::string& field) 
 
 } // namespace
 
-TEST(RouterTest, DispatchUsesExactHandlerBeforePrefixFallback) {
-    Router router;
+TEST(HttpRouterTest, DispatchUsesExactHandlerBeforePrefixFallback) {
+    HttpRouter router;
     bool exactCalled = false;
     bool prefixCalled = false;
 
@@ -53,8 +53,8 @@ TEST(RouterTest, DispatchUsesExactHandlerBeforePrefixFallback) {
     EXPECT_EQ(response.get_body(), "exact");
 }
 
-TEST(RouterTest, DispatchReturnsMethodNotAllowedBeforePrefixFallback) {
-    Router router;
+TEST(HttpRouterTest, DispatchReturnsMethodNotAllowedBeforePrefixFallback) {
+    HttpRouter router;
     bool prefixCalled = false;
 
     router.add_get_route("/health", [](const HttpRequest&, HttpResponse&) {});
@@ -78,8 +78,8 @@ TEST(RouterTest, DispatchReturnsMethodNotAllowedBeforePrefixFallback) {
     EXPECT_TRUE(response.get_close_connection());
 }
 
-TEST(RouterTest, DispatchUsesPrefixHandlerWhenExactRouteDoesNotExist) {
-    Router router;
+TEST(HttpRouterTest, DispatchUsesPrefixHandlerWhenExactRouteDoesNotExist) {
+    HttpRouter router;
     bool prefixCalled = false;
 
     router.add_prefix_route("/static", [&](const HttpRequest&, HttpResponse& response) {
@@ -96,8 +96,8 @@ TEST(RouterTest, DispatchUsesPrefixHandlerWhenExactRouteDoesNotExist) {
     EXPECT_EQ(response.get_body(), "asset");
 }
 
-TEST(RouterTest, DispatchUsesFirstRegisteredPrefixHandlerWhenMultiplePrefixesMatch) {
-    Router router;
+TEST(HttpRouterTest, DispatchUsesFirstRegisteredPrefixHandlerWhenMultiplePrefixesMatch) {
+    HttpRouter router;
     std::string matchedHandler;
 
     router.add_prefix_route("/static", [&](const HttpRequest&, HttpResponse& response) {
@@ -119,8 +119,8 @@ TEST(RouterTest, DispatchUsesFirstRegisteredPrefixHandlerWhenMultiplePrefixesMat
     EXPECT_EQ(response.get_body(), "first-prefix");
 }
 
-TEST(RouterTest, DispatchReturnsDefaultNotFoundResponseWhenNoRouteMatches) {
-    Router router;
+TEST(HttpRouterTest, DispatchReturnsDefaultNotFoundResponseWhenNoRouteMatches) {
+    HttpRouter router;
 
     HttpRequest request = make_request("GET", "/missing");
     HttpResponse response;
@@ -135,8 +135,8 @@ TEST(RouterTest, DispatchReturnsDefaultNotFoundResponseWhenNoRouteMatches) {
     EXPECT_TRUE(response.get_close_connection());
 }
 
-TEST(RouterTest, DispatchUsesCustomNotFoundHandlerWhenProvided) {
-    Router router;
+TEST(HttpRouterTest, DispatchUsesCustomNotFoundHandlerWhenProvided) {
+    HttpRouter router;
     bool notFoundCalled = false;
 
     router.set_not_found_handler([&](const HttpRequest&, HttpResponse& response) {
@@ -154,8 +154,8 @@ TEST(RouterTest, DispatchUsesCustomNotFoundHandlerWhenProvided) {
     EXPECT_EQ(response.get_body(), "custom-not-found");
 }
 
-TEST(RouterTest, DispatchUsesCustomMethodNotAllowedHandlerWhenProvided) {
-    Router router;
+TEST(HttpRouterTest, DispatchUsesCustomMethodNotAllowedHandlerWhenProvided) {
+    HttpRouter router;
     bool customHandlerCalled = false;
 
     router.add_get_route("/health", [](const HttpRequest&, HttpResponse&) {});

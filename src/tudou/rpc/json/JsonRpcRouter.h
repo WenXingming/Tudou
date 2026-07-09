@@ -1,6 +1,6 @@
 /**
- * @file JsonRpcService.h
- * @brief JSON-RPC 2.0 核心分发服务声明
+ * @file JsonRpcRouter.h
+ * @brief JSON-RPC 2.0 核心分发路由声明
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
  */
@@ -12,16 +12,16 @@
 #include <functional>
 #include <nlohmann/json.hpp>
 
-class JsonRpcService {
+class JsonRpcRouter {
 public:
     using RpcHandler = std::function<nlohmann::json(const nlohmann::json& params)>;
 
-    JsonRpcService();
-    ~JsonRpcService();
+    JsonRpcRouter();
+    ~JsonRpcRouter();
 
     // 禁用拷贝构造和赋值
-    JsonRpcService(const JsonRpcService&) = delete;
-    JsonRpcService& operator=(const JsonRpcService&) = delete;
+    JsonRpcRouter(const JsonRpcRouter&) = delete;
+    JsonRpcRouter& operator=(const JsonRpcRouter&) = delete;
 
     /**
      * @brief 注册具体的远程过程调用函数。

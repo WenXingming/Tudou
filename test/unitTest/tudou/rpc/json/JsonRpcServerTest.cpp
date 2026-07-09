@@ -14,7 +14,7 @@
 #include <memory>
 #include <thread>
 #include <chrono>
-#include "tudou/rpc/JsonRpcServer.h"
+#include "tudou/rpc/json/JsonRpcServer.h"
 
 namespace {
 
