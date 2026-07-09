@@ -5,6 +5,22 @@ project(Tudou VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 优先尝试在宿主机系统查找已安装的 Protobuf
+find_package(Protobuf QUIET)
+
+if(NOT Protobuf_FOUND AND NOT TARGET protobuf::libprotobuf)
+    message(STATUS "Protobuf not found in system. Fetching from GitHub via FetchContent...")
+    FetchContent_Declare(
+        protobuf
+        URL https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.21.12.tar.gz
+    )
+    # 禁用编译 Protobuf 官方测试，以防极大地拖慢首次编译构建速度
+    set(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
+    set(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+    set(protobuf_BUILD_EXPORT OFF CACHE INTERNAL "")
+    FetchContent_MakeAvailable(protobuf)
+endif()
+
 include(FetchContent)
 
 option(TUDOU_BUILD_EXAMPLES "构建 Tudou 示例应用" OFF)

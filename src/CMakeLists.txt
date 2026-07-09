@@ -6,6 +6,7 @@ add_library(tudou STATIC
     tudou/http/HttpServer.cpp
     tudou/rpc/json/JsonRpcRouter.cpp
     tudou/rpc/json/JsonRpcServer.cpp
+    tudou/rpc/protocol/RpcCodec.cpp
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
     tudou/http/TlsConfig.cpp
@@ -42,6 +43,7 @@ target_link_libraries(tudou
     PUBLIC
         llhttp::llhttp
         nlohmann_json::nlohmann_json
+        protobuf::libprotobuf
     PRIVATE
         spdlog::spdlog
         Threads::Threads
