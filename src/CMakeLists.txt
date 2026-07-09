@@ -5,6 +5,7 @@ add_library(tudou STATIC
     tudou/http/HttpResponse.cpp
     tudou/http/HttpServer.cpp
     tudou/rpc/JsonRpcService.cpp
+    tudou/rpc/JsonRpcServer.cpp
     tudou/http/TlsProbe.cpp
     tudou/http/Router.cpp
     tudou/http/TlsConfig.cpp

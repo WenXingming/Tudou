@@ -85,6 +85,7 @@ add_subdirectory(src)
 
 if(TUDOU_BUILD_EXAMPLES)
     add_subdirectory(examples/StaticFileHttpServer)
+    add_subdirectory(examples/JsonRpcServer)
     add_subdirectory(examples/StarMind)
 endif()
 
