@@ -82,6 +82,7 @@ int connect_with_retry(uint16_t port) {
 
 } // namespace
 
+namespace {
 // 实现 Echo 业务
 class TestEchoServiceImpl : public TestEchoService {
 public:
@@ -95,6 +96,7 @@ public:
         }
     }
 };
+}
 
 class BinaryRpcServerTest : public ::testing::Test {
 protected:

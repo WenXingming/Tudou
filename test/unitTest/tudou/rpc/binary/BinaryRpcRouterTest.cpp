@@ -14,6 +14,7 @@ namespace rpc {
 namespace binary {
 namespace test {
 
+namespace {
 // 实现 proto 文件中声明的 TestEchoService 业务子类
 class TestEchoServiceImpl : public TestEchoService {
 public:
@@ -28,6 +29,7 @@ public:
         }
     }
 };
+}
 
 class BinaryRpcRouterTest : public ::testing::Test {
 protected:

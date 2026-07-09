@@ -58,6 +58,7 @@ uint16_t reserve_free_port() {
 
 } // namespace
 
+namespace {
 // 实现业务逻辑，增加了延时方法以模拟长耗时 RPC 任务
 class TestEchoServiceImpl : public TestEchoService {
 public:
@@ -77,6 +78,7 @@ public:
         }
     }
 };
+}
 
 class BinaryRpcChannelTest : public ::testing::Test {
 protected:

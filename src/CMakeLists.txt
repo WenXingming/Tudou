@@ -13,6 +13,7 @@ add_library(tudou STATIC
     tudou/rpc/binary/BinaryRpcRouter.cpp
     tudou/rpc/binary/BinaryRpcServer.cpp
     tudou/rpc/binary/BinaryRpcChannel.cpp
+    tudou/rpc/UnifiedRpcServer.cpp
     ${RPC_PROTO_SRCS}
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
