@@ -8,6 +8,8 @@
 #include <gtest/gtest.h>
 #include "tudou/rpc/binary/BinaryRpcServer.h"
 #include "tudou/rpc/binary/BinaryRpcChannel.h"
+#include "tudou/reactor/EventLoop.h"
+#include "tudou/rpc/Coroutine.h"
 #include "binary_rpc.pb.h"
 #include "test.pb.h"
 
@@ -179,6 +181,69 @@ TEST_F(BinaryRpcChannelTest, ThrowsExceptionOnPrematureChannelDestruction) {
 
     // 阻塞的 callerThread 应当由于析构中的 cleanup_pending_requests 写入异常而立即被唤醒，不会永远卡死！
     callerThread.join();
+}
+
+// 4. 验证在 EventLoop 驱动下，通过协程方式执行非阻塞 RPC 调用可以成功闭环
+TEST_F(BinaryRpcChannelTest, ExecutesCoroutineRpcSuccessfully) {
+    EventLoop loop;
+    BinaryRpcChannel channel(&loop, "127.0.0.1", port);
+
+    bool success = false;
+    auto coro = std::make_shared<Coroutine>(&loop, [&]() {
+        TestEchoService_Stub stub(&channel);
+        EchoRequest req;
+        req.set_message("hello coroutine");
+        EchoResponse resp;
+
+        stub.Echo(nullptr, &req, &resp, nullptr);
+        EXPECT_EQ(resp.message(), "Echo: hello coroutine");
+        success = true;
+        
+        loop.quit(); // 退出事件循环，结束测试
+    });
+
+    // 2. 显式启动协程，使其运行至 CallMethod 的 yield() 处挂起
+    coro->resume();
+
+    // 3. 运行事件循环。主线程进入 epoll_wait 驱动网络读写与唤醒
+    loop.loop();
+
+    EXPECT_TRUE(success);
+}
+
+// 5. 验证在协程模式下，如果服务器异常关闭连接，挂起的协程可以正确被唤醒并抛出网络异常
+TEST_F(BinaryRpcChannelTest, ThrowsExceptionOnCoroutineNetworkFailure) {
+    EventLoop loop;
+    auto channel = std::make_unique<BinaryRpcChannel>(&loop, "127.0.0.1", port);
+
+    bool exceptionThrown = false;
+    auto coro = std::make_shared<Coroutine>(&loop, [&]() {
+        TestEchoService_Stub stub(channel.get());
+        EchoRequest req;
+        req.set_message("slow_call"); // 让服务器端延迟处理以确保在连接中途触发断开
+        EchoResponse resp;
+
+        try {
+            stub.Echo(nullptr, &req, &resp, nullptr);
+        }
+        catch (const std::runtime_error& e) {
+            exceptionThrown = true;
+        }
+        
+        loop.quit();
+    });
+
+    // 2. 显式启动协程，使其运行至 CallMethod 的 yield() 处挂起
+    coro->resume();
+
+    // 3. 注册定时任务：100ms 后强行关闭客户端 Channel，模拟网络断开
+    loop.run_after(0.1, [&]() {
+        channel.reset();
+    });
+
+    loop.loop();
+
+    EXPECT_TRUE(exceptionThrown);
 }
 
 } // namespace test

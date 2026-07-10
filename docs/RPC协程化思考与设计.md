@@ -98,44 +98,47 @@ public:
     Coroutine(EventLoop* loop, std::function<void()> func)
         : loop_(loop), func_(std::move(func)) {
         
-        // 构造 pull_type 会立即进入协程体执行，直到遇到第一次 yield()
         pull_ = std::make_unique<coro_t::pull_type>(
             [this](coro_t::push_type& yield) {
                 push_ = &yield;
                 
-                // 设置当前线程局部的协程上下文指针
+                // 核心生命周期修复：立即挂起以返回构造函数，
+                // 确保外部有足够时间安全构建 std::shared_ptr 并允许后续安全使用 shared_from_this()
+                (*push_)();
+                
+                Coroutine* saved = t_current_coroutine;
                 t_current_coroutine = this;
                 
-                // 执行具体的业务函数
                 if (func_) {
                     func_();
                 }
                 
-                t_current_coroutine = nullptr;
+                t_current_coroutine = saved;
             }
         );
     }
 
     void resume() {
         if (pull_ && *pull_) {
-            // 在当前线程恢复执行流
+            Coroutine* saved = t_current_coroutine;
             t_current_coroutine = this;
             (*pull_)();
-            t_current_coroutine = nullptr;
+            t_current_coroutine = saved;
         }
     }
 
     void yield() {
         if (push_) {
-            // 挂起协程，控制权交还给调用 resume() 的调用者
+            Coroutine* saved = t_current_coroutine;
+            t_current_coroutine = nullptr;
             (*push_)();
+            t_current_coroutine = saved;
         }
     }
 
     EventLoop* get_loop() const { return loop_; }
 
 public:
-    // 线程局部存储：当前线程正在执行的协程指针
     static thread_local Coroutine* t_current_coroutine;
 
 private:
@@ -171,48 +174,56 @@ thread_local Coroutine* Coroutine::t_current_coroutine = nullptr;
 #### 改造后的协程 CallMethod 无缝调用流：
 ```cpp
 void BinaryRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
-                                  google::protobuf::RpcController* /* controller */,
-                                  const google::protobuf::Message* request,
-                                  google::protobuf::Message* response,
-                                  google::protobuf::Closure* done) {
+                                 google::protobuf::RpcController* /* controller */,
+                                 const google::protobuf::Message* request,
+                                 google::protobuf::Message* response,
+                                 google::protobuf::Closure* done) {
     uint64_t seq = nextSequenceId_++;
     auto context = std::make_shared<ResponseContext>();
     context->response = response;
 
     Coroutine* cur_coro = Coroutine::t_current_coroutine;
 
-    // ───────────────── 【路径一：协程非阻塞模式】 ─────────────────
-    if (cur_coro != nullptr) {
+    if (cur_coro != nullptr && loop_ != nullptr) {
+        // ───────────────── 【路径一：协程非阻塞模式】 ─────────────────
         context->coroutine = cur_coro->shared_from_this();
-        register_pending_request(seq, context);
-
-        // 1. 序列化并编码
-        std::string bytesToSend = encode_request(method, request, seq);
-
-        // 2. 尝试非阻塞写入
-        ssize_t n = ::write(clientFd_, bytesToSend.data(), bytesToSend.size());
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            // 如果写缓冲区满了，将数据存入待发队列，注册写事件，挂起协程
-            enqueue_pending_write(bytesToSend);
-            channel_->enable_writing(); 
-            cur_coro->yield(); // 挂起，直到底层 epoll 触发可写并完成发送
-        } else if (n < (ssize_t)bytesToSend.size()) {
-            // 部分写入处理...
-            enqueue_pending_write(bytesToSend.substr(n));
-            channel_->enable_writing();
-            cur_coro->yield();
+        {
+            std::lock_guard<std::mutex> lock(mapMutex_);
+            if (!running_) {
+                throw std::runtime_error("BinaryRpcChannel: Channel is closed");
+            }
+            pendingRequests_[seq] = context;
         }
 
-        // 3. 数据发送成功后，显式挂起当前协程，等待回包
-        cur_coro->yield(); 
+        std::string bytesToSend;
+        try {
+            bytesToSend = encode_request(method, request, seq);
+        }
+        catch (...) {
+            std::lock_guard<std::mutex> lock(mapMutex_);
+            pendingRequests_.erase(seq);
+            throw;
+        }
 
-        // 4. 当协程被唤醒恢复时，代表 on_read 已经拿到回包并反序列化完毕，直接向下返回
-        if (done) done->Run();
+        // 调用非阻塞发送管道（若缓冲区满则自动缓存并注册 EventLoop 可写事件）
+        write_request_nonblocking(bytesToSend);
+
+        // 挂起当前协程，释放 CPU 执行权，等待网络读取端在收到回包时 resume 唤醒
+        cur_coro->yield();
+
+        // 恢复执行后，检查是否有异常缓存（例如连接被重置、解析失败等）
+        if (context->exception) {
+            std::rethrow_exception(context->exception);
+        }
+
+        if (done) {
+            done->Run();
+        }
         return;
     }
     // ───────────────── 【路径二：传统线程阻塞模式】 ─────────────────
     else {
-        // 退化至原有的 std::future 等待，维持原有同步线程阻塞逻辑
+        // 使用同步 promise/future 机制挂起当前 OS 线程
         // ...
     }
 }
@@ -220,23 +231,175 @@ void BinaryRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* meth
 
 ---
 
-### C. 关键的恢复线程派发设计（防止网络线程饥饿）
+### C. 关键的 Reactor 非阻塞读写事件处理与异常传递设计
 
-在非阻塞 Reactor 驱动下，事件由 `EventLoop` 的线程执行。当底层的 `on_read` 触发时，协程被恢复执行：
+在底层非阻塞和事件驱动机制下，我们将 `BinaryRpcChannel` 注册到外部 `EventLoop` 的 `Channel`，通过事件回调驱动网络读写，并确保协程被安全调度、异常被准确向上传递：
 
+#### 1. 异步建连与非阻塞发送机制 (`on_write` 与 `write_request_nonblocking`)
+由于建连采用 `SOCK_NONBLOCK`，`::connect` 会立即返回 `EINPROGRESS`。我们在第一次可写事件触发时确认连接状态，并对数据包进行排队发送：
+```cpp
+void BinaryRpcChannel::on_write() {
+    // 1. 若还未建连成功，则先利用 getsockopt 确认连接结果
+    if (!connected_) {
+        int err = 0;
+        socklen_t len = sizeof(err);
+        if (::getsockopt(clientFd_, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
+            cleanup_pending_requests("BinaryRpcChannel: Non-blocking connect failed");
+            running_ = false;
+            if (channel_) channel_->disable_all();
+            return;
+        }
+        connected_ = true;
+    }
+
+    // 2. 发送 writeBuffer_ 中暂存的所有数据包
+    std::lock_guard<std::mutex> lock(sendMutex_);
+    if (writeBuffer_.empty()) {
+        channel_->disable_writing();
+        return;
+    }
+
+    size_t totalSent = 0;
+    while (totalSent < writeBuffer_.size()) {
+        ssize_t n = ::write(clientFd_, writeBuffer_.data() + totalSent, writeBuffer_.size() - totalSent);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                writeBuffer_ = writeBuffer_.substr(totalSent);
+                return;
+            }
+            cleanup_pending_requests("BinaryRpcChannel: Non-blocking write error");
+            running_ = false;
+            if (channel_) channel_->disable_all();
+            return;
+        }
+        totalSent += n;
+    }
+    writeBuffer_.clear();
+    channel_->disable_writing(); // 刷完后关闭写事件，降低 Epoll 唤醒频次
+}
+
+void BinaryRpcChannel::write_request_nonblocking(const std::string& data) {
+    std::lock_guard<std::mutex> lock(sendMutex_);
+    
+    // 如果还未建连完成，或者前面有阻塞排队的数据，则必须追加在 Buffer 末尾以保证报文不发生交错损坏
+    if (!connected_ || !writeBuffer_.empty()) {
+        writeBuffer_ += data;
+        return;
+    }
+
+    // 尝试直接非阻塞写入
+    size_t totalSent = 0;
+    while (totalSent < data.size()) {
+        ssize_t n = ::write(clientFd_, data.data() + totalSent, data.size() - totalSent);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                writeBuffer_ += data.substr(totalSent);
+                loop_->run_in_loop([this]() {
+                    if (channel_) channel_->enable_writing();
+                });
+                break;
+            }
+            throw std::runtime_error("BinaryRpcChannel: Non-blocking socket write error");
+        }
+        totalSent += n;
+    }
+}
+```
+
+#### 2. 非阻塞读取与跨线程恢复机制 (`on_read`)
+当网络可读时，回调触发 `on_read` 从套接字流式消费数据并解析：
 ```cpp
 void BinaryRpcChannel::on_read() {
-    // 1. 从非阻塞套接字中 ::read 数据到 Buffer ...
-    // 2. 解码数据流，通过 seq 匹配到对应的 ResponseContext
-    
-    if (context->coroutine) {
-        // 跨线程/安全调度：如果当前接收逻辑跑在另一个 I/O 线程，
-        // 通过 run_in_loop 投递回原属 EventLoop，防止在当前网络读写线程上执行重型业务逻辑
-        EventLoop* origin_loop = context->coroutine->get_loop();
-        origin_loop->run_in_loop([coro = context->coroutine]() {
-            coro->resume(); // 唤醒协程
-        });
+    char temp[1024];
+    bool socketErrorOrEOF = false;
+
+    // 1. 流式循环读取直至无数据可读 (EAGAIN)
+    while (running_) {
+        ssize_t nr = ::read(clientFd_, temp, sizeof(temp));
+        if (nr < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+            socketErrorOrEOF = true;
+            break;
+        }
+        if (nr == 0) {
+            socketErrorOrEOF = true; // 对端关闭连接
+            break;
+        }
+        readBuf_.write_to_buffer(temp, nr);
     }
+
+    if (socketErrorOrEOF) {
+        cleanup_pending_requests("BinaryRpcChannel: Connection closed or read error");
+        running_ = false;
+        if (channel_) channel_->disable_all();
+        return;
+    }
+
+    // 2. 循环解码并唤醒业务执行流
+    RpcHeader respHeader;
+    std::string respMetaRaw, respBodyRaw;
+    while (running_) {
+        BinaryRpcCodec::DecodeResult result = BinaryRpcCodec::decode(&readBuf_, respHeader, respMetaRaw, respBodyRaw);
+        if (result == BinaryRpcCodec::DecodeResult::Success) {
+            std::shared_ptr<ResponseContext> context;
+            {
+                std::lock_guard<std::mutex> lock(mapMutex_);
+                auto it = pendingRequests_.find(respHeader.sequenceId);
+                if (it != pendingRequests_.end()) {
+                    context = it->second;
+                    pendingRequests_.erase(it);
+                }
+            }
+
+            if (context) {
+                if (context->response->ParseFromString(respBodyRaw)) {
+                    if (context->coroutine) {
+                        // 跨线程安全调度：通过 run_in_loop 投递回原属 EventLoop 线程执行唤醒，保持线程局部性
+                        EventLoop* origin_loop = context->coroutine->get_loop();
+                        origin_loop->run_in_loop([coro = context->coroutine]() {
+                            coro->resume(); // 恢复协程
+                        });
+                    } else {
+                        context->promise.set_value(); // 传统阻塞模式唤醒
+                    }
+                } else {
+                    // 处理反序列化失败的异常传递...
+                }
+            }
+        } else if (result == BinaryRpcCodec::DecodeResult::HalfPack || result == BinaryRpcCodec::DecodeResult::Empty) {
+            break;
+        } else if (result == BinaryRpcCodec::DecodeResult::Error) {
+            cleanup_pending_requests("BinaryRpcChannel: Protocol decode error");
+            running_ = false;
+            if (channel_) channel_->disable_all();
+            break;
+        }
+    }
+}
+```
+
+#### 3. 网络故障与生命周期销毁时的异常安全流转 (`cleanup_pending_requests`)
+当网络出现致命错误或 Channel 析构时，为了防止正在 yield 挂起中的协程无限期卡死在堆内存中（造成协程和资源泄露），我们对所有挂起中的会话注入异常并唤醒它们：
+```cpp
+void BinaryRpcChannel::cleanup_pending_requests(const std::string& reason) {
+    std::lock_guard<std::mutex> lock(mapMutex_);
+    auto err = std::make_exception_ptr(std::runtime_error(reason));
+    for (auto& pair : pendingRequests_) {
+        auto context = pair.second;
+        if (context->coroutine) {
+            context->exception = err; // 注入缓存异常，以便协程恢复后抛出
+            EventLoop* origin_loop = context->coroutine->get_loop();
+            origin_loop->run_in_loop([coro = context->coroutine]() {
+                coro->resume(); // 异步唤醒协程
+            });
+        } else {
+            context->promise.set_exception(err); // 传统阻塞模式抛出
+        }
+    }
+    pendingRequests_.clear();
 }
 ```
 
@@ -319,5 +482,62 @@ static thread_local Coroutine* t_current_coroutine;
 每一个 `Coroutine` 实例对象，都在堆内存中保存着自己专属的执行上下文和栈空间：
 1. **独立的协程栈**：每当我们 `new Coroutine` 时，`Boost.Coroutine2` 都会在堆上为这个协程分配独立的内存栈空间（例如默认 64KB）。
 2. **独立的寄存器上下文**：每个协程对象拥有自己独立的 `pull_type` 实例。当执行 `yield()` 挂起时，底层 `Boost.Context` 的汇编代码会把 CPU 当前的所有核心寄存器状态（在 x86_64 下为 RIP, RSP, RBP 及通用寄存器）直接压入**这个协程自己专属的栈顶**保存。
-3. **任意切换**：如果有 1000 个并发的 RPC 请求挂起，内存中就会有 1000 个独立的 `Coroutine` 实例。它们各自的寄存器和栈帧状态都处于隔离保存状态。当网络收到 `seq = 102` 的回包时，网络线程只需通过映射表提取 `Coroutine B`，并调用 `B->resume()`。此时 CPU 会把寄存器状态从 `B` 的独立栈中读出并覆盖到 CPU 寄存器上，执行流即刻无缝跳回 `B` 挂起点继续执行。其他 999 个协程继续在各自的内存中静止，互不干扰。
+3. **任意切换**：如果有 1000 个并发 of RPC 请求挂起，内存中就会有 1000 个独立的 `Coroutine` 实例。它们各自的寄存器和栈帧状态都处于隔离保存状态。当网络收到 `seq = 102` 的回包时，网络线程只需通过映射表提取 `Coroutine B`，并调用 `B->resume()`。此时 CPU 会把寄存器状态从 `B` 的独立栈中读出并覆盖到 CPU 寄存器上，执行流即刻无缝跳回 `B` 挂起点继续执行。其他 999 个协程继续在各自的内存中静止，互不干扰。
+
+---
+
+## 9. 原始同步阻塞多线程设计 vs 协程非阻塞 I/O 设计对比
+
+| 维度 | 原始同步阻塞多线程设计 (`future.get()`) | 协程非阻塞 I/O 设计 (`Coroutine + Epoll`) |
+| :--- | :--- | :--- |
+| **线程模型** | 每个客户端信道强行拉起一个**后台专职接收解包线程**（`receiverThread_`），调用线程因 `future.get()` 挂起阻塞。 | **零额外工作线程**。客户端直接包装 Socket 为 `Channel`，注册到当前线程已有的 `EventLoop` 中，完全复用现有 Reactor 线程。 |
+| **网络 I/O 模型** | 采用阻塞套接字（Blocking Socket），读/写操作均可能会在内核态卡死当前 OS 线程。 | 采用非阻塞套接字（`SOCK_NONBLOCK`），由 Linux `epoll` 边缘触发驱动，读写完全异步。 |
+| **并发挂起机制** | 操作系统级线程阻塞。调用线程被挂起并移出 CPU 运行队列，涉及高开销的**用户态与内核态转换**。 | 用户态协程挂起。协程保存寄存器并让出 CPU（`yield`），但**底层操作系统工作线程继续保持运行状态**。 |
+| **上下文切换开销** | 涉及内核调度器改写、CPU 寄存器保存、以及 CPU 高速缓存（L1/L2 Cache）失效。开销通常在 **数微秒** 级。 | 纯用户态指针切换，只保存 8 个核心寄存器，开销仅为 **10~20 纳秒**（快 2 个数量级）。 |
+| **高并发上限** | 严重受限于系统线程上限。每个 OS 线程约占 8MB 栈内存，数百并发即可能导致内存耗尽或调度严重退化。 | 极其高企。每个有栈协程仅分配自定义的微型堆栈（如 64KB），单机可并发运行**十万级/百万级**协程。 |
+| **网络拥堵处理** | 写缓冲区满时直接卡死发送线程，无法做出实时的主动应用层排队或丢包超时控制。 | 写缓冲区满时自动进行 `writeBuffer_` 排队，并利用 Epoll 可写通知按需刷出，具备强大的弹性缓冲能力。 |
+
+---
+
+## 10. 协程 + Epoll + 非阻塞 I/O 的运行闭环机制解密
+
+这套高并发 RPC 架构的核心运行闭环分为五个步骤，实现了“**同步开发体验，异步高并发执行**”：
+
+```
+[步骤1: 业务发起] ─► [步骤2: 编码发送 & Yield] ─► [步骤3: Epoll 监听] 
+                                                                │
+[步骤5: 唤醒返回] ◄─ [步骤4: 读事件触发 & Resume] ◄──────────────┘
+```
+
+### 步骤 1：业务协程启动 (Coroutine Spawn)
+1. 业务层将核心调用逻辑打包至 `lambda`，并通过智能指针创建协程实例 `auto coro = std::make_shared<Coroutine>(&loop, lambda)`。
+2. **生命周期保护**：协程构造时会立刻调用 `(*push_)()` 挂起自己，向外返回 fully constructed 的 `shared_ptr`，彻底消除 `shared_from_this()` 的生命周期竞争隐患。
+3. 外部执行 `coro->resume()` 启动该协程，进入 lambda 业务逻辑跑在 `EventLoop` 线程上。
+
+### 步骤 2：非阻塞发送与协程挂起 (Send & Yield)
+1. 业务调用 `stub.Echo(..., &response)` 触发客户端 `CallMethod`。
+2. **非阻塞发送**：`CallMethod` 检测到 `t_current_coroutine` 不为空，使用 `encode_request` 编码数据包，并传入非阻塞写方法 `write_request_nonblocking()`：
+   * 如果套接字处于 `EINPROGRESS` 连接中，或者网络发送缓冲区满了（返回 `EAGAIN`），数据直接追加到 `writeBuffer_`，并在 `EventLoop` 中通过底层 Epoll 注册可写事件。
+   * 否则，数据包立刻非阻塞发送出去。
+3. **主动 Yield 让出**：在完成包序列化与发送发起后，执行 `cur_coro->yield()`。
+4. **控制权切回**：协程在用户态将 CPU 寄存器压入自己的私有栈，控制权瞬间退回到 `EventLoop` 的 `loop()` 主循环中。
+
+### 步骤 3：Epoll 驱动与主循环空闲 (Reactor Driving)
+1. 此时，发起 RPC 请求的业务协程已经安全地挂起在堆内存中。
+2. 主线程 `EventLoop` 没有被卡死，而是继续在 `epoll_wait` 处阻塞等待，或者在就绪队列中执行其他活跃套接字的网络 I/O 回调与心跳。
+3. 这种“挂起”不对操作系统线程造成任何阻塞，线程随时在为成百上千个并发请求提供 I/O 多路复用服务。
+
+### 步骤 4：回包就绪与跨线程唤醒 (I/O Ready & Resume)
+1. 服务端处理完 RPC 请求，回包通过网络到达客户端网卡。
+2. **读事件就绪**：客户端的 Epoll 监听到该 `clientFd_` 的可读事件，触发 `BinaryRpcChannel::on_read()` 回调。
+3. **非阻塞流式读取与解包**：`on_read` 在 `while` 循环里非阻塞读取字节并追加到缓冲区中。一旦调用 `BinaryRpcCodec::decode` 成功解出完整的数据帧，便提取 `sequenceId` 并在哈希表中查到当初绑定的 `ResponseContext`。
+4. **跨线程派发**：为了防止在当前网络事件处理线程上运行重型业务，我们通过 `origin_loop->run_in_loop()` 将唤醒任务投递到该协程原属的 `EventLoop` 队列。
+5. 主循环在处理待办任务队列（`do_pending_functors`）时执行该任务，调用 `coro->resume()`。
+
+### 步骤 5：恢复执行流与返回 (Resume & Return)
+1. `coro->resume()` 瞬间将 CPU 的寄存器和栈指针还原为挂起时的状态，执行流奇迹般地回到了 `CallMethod` 中 `cur_coro->yield()` 的下一行。
+2. **异常校验**：协程苏醒后，第一件事是检查 `context->exception`，如果由于网络中断、解码错误而缓存了异常指针，则在此处立即通过 `std::rethrow_exception` 抛出，以供业务代码捕获。
+3. 若无异常，`response` 已经填充完毕，调用 `done->Run()` 并跳出 `CallMethod`。
+4. 业务层像编写普通的同步阻塞代码一样，顺利拿到了 RPC 调用的最终响应数据，整个闭环完美结束。
+
 

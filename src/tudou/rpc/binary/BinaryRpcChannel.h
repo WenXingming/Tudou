@@ -15,6 +15,11 @@
 #include <thread>
 #include <atomic>
 #include <memory>
+#include "tudou/rpc/Coroutine.h"
+#include "tudou/tcp/Buffer.h"
+
+class Channel;
+class EventLoop;
 
 namespace tudou {
 namespace rpc {
@@ -26,6 +31,11 @@ public:
      * @brief 构造函数，建立连接并拉起后台接收线程
      */
     BinaryRpcChannel(const std::string& ip, uint16_t port);
+    
+    /**
+     * @brief 构造函数，绑定 EventLoop 并启用非阻塞事件驱动模型（协程版）
+     */
+    BinaryRpcChannel(EventLoop* loop, const std::string& ip, uint16_t port);
     
     /**
      * @brief 析构函数，优雅释放后台线程并清理挂起请求
@@ -51,12 +61,30 @@ private:
     struct ResponseContext {
         google::protobuf::Message* response;
         std::promise<void> promise;
+        std::shared_ptr<Coroutine> coroutine; // 关联的协程上下文
+        std::exception_ptr exception;         // 缓存的异常指针
     };
 
     /**
      * @brief 后台接收线程的循环体，专职从 Socket 读取字节并进行 BinaryRpcCodec 拆包分发
      */
     void receive_loop();
+
+    /**
+     * @brief 底层 Channel 触发可读事件时的非阻塞回调
+     */
+    void on_read();
+
+    /**
+     * @brief 底层 Channel 触发可写事件时的非阻塞回调
+     */
+    void on_write();
+
+    void write_request_nonblocking(const std::string& data);
+
+    std::string encode_request(const google::protobuf::MethodDescriptor* method,
+                               const google::protobuf::Message* request,
+                               uint64_t seq);
 
     /**
      * @brief 网络中断或析构时触发，将异常传入所有仍在挂起等待的连接，防止线程永久卡死
@@ -75,6 +103,13 @@ private:
 
     // 缓存挂起的请求会话: sequenceId -> ResponseContext
     std::unordered_map<uint64_t, std::shared_ptr<ResponseContext>> pendingRequests_;
+
+    // 非阻塞 EventLoop 模式专有变量
+    EventLoop* loop_ = nullptr;
+    std::unique_ptr<Channel> channel_;
+    Buffer readBuf_;
+    std::string writeBuffer_;
+    bool connected_ = false;
 };
 
 } // namespace binary

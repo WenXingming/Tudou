@@ -16,10 +16,12 @@ thread_local Coroutine* Coroutine::t_current_coroutine = nullptr;
 Coroutine::Coroutine(EventLoop* loop, std::function<void()> func)
     : loop_(loop), func_(std::move(func)) {
     
-    // 构造 pull_type 会立即触发 lambda 的执行，直到 lambda 内遇到第一次 yield 挂起
     pull_ = std::make_unique<coro_t::pull_type>(
         [this](coro_t::push_type& yield) {
             push_ = &yield;
+            
+            // 立即挂起以返回构造函数，确保外部可以安全构造 std::shared_ptr 并使用 shared_from_this()
+            (*push_)();
             
             Coroutine* saved = t_current_coroutine;
             t_current_coroutine = this;
