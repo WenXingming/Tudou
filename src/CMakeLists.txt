@@ -14,6 +14,7 @@ add_library(tudou STATIC
     tudou/rpc/binary/BinaryRpcServer.cpp
     tudou/rpc/binary/BinaryRpcChannel.cpp
     tudou/rpc/UnifiedRpcServer.cpp
+    tudou/rpc/Coroutine.cpp
     ${RPC_PROTO_SRCS}
     tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
@@ -53,6 +54,7 @@ target_link_libraries(tudou
         llhttp::llhttp
         nlohmann_json::nlohmann_json
         protobuf::libprotobuf
+        Boost::context
     PRIVATE
         spdlog::spdlog
         Threads::Threads

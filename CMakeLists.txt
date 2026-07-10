@@ -5,6 +5,9 @@ project(Tudou VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 查找宿主机系统安装的 Boost (Coroutine2 依赖 Context 动态库)
+find_package(Boost REQUIRED COMPONENTS context)
+
 # 优先尝试在宿主机系统查找已安装的 Protobuf
 find_package(Protobuf QUIET)
 

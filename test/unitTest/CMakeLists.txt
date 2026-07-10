@@ -18,6 +18,7 @@ target_link_libraries(TudouUnitTest PRIVATE
     Tudou::tudou
     GTest::gtest
     GTest::gtest_main
+    Boost::context
 )
 
 add_test(NAME unitTest COMMAND TudouUnitTest)

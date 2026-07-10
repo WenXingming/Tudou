@@ -2,10 +2,20 @@
 
 本文档详细阐述了 Tudou Binary RPC 客户端通道（`BinaryRpcChannel`）在单连接多线程多路复用（Single-Connection Multiplexing）特性上的技术架构与并发模型设计。
 
+ 我们目前的多路复用客户端 BinaryRpcChannel.cpp 运行机制是：
+
+1. 发送请求后，调用  future.get() 。
+2. 此时，当前 OS 线程会被强制阻塞挂起，让出 CPU。
+3. 当后台接收线程收到回包并调用  promise.set_value()
+
+我们通过 future、promise 实现了异步的远程服务调用（但是会阻塞）。
+
 ---
 
 ## 1. 背景与痛点
+
 在传统的 RPC 客户端网络收发中，若多个应用线程并发调用远程方法，通常面临以下抉择：
+
 - **单连接串行排队**：多线程共享一个 TCP 连接，线程 1 发送请求后必须霸占连接并同步阻塞等待回包，线程 2 到 10 只能挂起排队。这导致并发度直接降为 1，网络利用率极低。
 - **连接池模式**：为了并发，客户端开辟 10 个 TCP 连接，并发大时开辟成百上千个。这会消耗大量的系统文件描述符（FD）和端口，且频繁的心跳和握手带来极高的系统开销。
 
@@ -37,17 +47,22 @@
 ## 3. 核心机制实现
 
 ### A. 物理写入原子保护 (`sendMutex_`)
+
 多线程并发调用 `CallMethod` 时，写入 Socket 的动作必须是原子的。如果两个线程同时往一个 Socket 写入字节，会导致网络字节流交叉错乱，破坏二进制包结构。因此引入 `sendMutex_`，保证每次 `::write` 物理发送完整二进制帧的原子性。
 
 ### B. 会话挂起机制 (`std::promise` / `std::future`)
+
 调用线程不再原地阻塞读取 Socket，而是：
+
 1. 递增获取唯一的 `sequenceId`。
 2. 构造一个 `ResponseContext`（持有输出参数 `Message` 以及一个 `std::promise<void>`）。
 3. 加锁将该上下文登记进全局 `pendingRequests_` 映射表中。
 4. 调用 `future.get()` 阻塞挂起当前业务线程，让出 CPU 资源。
 
 ### C. 后台单线程解包分发 (`receive_loop`)
+
 客户端内部在连接建立后，会启动一个专职的后台接收线程，死循环执行阻塞 `::read`：
+
 1. 收到数据流后，循环调用 `BinaryRpcCodec::decode` 进行二进制解包。
 2. 解出完整的响应包后，读取包头中的 `sequenceId`。
 3. 加锁从 `pendingRequests_` 中检索并移除对应的上下文，反序列化消息体填入 `response` 字段，最终调用 `promise.set_value()`。
@@ -56,9 +71,11 @@
 ---
 
 ## 4. RAII 级中断与连接防卡死清理 (`::shutdown`)
+
 在真实的分布式系统中，如果客户端通道（Channel）被主动销毁（析构）或者网络异常中断，正在挂起等待回包的业务线程不能陷入永久死锁。
 
 Tudou RPC 实现了极其严密的安全扫尾清场机制：
+
 - 析构函数执行时，首先调用 **`::shutdown(clientFd_, SHUT_RDWR)`**。
 - 该调用会直接废除套接字的读写通道，迫使内核中正阻塞在 `::read` 上的后台接收线程立即解除阻塞（返回 -1，且 `errno` 设置为 `ESHUTDOWN`）。
 - 接收线程退出循环、完成 `join` 合并。
@@ -69,12 +86,16 @@ Tudou RPC 实现了极其严密的安全扫尾清场机制：
 ## 5. 架构反思与深层技术讨论
 
 ### A. 直接修改 `BinaryRpcChannel` 还是派生新子类？
+
 在开发多路复用通道时，我们选择直接修改原 `BinaryRpcChannel`，这是基于以下权衡的架构决定：
+
 - **方案对比**：若新增 `MultiplexedBinaryRpcChannel` 类，虽然符合“开闭原则（OCP）”，但会导致客户端 API 碎片化，且大量 Socket 握手和 `BinaryRpcCodec` 编码代码重复率极高。
 - **最佳实践**：在如 gRPC 和 brpc 这样成熟的工业级框架中，`Channel` 类本身依然保持极薄的业务代理属性，它们通过**“组合模式”**将具体的“TCP 多路复用和连接维护”委托给底层的 `Socket/Transport` 组件。因此，在 Tudou RPC 的演进阶段，直接在 `BinaryRpcChannel` 上重构是最聚焦且最易用的选择，未来重构方向也是进行底层职责剥离，而非增加 Channel 子类。
 
 ### B. JSON-RPC 客户端是否也应该实现多路复用？
+
 在技术可行性与实际工程价值之间，存在以下分水岭：
+
 1. **协议支持**：JSON-RPC 2.0 官方协议天然设计了 `id` 字段（如 `{"jsonrpc":"2.0", "method":"add", "id": 100}`），并在服务端响应中强制回传对应 `id`。因此在协议设计初衷上，**它是完全支持多路复用的**。
 2. **工程代价**：
    - **分包成本（Framing Cost）**：二进制协议（如 Protobuf RPC）拥有固定的 20 字节包头和明确的 Length 标示，拆包与提取 `sequenceId` 仅需 $O(1)$ 的 CPU 时间。而 JSON-RPC 属于文本协议，客户端后台线程必须死循环查找换行符 `\n` 并对整个字符串执行昂贵的 JSON 解析（Parse）才能提取出 `id` 字段。
