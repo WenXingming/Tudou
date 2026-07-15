@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>一个面向 Linux 的多线程 Reactor 网络框架</strong><br />
-  基于 epoll / eventfd / timerfd 构建，提供 TCP、HTTP/HTTPS、路由、定时器与连接空闲检测能力。
+  基于 epoll / eventfd / timerfd 构建，提供 TCP、HTTP/HTTPS、JSON-RPC、Protobuf 二进制 RPC 与协程化调用能力。
 </p>
 
 <p align="center">
@@ -10,13 +10,14 @@
   <img src="https://img.shields.io/badge/core-C%2B%2B14-00599C?style=flat-square" alt="C++14" />
   <img src="https://img.shields.io/badge/build-CMake%203.25%2B-064F8C?style=flat-square" alt="CMake" />
   <img src="https://img.shields.io/badge/protocol-HTTP%20%2F%20HTTPS-0A7F5A?style=flat-square" alt="HTTP and HTTPS" />
+  <img src="https://img.shields.io/badge/RPC-JSON--RPC%20%2F%20Protobuf-7B61FF?style=flat-square" alt="JSON-RPC and Protobuf" />
   <img src="https://img.shields.io/badge/parser-llhttp-EF6C00?style=flat-square" alt="llhttp" />
 </p>
 
 <p align="center">
   <a href="#架构总览">🏗️ 架构总览</a> ·
   <a href="#性能测试">📈 性能测试</a> ·
-  <a href="#快速开始">🚀 快速开始</a> ·
+  <a href="#快速开始">🛠️ 快速开始</a> ·
   <a href="#使用示例">🧩 使用示例</a> ·
   <a href="#文档导航">📚 文档导航</a>
 </p>
@@ -31,15 +32,18 @@
 ## 项目亮点 ✨
 
 
-| 方向         | 当前能力                                                                                             |
-| -------------- | ------------------------------------------------------------------------------------------------------ |
-| Reactor 模型 | one loop per thread；1 个 main loop 负责接入，N 个 IO loop 负责连接读写与事件处理                    |
-| TCP 核心     | EventLoop、EpollPoller、Channel、Acceptor、TcpServer、TcpConnection、Buffer                          |
-| HTTP 能力    | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册               |
-| HTTPS 能力   | HttpServer 在`start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态 |
-| 路由能力     | 支持 method + path 精确匹配、前缀路由兜底、自定义 404 / 405 处理器                                   |
-| 定时与保活   | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连                           |
-| 工程配套     | CMake 构建、单元测试、集成测试可执行程序、示例配置、架构与设计文档                                   |
+| 方向         | 当前能力                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Reactor 模型 | one loop per thread；1 个 main loop 负责接入，N 个 IO loop 负责连接读写与事件处理                                |
+| TCP 核心     | EventLoop、EpollPoller、Channel、Acceptor、TcpServer、TcpConnection、Buffer                                      |
+| HTTP 能力    | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册                           |
+| HTTPS 能力   | HttpServer 在`start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态             |
+| RPC 能力     | JSON-RPC 2.0 文本协议；Protobuf 反射驱动的二进制 RPC；`UnifiedRpcServer` 可将同一 Service 同时暴露为两种协议     |
+| RPC 并发模型 | `BinaryRpcChannel` 以 `sequenceId` 匹配响应，支持单 TCP 长连接多线程多路复用；提供 Boost.Coroutine2 协程调用路径 |
+| I/O 优化     | `readv` + 64 KiB 栈缓冲接收；积压数据通过 `writev` 合并发送；明文静态文件通过 `sendfile` 发送                    |
+| 路由能力     | 支持 method + path 精确匹配、前缀路由兜底、自定义 404 / 405 处理器                                               |
+| 定时与保活   | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连                                       |
+| 工程配套     | CMake 构建、单元测试、集成测试可执行程序、示例配置、架构与设计文档                                               |
 
 <a id="架构总览"></a>
 
@@ -70,15 +74,13 @@ flowchart TD
   classDef osLayer fill:#d2b4de,stroke:#8e44ad,stroke-width:2px,color:#333
 
   subgraph AppBusiness ["应用业务层 (App Layer)"]
+    App["业务应用\nHTTP Handler / RPC Service"]
   end
 
-  subgraph HttpLayer ["HTTP/TLS 协议层 (Protocol Layer)"]
+  subgraph HttpLayer ["HTTP/TLS & RPC 协议层 (Protocol Layer)"]
     direction TB
-    HttpSrv["HttpServer"]
-    HttpCtx["HttpContext\n(基于 llhttp)"]
-    HttpReq["HttpRequest / HttpResponse"]
-    TlsConn["TlsConnection / SslContext"]
-    Router2["Router 路由分发"]
+    HttpSrv["HTTP / HTTPS\nllhttp · Router · TLS"]
+    RpcSrv["RPC\nJSON-RPC · Protobuf Binary"]
   end
 
   subgraph NetLayer ["TCP 网络层 (TCP Layer)"]
@@ -113,8 +115,8 @@ flowchart TD
   NetLayer ==>|事件注册与分发| ReactorLayer
   ReactorLayer ==>|系统调用| OS_Kernel
 
-  class AppBusiness,App,UserCallbacks appLayer
-  class HttpLayer,HttpSrv,HttpCtx,HttpReq,TlsConn,Router2 httpLayer
+  class AppBusiness,App appLayer
+  class HttpLayer,HttpSrv,RpcSrv httpLayer
   class NetLayer,TcpSrv,Acceptor2,TcpConn,Buffer2,Heartbeat2 tcpLayer
   class ReactorLayer,ThreadPool,MainLoop2,SubLoop,Poller2,Channel2,TimerQ reactorLayer
   class OS_Kernel,Epoll,Socket,EventFd,TimerFd osLayer
@@ -137,11 +139,17 @@ flowchart TD
     }
 }}%%
 flowchart LR
-    App[业务应用\nStatic Server / StarMind] --> HttpServer[HttpServer]
+    App[业务应用\nStatic Server / StarMind / RPC Service] --> HttpServer[HttpServer]
     HttpServer --> Router[Router\n精确路由 / 前缀路由]
     HttpServer --> HttpContext[HttpContext\nllhttp 解析状态]
     HttpServer --> Tls[TlsConnection\nHTTPS / TLS]
     HttpServer --> TcpServer[TcpServer]
+
+    App --> JsonRpc[JsonRpcServer / Client]
+    App --> UnifiedRpc[UnifiedRpcServer]
+    UnifiedRpc --> BinaryRpc[BinaryRpcServer / Channel]
+    JsonRpc --> TcpServer
+    BinaryRpc --> TcpServer
 
     TcpServer --> Acceptor[Acceptor]
     Acceptor --> Channel[Channel]
@@ -183,7 +191,7 @@ git clone https://github.com/wg/wrk.git
 cd wrk && make -j12
 ```
 
-测试过程（具体测试过程在 [assest](./assets) 目录下有详细记录）：
+测试过程（具体记录位于 [assets](./assets) 目录）：
 
 ```bash
 (base) wxm@wxm-Precision-7920-Tower:~/Tudou$ ../wrk/wrk -t10 -c200 -d10s --latency http://0.0.0.0:8080
@@ -205,14 +213,16 @@ Transfer/sec:     83.90MB
 性能摘要：
 
 
-| 场景       | 压测参数                | 对象                                                 | 平均延迟  | Requests/sec | Transfer/sec |
-| ------------ | ------------------------- | ------------------------------------------------------ | ----------- | -------------- | -------------- |
-| 单 Reactor | 1 线程 / 200 连接       | Tudou                                                | 1.71ms    | 133001.24    | 12.81MB      |
-| 单 Reactor | 1 线程 / 200 连接       | muduo`hello_http_server`                             | 1.44 ms   | 134009.31    | 12.91 MB     |
-| 多 Reactor | 10 线程 / 10 * 200 连接 | Tudou（1 main loop + 10 io loop）                    | 144.58 us | 871058.98    | 83.90 MB     |
-| 多 Reactor | 10 线程 / 10 * 200 连接 | muduo`hello_http_server`（1 main loop + 10 io loop） | 179.99 us | 902394.26    | 86.92 MB     |
+| 场景       | 压测参数                  | 对象                                                 | 平均延迟  | Requests/sec | Transfer/sec |
+| ------------ | --------------------------- | ------------------------------------------------------ | ----------- | -------------- | -------------- |
+| 单 Reactor | 1 线程 / 200 连接         | Tudou                                                | 1.71ms    | 133001.24    | 12.81MB      |
+| 单 Reactor | 1 线程 / 200 连接         | muduo`hello_http_server`                             | 1.44 ms   | 134009.31    | 12.91 MB     |
+| 多 Reactor | 10 client 线程 / 200 连接 | Tudou（1 main loop + 10 io loop）                    | 144.58 us | 871058.98    | 83.90 MB     |
+| 多 Reactor | 10 client 线程 / 200 连接 | muduo`hello_http_server`（1 main loop + 10 io loop） | 179.99 us | 902394.26    | 86.92 MB     |
 
-这些数据说明 Tudou 已经具备不错的并发处理能力，并且已经和知名网络库 muduo 处于同一数量级；后续会尝试继续优化性能。
+这些结果用于本机回归比较：Tudou 已具备多 Reactor 并发处理能力；不同机器、内核参数和压测模型下的数据不宜直接横向外推。
+
+静态文件场景中，明文 HTTP 响应会通过 `sendfile` 发送文件体；64 KiB 文件的本机前后对比、命令与边界说明见 [static-file-sendfile-benchmark.md](./assets/static-file-sendfile-benchmark.md)。普通 HTTPS 的 Memory BIO 路径仍会走用户态加密回退，不应泛化为“所有 HTTPS 零拷贝”。
 
 除此之外，为了测试 HTTP 解析能力，我们还编写了 HTTP Benchmark，使用 `wrk` 发送不同大小的 HTTP 请求，测试 `HttpServer` 的解析性能；结果显示 Tudou 的 HTTP 解析能力也非常强劲，在 TCP 的基础上基本没有丢失性能。HTTP 测试结果如下：
 
@@ -240,25 +250,27 @@ Transfer/sec:     61.58MB
 ### 依赖项
 
 
-| 依赖                             | 是否需要      | 用途                                                                         |
-| ---------------------------------- | --------------- | ------------------------------------------------------------------------------ |
-| g++ / clang++                    | 必需          | 建议使用支持 C++17 的编译器；核心库按 C++14 编写，单元测试目标当前使用 C++17 |
-| CMake 3.25+                      | 必需          | 项目构建与 FetchContent 依赖管理                                             |
-| OpenSSL (`libssl-dev`)           | 必需          | 核心库链接依赖，提供 HTTPS / SHA-256 等能力                                  |
-| Google Test (`libgtest-dev`)     | 可选          | 构建并运行单元测试                                                           |
-| libcurl (`libcurl4-openssl-dev`) | StarMind 需要 | 调用 OpenAI-compatible LLM API                                               |
-| llhttp / spdlog                  | 自动解析      | 优先使用兼容的系统包，未找到时通过 FetchContent 下载固定版本                 |
+| 依赖                                              | 是否需要      | 用途                                                         |
+| --------------------------------------------------- | --------------- | -------------------------------------------------------------- |
+| g++ / clang++                                     | 必需          | 核心库按 C++14 编写；单元测试目标当前使用 C++17              |
+| CMake 3.25+                                       | 必需          | 项目构建与 FetchContent 依赖管理                             |
+| Boost.Context (`libboost-context-dev`)            | 必需          | Boost.Coroutine2 有栈协程上下文                              |
+| Protobuf (`libprotobuf-dev`, `protobuf-compiler`) | 必需          | 二进制 RPC、服务反射与`.proto` 代码生成                      |
+| OpenSSL (`libssl-dev`)                            | 必需          | 核心库链接依赖，提供 HTTPS / SHA-256 等能力                  |
+| Google Test (`libgtest-dev`)                      | 可选          | 构建并运行单元测试                                           |
+| libcurl (`libcurl4-openssl-dev`)                  | StarMind 需要 | 调用 OpenAI-compatible LLM API                               |
+| llhttp / spdlog                                   | 自动解析      | 优先使用兼容的系统包，未找到时通过 FetchContent 下载固定版本 |
 
 Ubuntu 一键安装示例：
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
     build-essential \
+    libboost-context-dev \
+    libprotobuf-dev protobuf-compiler \
     libssl-dev \
     libgtest-dev \
     libcurl4-openssl-dev \
-    libmysqlcppconn-dev \
-    libhiredis-dev \
     openssl
 ```
 
@@ -359,10 +371,11 @@ int main() {
 如果你更关心完整可运行项目，而不是最小 API 示例，请直接看下面两个示例程序。
 
 
-| 目标            | 配置目录                                                             | 适用场景         | 亮点                                                    |
-| ----------------- | ---------------------------------------------------------------------- | ------------------ | --------------------------------------------------------- |
-| `static-server` | [configs/static-file-http-server](./configs/static-file-http-server) | 静态资源托管     | GET / HEAD、前缀路由、简单文件缓存、测试证书 HTTPS      |
-| `StarMind`      | [configs/starmind](./configs/starmind)                               | AI 聊天 Web 服务 | 登录鉴权、会话管理、OpenAI-compatible LLM API、前端页面 |
+| 目标             | 配置目录                                                             | 适用场景         | 亮点                                                    |
+| ------------------ | ---------------------------------------------------------------------- | ------------------ | --------------------------------------------------------- |
+| `static-server`  | [configs/static-file-http-server](./configs/static-file-http-server) | 静态资源托管     | GET / HEAD、前缀路由、简单文件缓存、测试证书 HTTPS      |
+| `StarMind`       | [configs/starmind](./configs/starmind)                               | AI 聊天 Web 服务 | 登录鉴权、会话管理、OpenAI-compatible LLM API、前端页面 |
+| `jsonrpc-server` | [examples/JsonRpcServer](./examples/JsonRpcServer)                   | 跨语言 RPC 联调  | TCP JSON-RPC 2.0、方法注册、Python 客户端               |
 
 ### static-server 示例
 
@@ -423,6 +436,18 @@ cmake --build build-all --target StarMind -j2
 - 登录 API：`POST /api/login`
 - 聊天 API：`POST /api/chat`
 
+### RPC 示例
+
+仓库提供可直接运行的 JSON-RPC 2.0 服务端与 Python 客户端：
+
+```bash
+cmake --build build-all --target jsonrpc-server -j2
+./build-all/examples/JsonRpcServer/jsonrpc-server
+python3 examples/JsonRpcServer/client.py
+```
+
+二进制 RPC 的协议定义位于 [binary_rpc.proto](./src/tudou/rpc/binary/binary_rpc.proto)。它以 `20 B` 固定头、Meta 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应；`UnifiedRpcServer` 可将同一 Protobuf Service 同时注册到 Binary RPC 与 JSON-RPC 路由。
+
 <a id="文档导航"></a>
 
 ## 文档导航 📚
@@ -438,19 +463,20 @@ cmake --build build-all --target StarMind -j2
 - [docs/定时器队列设计：基于 Linux timerfd 和 std::map.md](./docs/%E5%AE%9A%E6%97%B6%E5%99%A8%E9%98%9F%E5%88%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E5%9F%BA%E4%BA%8E%20Linux%20timerfd%20%E5%92%8C%20std%3A%3Amap.md)：TimerQueue 的设计取舍。
 - [docs/心跳检测设计：三层防御体系与失活连接清理.md](./docs/%E5%BF%83%E8%B7%B3%E6%A3%80%E6%B5%8B%E8%AE%BE%E8%AE%A1%EF%BC%9A%E4%B8%89%E5%B1%82%E9%98%B2%E5%BE%A1%E4%BD%93%E7%B3%BB%E4%B8%8E%E5%A4%B1%E6%B4%BB%E8%BF%9E%E6%8E%A5%E6%B8%85%E7%90%86.md)：空闲检测与连接回收策略。
 - [docs/路由模块设计：高效的请求分发.md](./docs/%E8%B7%AF%E7%94%B1%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E9%AB%98%E6%95%88%E7%9A%84%E8%AF%B7%E6%B1%82%E5%88%86%E5%8F%91.md)：Router 的分发模型与约束。
+- [docs/RPC 拆包粘包处理.md](./docs/RPC%20%E6%8B%86%E5%8C%85%E7%B2%98%E5%8C%85%E5%A4%84%E7%90%86.md)：二进制长度分帧与 JSON-RPC 换行定界。
+- [docs/RPC_multiplexing（binary）.md](./docs/RPC_multiplexing%EF%BC%88binary%EF%BC%89.md)：单连接多路复用、并发请求与响应匹配。
+- [docs/Buffer 设计：readv 栈缓冲、水平触发与一次读取策略.md](./docs/Buffer%20%E8%AE%BE%E8%AE%A1%EF%BC%9Areadv%20%E6%A0%88%E7%BC%93%E5%86%B2%E3%80%81%E6%B0%B4%E5%B9%B3%E8%A7%A6%E5%8F%91%E4%B8%8E%E4%B8%80%E6%AC%A1%E8%AF%BB%E5%8F%96%E7%AD%96%E7%95%A5.md)：readv/writev、LT 触发与发送路径。
+- [docs/HTTPS 零拷贝传输设计：基于 Linux kTLS 的 sendfile 加速.md](./docs/HTTPS%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E4%BC%A0%E8%BE%93%E8%AE%BE%E8%AE%A1%EF%BC%9A%E5%9F%BA%E4%BA%8E%20Linux%20kTLS%20%E7%9A%84%20sendfile%20%E5%8A%A0%E9%80%9F.md)：静态文件 `sendfile` 与 kTLS 卸载路径的边界。
 
-## 参考与致谢 🤝
+## 开源依赖与致谢 📦
 
 - 网络库（muduo）：https://github.com/chenshuo/muduo
 - HTTP 解析库（llhttp）：https://github.com/nodejs/llhttp
 - 日志库（spdlog）：https://github.com/gabime/spdlog
+- 协程上下文库（Boost.Context / Coroutine2）：https://www.boost.org/doc/libs/release/libs/coroutine2/
+- 序列化与 RPC（Protocol Buffers）：https://protobuf.dev/
+- TLS 库（OpenSSL）：https://www.openssl.org/
+- JSON 库（nlohmann/json）：https://github.com/nlohmann/json
+- 命令行解析库（CLI11）：https://github.com/CLIUtils/CLI11
 - 单元测试框架（Google Test）：https://github.com/google/googletest
 - 压测工具（wrk）：https://github.com/wg/wrk
-
-## 延伸阅读 🔎
-
-- 陈硕，《Linux 多线程服务器编程：使用 muduo C++ 网络库》
-- [muduo 源码剖析 - bilibili](https://www.bilibili.com/video/BV1nu411Q7Gq?spm_id_from=333.788.videopod.sections&vd_source=5f255b90a5964db3d7f44633d085b6e4)
-- [llhttp 使用 - 知乎专栏](https://zhuanlan.zhihu.com/p/416575096)
-- [spdlog 使用 - CSDN 博客](https://blog.csdn.net/tutou_gou/article/details/121284474)
-- [spdlog 使用教程](https://shuhaiwen.github.io/technical-documents/Documents/B-Programming%20Language/C%2B%2B/%E5%BC%80%E6%BA%90%E5%BA%93/spdlog/spdlog%E6%95%99%E7%A8%8B/)
