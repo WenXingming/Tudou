@@ -195,12 +195,10 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
         return nullptr;
     }
 
-    const InetAddress localAddr = connSocket.local_address();
-    auto conn = TcpConnection::create_connection(&ioLoop, std::move(connSocket), localAddr, peerAddr);
-
-    // 配置 TCP 选项，开启 TCP_NODELAY 和 TCP keepalive。
-    conn->set_tcp_no_delay(true);
-    conn->set_keep_alive(true);
+    // 接入策略由 TcpServer 决定，再将已配置的 Socket 交给连接管理。
+    connSocket.set_tcp_no_delay(true);
+    connSocket.set_keep_alive(true);
+    auto conn = TcpConnection::create_connection(&ioLoop, std::move(connSocket), peerAddr);
 
     // 配置 TcpConnection 回调，TcpServer 把 6 种 callback 从用户设置转发到每个 TcpConnection
     conn->set_message_callback([this](const TcpConnectionPtr& activeConn) {

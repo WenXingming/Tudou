@@ -355,7 +355,8 @@ void HttpServer::send_plain_response(const TcpConnectionPtr& conn,
     }
 
     const HttpResponse::FileBody& fileBody = resp.get_file_body();
-    conn->send_file_with_header(responseHead, fileBody.file, fileBody.size, fileBody.offset);
+    conn->send(responseHead);
+    conn->send_file(fileBody.file, fileBody.size, fileBody.offset);
 }
 
 bool HttpServer::send_memory_bio_response(const TcpConnectionPtr& conn,

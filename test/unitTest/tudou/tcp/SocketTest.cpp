@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <fcntl.h>
+#include <stdexcept>
 #include <unistd.h>
 #include <sys/socket.h>
 
@@ -29,6 +30,12 @@ TEST(SocketTest, ConstructWithValidFd) {
 TEST(SocketTest, ConstructWithInvalidFd) {
     Socket sock(-1);
     EXPECT_EQ(sock.fd(), -1);
+}
+
+TEST(SocketTest, LocalAddressFailureThrows) {
+    Socket sock(-1);
+
+    EXPECT_THROW(sock.local_address(), std::runtime_error);
 }
 
 TEST(SocketTest, DestructorClosesFd) {

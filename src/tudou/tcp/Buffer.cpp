@@ -1,6 +1,5 @@
 // ============================================================================
-// Buffer.cpp
-// Buffer 的实现只关注字节搬运、空间回收和系统调用衔接，不承担任何业务含义。
+// Buffer 负责字节搬运、空间回收和系统调用衔接，不承担业务含义。
 // ============================================================================
 
 #include "tudou/tcp/Buffer.h"
@@ -32,6 +31,32 @@ Buffer::Buffer(size_t initialSize) :
 }
 
 Buffer::~Buffer() = default;
+
+ssize_t Buffer::read_from_fd(int fd, int& savedErrno) {
+    // 使用 readv 让主缓冲与临时栈缓冲协作，减少“先扩容再读”的额外内存动作。
+    char extraBuf[kStackBufSize];
+    const size_t writableBytes = writable_bytes();
+
+    struct iovec vec[2];
+    vec[0].iov_base = buffer_.data() + writeIndex_;
+    vec[0].iov_len = writableBytes;
+    vec[1].iov_base = extraBuf;
+    vec[1].iov_len = sizeof(extraBuf);
+
+    const int cnt = (writableBytes < sizeof(extraBuf)) ? 2 : 1;
+    const ssize_t n = ::readv(fd, vec, cnt);
+    if (n < 0) {
+        savedErrno = errno;
+    }
+    else if (static_cast<size_t>(n) <= writableBytes) {
+        writeIndex_ += n;
+    }
+    else {
+        writeIndex_ = buffer_.size();
+        write_to_buffer(extraBuf, n - writableBytes);
+    }
+    return n;
+}
 
 std::string Buffer::read_from_buffer(size_t len) {
     const size_t readableBytes = readable_bytes();
@@ -73,38 +98,12 @@ void Buffer::write_to_buffer(const std::string& str) {
     write_to_buffer(str.data(), str.size());
 }
 
-ssize_t Buffer::read_from_fd(int fd, int* savedErrno) {
-    // 使用 readv 让主缓冲与临时栈缓冲协作，减少“先扩容再读”的额外内存动作。
-    char extraBuf[kStackBufSize];
-    const size_t writableBytes = writable_bytes();
-
-    struct iovec vec[2];
-    vec[0].iov_base = buffer_.data() + writeIndex_;
-    vec[0].iov_len = writableBytes;
-    vec[1].iov_base = extraBuf;
-    vec[1].iov_len = sizeof(extraBuf);
-
-    const int cnt = (writableBytes < sizeof(extraBuf)) ? 2 : 1;
-    const ssize_t n = ::readv(fd, vec, cnt);
-    if (n < 0) {
-        *savedErrno = errno;
-    }
-    else if (static_cast<size_t>(n) <= writableBytes) {
-        writeIndex_ += n;
-    }
-    else {
-        writeIndex_ = buffer_.size();
-        write_to_buffer(extraBuf, n - writableBytes);
-    }
-    return n;
-}
-
-ssize_t Buffer::write_to_fd(int fd, int* savedErrno) {
+ssize_t Buffer::write_to_fd(int fd, int& savedErrno) {
     const char* readablePtr = readable_start_ptr();
     const size_t readableBytes = readable_bytes();
     const ssize_t n = ::write(fd, readablePtr, readableBytes);
     if (n < 0) {
-        *savedErrno = errno;
+        savedErrno = errno;
     }
     else {
         maintain_read_index(n);
@@ -118,10 +117,6 @@ size_t Buffer::readable_bytes() const {
 
 size_t Buffer::writable_bytes() const {
     return buffer_.size() - writeIndex_;
-}
-
-size_t Buffer::prependable_bytes() const {
-    return readIndex_;
 }
 
 const char* Buffer::readable_start_ptr() const {
@@ -156,4 +151,8 @@ void Buffer::make_space(size_t len) {
     std::memmove(buffer_.data() + kCheapPrepend, readable_start_ptr(), readableBytes);
     readIndex_ = kCheapPrepend;
     writeIndex_ = readIndex_ + readableBytes;
+}
+
+size_t Buffer::prependable_bytes() const {
+    return readIndex_;
 }

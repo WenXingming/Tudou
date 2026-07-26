@@ -1,6 +1,5 @@
 // ============================================================================
-// ConnectionHeartbeat.cpp
-// 通用连接空闲检测实现，周期性检查空闲超时并在超时后关闭连接。
+// ConnectionHeartbeat 周期性检查连接空闲时间，并在超时后请求关闭连接。
 // ============================================================================
 
 #include "tudou/tcp/ConnectionHeartbeat.h"
@@ -15,23 +14,20 @@
 
 ConnectionHeartbeat::ConnectionHeartbeat(const std::shared_ptr<TcpConnection>& conn,
     double checkIntervalSeconds,
-    double idleTimeoutSeconds) :
-
-    loop_(conn ? conn->get_loop() : nullptr),
-    checkIntervalSeconds_(checkIntervalSeconds),
-    idleTimeoutSeconds_(idleTimeoutSeconds),
-    lastActiveTime_(std::chrono::steady_clock::now()),
-    timerId_(),
-    conn_(conn),
-    running_(false) {
-
+    double idleTimeoutSeconds)
+    : loop_(conn ? conn->get_loop() : nullptr)
+    , checkIntervalSeconds_(checkIntervalSeconds)
+    , idleTimeoutSeconds_(idleTimeoutSeconds)
+    , lastActiveTime_(std::chrono::steady_clock::now())
+    , timerId_()
+    , conn_(conn) {
 }
 
 void ConnectionHeartbeat::start() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
 
-    if (running_) {
+    if (timerId_.valid()) {
         stop();
     }
 
@@ -55,14 +51,12 @@ void ConnectionHeartbeat::start() {
         heartbeat->check_timeout();
         });
 
-    running_ = true;
 }
 
 void ConnectionHeartbeat::stop() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
 
-    running_ = false;
     if (!timerId_.valid()) {
         return;
     }
@@ -81,7 +75,7 @@ void ConnectionHeartbeat::check_timeout() {
     assert(loop_ != nullptr);
     assert(loop_->is_in_loop_thread());
 
-    if (!running_) {
+    if (!timerId_.valid()) {
         return;
     }
 

@@ -50,11 +50,11 @@ Socket Socket::create_tcp_listener(const InetAddress& addr) {
     return sock;
 }
 
-Socket Socket::accept(sockaddr_in* peerAddr) const {
+Socket Socket::accept(sockaddr_in& peerAddr) const {
     socklen_t addrLen = sizeof(sockaddr_in);
     // 使用 accept4 一次性原子创建 non-blocking + cloexec 连接 socket，减少系统调用并防 fd 泄露。
     const int connFd = ::accept4(fd(),
-                                 reinterpret_cast<sockaddr*>(peerAddr),
+                                 reinterpret_cast<sockaddr*>(&peerAddr),
                                  &addrLen,
                                  SOCK_NONBLOCK | SOCK_CLOEXEC);
 
@@ -118,12 +118,15 @@ void Socket::shutdown_write() {
 }
 
 InetAddress Socket::local_address() const {
-    sockaddr_in localSockAddr;
-    memset(&localSockAddr, 0, sizeof(localSockAddr));
+    sockaddr_in localSockAddr{};
     socklen_t addrLen = sizeof(localSockAddr);
 
     if (::getsockname(fd(), reinterpret_cast<sockaddr*>(&localSockAddr), &addrLen) < 0) {
-        spdlog::error("Socket::local_address(): getsockname() failed, errno={} ({})", errno, strerror(errno));
+        const int savedErrno = errno;
+        std::string errMsg = "Socket::local_address(): getsockname() failed, errno="
+            + std::to_string(savedErrno) + " (" + strerror(savedErrno) + ")";
+        spdlog::error(errMsg);
+        throw std::runtime_error(errMsg);
     }
 
     return InetAddress(localSockAddr);

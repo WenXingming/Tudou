@@ -37,7 +37,7 @@ TEST(BufferTest, ReadFromFdUsesExtraBufferWhenWritableSpaceIsInsufficient) {
     ASSERT_EQ(::write(fds[1], payload.data(), payload.size()), static_cast<ssize_t>(payload.size()));
 
     int savedErrno = 0;
-    EXPECT_EQ(buffer.read_from_fd(fds[0], &savedErrno), static_cast<ssize_t>(payload.size()));
+    EXPECT_EQ(buffer.read_from_fd(fds[0], savedErrno), static_cast<ssize_t>(payload.size()));
     EXPECT_EQ(buffer.readable_bytes(), payload.size());
     EXPECT_EQ(buffer.read_from_buffer(), payload);
 

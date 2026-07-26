@@ -1,84 +1,54 @@
 // ============================================================================
-// Buffer.h
-// Buffer 是 TCP 子系统的纯工具层，负责把 fd 读写和应用层字符串搬运统一成稳定的缓冲区契约。
+// Buffer 管理连续字节数组，为 TCP 连接提供统一的内存和 fd 读写接口。
+// fd 由调用方负责，Buffer 只维护数据内容和读写索引。
 //
-// 内部模型：
-//    A buffer class modeled after org.jboss.netty.buffer.ChannelBuffer
-//    设计参考 Netty 的 ChannelBuffer
-//    @code
-//    +-------------------+------------------+------------------+
-//    | prependable bytes |  readable bytes  |  writable bytes  |
-//    |                   |     (CONTENT)    |                  |
-//    +-------------------+------------------+------------------+
-//    |                   |                  |                  |
-//    0      <=      readerIndex   <=   writerIndex     <=     size
-//    @endcode
-//
-//    - 共有两个数据流向（缓冲区设计的精巧之处在于读、写空间的自动转换）：
-//      1. 从 fd 读取数据写入 InputBuffer 的 writable bytes 区域（read_from_fd），自动变成可读区域，供上层从缓冲区读取使用（read_from_buffer）
-//      2. 上层写入数据到 OutputBuffer 的 writable bytes 区域（write_to_buffer），自动变成可读区域，供写入 fd 使用（write_to_fd）
-//    - 总之：上层通过 read_from_buffer()/write_to_buffer() 与缓冲区进行数据搬运，缓冲区通过 read_from_fd()/write_to_fd() 与 fd 进行数据搬运。
-//
-// 成员函数调用树（[公有]/[私有] 标注接口层级）：
-//
-// Buffer.h
-// └── Buffer
-//     ├── Buffer(initialSize)                     # [公有] 构造：预留 prepend 区并初始化读写指针
-//     ├── ~Buffer()                               # [公有] 析构：释放底层字节数组
-//     ├── read_from_buffer(len)                   # [公有] 读走指定字节数并推进读指针
-//     │   ├── readable_start_ptr() const          # [私有] 定位当前可读区首地址
-//     │   └── maintain_read_index(len)            # [私有] 按实际消费量维护索引
-//     │       └── maintain_all_index()            # [私有] 读空缓冲区时回到初始索引
-//     ├── read_from_buffer()                      # [公有] 读走全部可读数据
-//     │   └── read_from_buffer(readable_bytes())  # [公有] 复用定长读取路径
-//     ├── write_to_buffer(data, len)              # [公有] 把原始内存追加到缓冲区
-//     │   └── make_space(len)                     # [私有] 不够写时先挪动再按需扩容
-//     │       └── prependable_bytes() const       # [私有] 计算头部可复用空间，决定是否搬移数据
-//     ├── write_to_buffer(str)                    # [公有] 把字符串追加到缓冲区
-//     │   └── write_to_buffer(str.data(), str.size())  # [公有] 复用原始内存写入路径
-//     ├── read_from_fd(fd, &err)                  # [公有] 通过 readv 把 fd 数据搬入缓冲区
-//     │   └── write_to_buffer(extraBuf, ...)      # [公有] 主缓冲放不下时把溢出数据继续写回 Buffer
-//     ├── write_to_fd(fd, &err)                   # [公有] 把可读区数据写入 fd 并推进读指针
-//     │   └── maintain_read_index(n)              # [私有] 写成功后消费对应字节数
-//     │       └── maintain_all_index()            # [私有] 缓冲区写空时整体复位索引
-//     ├── readable_bytes() const                  # [公有] 返回当前可读字节数
-//     └── writable_bytes() const                  # [公有] 返回当前可写字节数
+// 内存布局：
+// +-------------------+------------------+------------------+
+// |   prependable     |     readable     |     writable     |
+// +-------------------+------------------+------------------+
+// 0              readIndex_          writeIndex_          size
 // ============================================================================
 
 #pragma once
 
 #include <sys/types.h>
 
-#include <vector>
 #include <string>
+#include <vector>
 
 class Buffer {
 public:
     explicit Buffer(size_t initialSize = kInitialSize);
+    ~Buffer();
+
     Buffer(const Buffer&) = delete;
     Buffer& operator=(const Buffer&) = delete;
     Buffer(Buffer&&) = default;
     Buffer& operator=(Buffer&&) = default;
-    ~Buffer();
 
+    // fd → Buffer → 应用层
+    ssize_t read_from_fd(int fd, int& savedErrno);      // 通过 readv 把 fd 数据追加到缓冲区，失败时写入 errno。
     std::string read_from_buffer(size_t len);           // 读取指定字节并推进读指针。
-    std::string read_from_buffer();
-    void advance_read_index(size_t len);                // 仅推进读指针而不产生任何拷贝。
+    std::string read_from_buffer();                     // 读取全部可读数据并推进读指针。
+    void advance_read_index(size_t len);                // 仅推进读指针；len 不得超过当前可读字节数。
+
+    // 应用层 → Buffer → fd
     void write_to_buffer(const char* data, size_t len); // 顺序追加原始字节。
-    void write_to_buffer(const std::string& str);
+    void write_to_buffer(const std::string& str);       // 追加字符串内容。
+    ssize_t write_to_fd(int fd, int& savedErrno);       // 把当前可读数据刷入 fd，失败时写入 errno。
 
-    ssize_t read_from_fd(int fd, int* savedErrno);      // 通过 readv 把 fd 数据追加到缓冲区。
-    ssize_t write_to_fd(int fd, int* savedErrno);       // 把当前可读数据刷入 fd。
-
+    // 状态查询
     size_t readable_bytes() const;
     size_t writable_bytes() const;
-    const char* readable_start_ptr() const;
+    const char* readable_start_ptr() const;             // 返回可读区域首地址，不推进读指针。
 
 private:
-    size_t prependable_bytes() const;
     void maintain_read_index(size_t len);
     void maintain_all_index();
+
     void make_space(size_t len); // 优先复用 prepend 区，不够再扩容。
+
+    size_t prependable_bytes() const;
 
 private:
     static const size_t kCheapPrepend;

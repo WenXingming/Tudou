@@ -1,16 +1,14 @@
 // ============================================================================
-// InetAddress.cpp
-// IPv4 地址值对象实现，显式展开构造步骤并收紧输入契约。
+// InetAddress 实现 IPv4 地址值的构造、校验和格式转换。
 // ============================================================================
 
 #include "InetAddress.h"
 
 #include <arpa/inet.h>
-#include <sstream>
 #include <stdexcept>
 
-InetAddress::InetAddress(const std::string& ip, uint16_t port) {
-    address_ = sockaddr_in{};
+InetAddress::InetAddress(const std::string& ip, uint16_t port)
+    : address_{} {
     address_.sin_family = AF_INET;
     address_.sin_port = htons(port);
     if (::inet_pton(AF_INET, ip.c_str(), &address_.sin_addr) != 1) {
@@ -18,11 +16,11 @@ InetAddress::InetAddress(const std::string& ip, uint16_t port) {
     }
 }
 
-InetAddress::InetAddress(const sockaddr_in& address) {
+InetAddress::InetAddress(const sockaddr_in& address)
+    : address_(address) {
     if (address.sin_family != AF_INET) { // 检查满足 IPv4 契约
         throw std::invalid_argument("InetAddress requires an AF_INET sockaddr_in input");
     }
-    address_ = address;
 }
 
 const sockaddr_in& InetAddress::get_sockaddr() const {
@@ -38,9 +36,7 @@ uint16_t InetAddress::get_port() const {
 }
 
 std::string InetAddress::get_ip_port() const {
-    std::ostringstream endpoint;
-    endpoint << to_ip_string(address_) << ":" << ntohs(address_.sin_port);
-    return endpoint.str();
+    return get_ip() + ":" + std::to_string(get_port());
 }
 
 std::string InetAddress::to_ip_string(const sockaddr_in& address) {

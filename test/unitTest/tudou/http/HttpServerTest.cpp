@@ -29,9 +29,8 @@
 namespace {
 
 std::shared_ptr<TcpConnection> make_connection(EventLoop& loop, int fd) {
-    InetAddress localAddr("127.0.0.1", 8080);
     InetAddress peerAddr("127.0.0.1", 8081);
-    return TcpConnection::create_connection(&loop, Socket(fd), localAddr, peerAddr);
+    return TcpConnection::create_connection(&loop, Socket(fd), peerAddr);
 }
 
 std::string read_available(int fd) {
