@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 
 #include "tudou/reactor/EventLoopThread.h"
@@ -53,6 +54,23 @@ TEST(EventLoopThreadTest, InitCallbackRunsInLoopThread) {
     });
 
     EXPECT_TRUE(calledFromLoopThread.load());
+}
+
+TEST(EventLoopThreadTest, InitCallbackCanScheduleWorkBeforeLoopStarts) {
+    std::atomic<bool> timerFired{ false };
+
+    {
+        EventLoopThread elt([&](EventLoop* loop) {
+            loop->run_after(0.01, [&, loop]() {
+                timerFired = true;
+                loop->quit();
+            });
+        });
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    EXPECT_TRUE(timerFired.load());
 }
 
 // ───────────────────────── 跨线程投递 ─────────────────────────

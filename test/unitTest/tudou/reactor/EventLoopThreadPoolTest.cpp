@@ -8,6 +8,7 @@ TEST(EventLoopThreadPoolTest, GetNextLoopFallsBackToMainLoopWhenNoIoThreadsExist
     pool.start();
 
     ASSERT_NE(pool.get_main_loop(), nullptr);
+    EXPECT_EQ(pool.get_num_threads(), 1);
     EXPECT_EQ(pool.get_next_loop(), pool.get_main_loop());
 
     const auto loops = pool.get_all_loops();
@@ -20,6 +21,7 @@ TEST(EventLoopThreadPoolTest, GetNextLoopRoundRobinsAcrossIoLoops) {
 
     pool.start();
 
+    EXPECT_EQ(pool.get_num_threads(), 3);
     EventLoop* firstLoop = pool.get_next_loop();
     EventLoop* secondLoop = pool.get_next_loop();
     EventLoop* thirdLoop = pool.get_next_loop();
@@ -31,10 +33,4 @@ TEST(EventLoopThreadPoolTest, GetNextLoopRoundRobinsAcrossIoLoops) {
     EXPECT_NE(secondLoop, pool.get_main_loop());
     EXPECT_NE(firstLoop, secondLoop);
     EXPECT_EQ(firstLoop, thirdLoop);
-}
-
-TEST(EventLoopThreadPoolTest, SetCpuAffinityDoesNotThrowOrError) {
-    EventLoopThreadPool pool("affinity_test", 2, EventLoopThreadPool::ThreadInitCallback(), true);
-    
-    EXPECT_NO_THROW(pool.start());
 }

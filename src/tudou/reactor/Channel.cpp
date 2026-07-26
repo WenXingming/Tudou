@@ -1,6 +1,6 @@
 // ============================================================================
-// Channel.cpp
-// fd 事件通道实现，保持“同步兴趣 -> 分发就绪事件”的单层职责。
+// Channel 负责同步事件兴趣并把 Poller 返回的就绪事件分发给回调。
+// fd 的关闭由上层 owner 负责，Channel 只管理它在 EventLoop 中的注册关系。
 // ============================================================================
 
 #include "tudou/reactor/Channel.h"
@@ -28,31 +28,13 @@ Channel::Channel(EventLoop* loop, int fd)
 
     assert(loop_->is_in_loop_thread());
     // 构造时立即注册到 Poller，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
-    // 或者采用惰性注册（Lazy Registration），避免多支付一次昂贵的 `epoll_ctl` 系统调用
-    // update_in_register();
+    update_in_register();
 }
 
 Channel::~Channel() {
-    // 析构时立即从 Poller 注销，保证 Channel 生命周期内始终受 EventLoop 管理，二者严格同步绑定。
+    // Channel 不拥有 fd，只负责在自身析构前从 Poller 注销。
     assert(loop_->is_in_loop_thread());
-    disable_all();
     remove_in_register();
-}
-
-void Channel::set_read_callback(EventCallback cb) {
-    readCallback_ = std::move(cb);
-}
-
-void Channel::set_write_callback(EventCallback cb) {
-    writeCallback_ = std::move(cb);
-}
-
-void Channel::set_close_callback(EventCallback cb) {
-    closeCallback_ = std::move(cb);
-}
-
-void Channel::set_error_callback(EventCallback cb) {
-    errorCallback_ = std::move(cb);
 }
 
 void Channel::set_revents(uint32_t revents) {
@@ -72,17 +54,25 @@ void Channel::handle_events() {
     else; // 返回 null 是 tie_to_object 后对象被析构的正常结果，不需要报错
 }
 
+void Channel::set_read_callback(EventCallback cb) {
+    readCallback_ = std::move(cb);
+}
+
+void Channel::set_write_callback(EventCallback cb) {
+    writeCallback_ = std::move(cb);
+}
+
+void Channel::set_close_callback(EventCallback cb) {
+    closeCallback_ = std::move(cb);
+}
+
+void Channel::set_error_callback(EventCallback cb) {
+    errorCallback_ = std::move(cb);
+}
+
 void Channel::tie_to_object(const std::shared_ptr<void>& obj) {
     tie_ = obj;
     isTied_ = true;
-}
-
-EventLoop* Channel::get_owner_loop() const {
-    return loop_;
-}
-
-int Channel::get_fd() const {
-    return fd_;
 }
 
 void Channel::enable_reading() {
@@ -110,6 +100,10 @@ void Channel::disable_all() {
     update_in_register();
 }
 
+uint32_t Channel::get_events() const {
+    return events_;
+}
+
 bool Channel::is_none_event() const {
     return events_ == kNoneEvent_;
 }
@@ -122,8 +116,12 @@ bool Channel::is_reading() const {
     return (events_ & kReadEvent_) != 0;
 }
 
-uint32_t Channel::get_events() const {
-    return events_;
+EventLoop* Channel::get_owner_loop() const {
+    return loop_;
+}
+
+int Channel::get_fd() const {
+    return fd_;
 }
 
 void Channel::update_in_register() {

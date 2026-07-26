@@ -15,25 +15,29 @@
 
 // ───────────────────────── Channel 注册与注销 ─────────────────────────
 
-TEST(EpollPollerTest, ChannelRegisterAndUnregisterViaEventLoop) {
+TEST(EpollPollerTest, ChannelRemainsRegisteredForItsLifetime) {
     int fds[2];
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
     EventLoop loop(20);
     auto ch = std::make_shared<Channel>(&loop, fds[0]);
 
-    // 惰性注册模式下，新构造的 Channel 尚未关联任何事件，不应立刻登记在 Loop 中
-    EXPECT_FALSE(loop.has_channel(ch.get()));
+    // Channel 构造即注册，即使当前没有关注任何事件，也始终由所属 Poller 追踪。
+    EXPECT_TRUE(loop.has_channel(ch.get()));
 
     ch->enable_reading();
+    EXPECT_TRUE(loop.has_channel(ch.get()));
+
+    ch->disable_all();
     EXPECT_TRUE(loop.has_channel(ch.get()));
 
     loop.run_after(0.01, [&]() { loop.quit(); });
     loop.loop();
 
-    // 在 EventLoop 线程内注销 Channel（析构会调用 remove_in_register）
+    // 在 EventLoop 线程内销毁，析构负责从 Poller 注销。
     loop.run_in_loop([&]() { ch.reset(); });
 
+    ::close(fds[0]);
     ::close(fds[1]);
 }
 

@@ -1,27 +1,21 @@
 // ============================================================================
-// EventLoopThread.cpp
-// EventLoop 线程绑定器实现。
+// EventLoopThread 的实现：创建线程、发布 EventLoop，并负责安全退出。
 // ============================================================================
 
 #include "tudou/reactor/EventLoopThread.h"
 
 #include "tudou/reactor/EventLoop.h"
-#include "EventLoopThread.h"
-#include "spdlog/spdlog.h"
 
-#include <pthread.h>
-#include <sched.h>
-
-EventLoopThread::EventLoopThread(const ThreadInitCallback& cb, int cpuCore)
+EventLoopThread::EventLoopThread(const ThreadInitCallback& cb)
     : loop_(nullptr)
     , thread_()
     , loopMutex_()
     , loopCondition_()
-    , initCallback_(cb)
-    , cpuCore_(cpuCore) {
+    , initCallback_(cb) {
 
-    // 启动后台线程，创建 EventLoop 并阻塞等待就绪。
     thread_ = std::thread(&EventLoopThread::thread_func, this);
+
+    // 保证 EventLoopThread 构造完成时，后台线程已经完成初始化并发布了 EventLoop
     std::unique_lock<std::mutex> lock(loopMutex_);
     loopCondition_.wait(lock, [this]() { return loop_ != nullptr; });
 }
@@ -39,32 +33,22 @@ EventLoopThread::~EventLoopThread() {
 }
 
 
-EventLoop * EventLoopThread::get_loop(){
+EventLoop* EventLoopThread::get_loop() {
     std::lock_guard<std::mutex> lock(loopMutex_);
-    return loop_.get(); 
+    return loop_.get();
 }
 
 void EventLoopThread::thread_func() {
-    // 绑定 CPU 亲和性
-    if (cpuCore_ >= 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(cpuCore_, &cpuset);
-        pthread_t currentThread = ::pthread_self();
-        if (::pthread_setaffinity_np(currentThread, sizeof(cpu_set_t), &cpuset) != 0) {
-            spdlog::warn("EventLoopThread: Failed to set CPU affinity to core {}", cpuCore_);
-        } else {
-            spdlog::info("EventLoopThread: Successfully bound thread to CPU core {}", cpuCore_);
-        }
+    // 先在局部对象上完成初始化，避免用户回调持有 loopMutex_。
+    auto loop = std::make_unique<EventLoop>();
+    if (initCallback_) {
+        initCallback_(loop.get());
     }
 
-    // 创建该线程专属的 EventLoop，执行初始化回调，然后通知构造函数可以返回。
+    // 初始化完成后再发布 loop，构造线程只会看到可直接运行的 EventLoop。
     {
         std::lock_guard<std::mutex> lock(loopMutex_);
-        loop_ = std::make_unique<EventLoop>();
-        if (initCallback_) {
-            initCallback_(loop_.get());
-        }
+        loop_ = std::move(loop);
     }
     loopCondition_.notify_one();
 

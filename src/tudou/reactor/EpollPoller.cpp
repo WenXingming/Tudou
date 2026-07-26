@@ -1,6 +1,6 @@
 // ============================================================================
-// EpollPoller.cpp
-// epoll 封装实现，保持“等待 -> 翻译 -> 分发 -> 调整容量”的单层流程。
+// EpollPoller 封装 epoll 的等待、Channel 注册和就绪结果整理。
+// EventLoop 负责驱动主循环，EpollPoller 只处理底层 I/O 复用细节。
 // ============================================================================
 
 #include "tudou/reactor/EpollPoller.h"
@@ -14,7 +14,8 @@ EpollPoller::EpollPoller(EventLoop* loop)
     : loop_(loop)
     , epollFd_(::epoll_create1(EPOLL_CLOEXEC)) // EPOLL_CLOEXEC 确保 exec 后 fd 被自动关闭，避免 fork 的子进程误继承父进程的 epollFd 导致资源泄漏或竞争
     , channels_()
-    , eventList_(kInitEventListSize_) {
+    , eventList_(kInitEventListSize_)
+    , activeChannels_() {
     if (epollFd_.fd() < 0) {
         spdlog::critical("EpollPoller: epoll_create1 failed, errno={} ({})", errno, strerror(errno));
         assert(false);
@@ -29,6 +30,7 @@ const std::vector<Channel*>& EpollPoller::poll(int timeoutMs) {
     resize_event_list(numReady);
     return activeChannels_;
 }
+
 
 void EpollPoller::update_channel(Channel* channel) {
     assert(loop_->is_in_loop_thread());
@@ -59,6 +61,7 @@ void EpollPoller::update_channel(Channel* channel) {
     }
 }
 
+
 void EpollPoller::remove_channel(Channel* channel) {
     assert(loop_->is_in_loop_thread());
     // epollfd、channels 应该同步
@@ -73,6 +76,7 @@ void EpollPoller::remove_channel(Channel* channel) {
     channels_.erase(fd);
 }
 
+
 bool EpollPoller::has_channel(Channel* channel) const {
     assert(loop_->is_in_loop_thread());
 
@@ -84,6 +88,7 @@ bool EpollPoller::has_channel(Channel* channel) const {
     assert(findIt->second == channel);
     return true;
 }
+
 
 int EpollPoller::collect_ready_num(int timeoutMs) {
     int numReady = ::epoll_wait(epollFd_.fd(), eventList_.data(),

@@ -1,20 +1,6 @@
 // ============================================================================
-// EpollPoller.h
-// EpollPoller 是 EventLoop 的底层 I/O 复用器，epoll 封装层，只管理 epoll 相关细节，负责注册 Channel、等待就绪事件并回放到 Channel。
-//
-// 成员函数调用树（[公有]/[私有] 标注接口层级）：
-//
-// EpollPoller.h
-// └── EpollPoller
-//     ├── EpollPoller(loop)                       # [公有] 构造 epoll fd 并初始化事件缓冲区
-//     ├── ~EpollPoller()                          # [公有] 析构：关闭 epoll fd
-//     ├── poll(timeoutMs)                         # [公有] epoll 主干：等待、翻译、调节容量，返回活跃 Channel 列表
-//     │   ├── collect_ready_num(timeoutMs)            # [私有] 调用 epoll_wait 拿到本轮就绪数
-//     │   ├── collect_active_channels(numReady)    # [私有] 从 epoll 结果中收集就绪 Channel 到成员变量
-//     │   └── resize_event_list(numReady)         # [私有] 按负载伸缩 epoll 结果缓冲区
-//     ├── update_channel(channel)                 # [公有] ADD/MOD 一个 Channel 到 epoll 注册表
-//     ├── remove_channel(channel)                 # [公有] DEL 一个 Channel 并同步移出 channels_
-//     └── has_channel(channel) const              # [公有] 查询 fd 是否已被当前 Poller 持有
+// EpollPoller 在 EventLoop 中封装 epoll，负责等待 I/O 就绪事件。
+// 它维护 Channel 的非 owning 注册表，将 epoll 结果整理成活跃 Channel 列表。
 // ============================================================================
 
 #pragma once
@@ -33,8 +19,10 @@ public:
     ~EpollPoller();
 
     const std::vector<Channel*>& poll(int timeoutMs);
+
     void update_channel(Channel* channel);
     void remove_channel(Channel* channel);
+
     bool has_channel(Channel* channel) const;
 
 private:

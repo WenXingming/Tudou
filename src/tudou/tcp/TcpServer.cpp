@@ -53,8 +53,7 @@ void TcpServer::start() {
     loopThreadPool_ = std::make_unique<EventLoopThreadPool>(
         "TcpServerLoopPool",
         static_cast<int>(ioLoopNum_),
-        EventLoopThreadPool::ThreadInitCallback(),
-        pinCpu_
+        EventLoopThreadPool::ThreadInitCallback()
     );
     loopThreadPool_->start();
 

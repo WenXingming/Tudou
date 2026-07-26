@@ -84,3 +84,13 @@ TEST(EventLoopTest, RunEveryCanCancelRepeatingTimer) {
 
     EXPECT_EQ(count, 3);
 }
+
+#ifndef NDEBUG
+TEST(EventLoopTest, RejectsReentrantLoop) {
+    EXPECT_DEATH({
+        EventLoop loop(20);
+        loop.run_after(0.01, [&]() { loop.loop(); });
+        loop.loop();
+    }, "");
+}
+#endif

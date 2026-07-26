@@ -20,5 +20,8 @@ configs/
 # Claude
 .claude/
 
+# Codex
+.codex/
+
 # skills
 .agents

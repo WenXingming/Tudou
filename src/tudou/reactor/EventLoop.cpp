@@ -1,6 +1,6 @@
 // ============================================================================
-// EventLoop.cpp
-// Reactor 核心循环实现，显式展开 poll、唤醒和任务执行的控制路径。
+// EventLoop 的实现：驱动 Poller、Channel 回调、跨线程任务和定时器。
+// 主循环保持为“等待事件 -> 分发回调 -> 执行待处理任务”。
 // ============================================================================
 
 #include "tudou/reactor/EventLoop.h"
@@ -16,12 +16,15 @@
 #include <thread>
 
 thread_local EventLoop* EventLoop::loopInThisThread = nullptr;
+
 EventLoop::EventLoop(int pollTimeoutMs) :
     threadId_(std::this_thread::get_id()),
     pollTimeoutMs_(pollTimeoutMs),
     poller_(nullptr),
     isLooping_(false),
     isQuit_(false),
+    wakeupFd_(),
+    wakeupChannel_(nullptr),
     pendingFunctors_(),
     pendingFunctorsMutex_(),
     isCallingPendingFunctors_(false),
@@ -59,17 +62,26 @@ EventLoop::~EventLoop() {
 
 void EventLoop::loop() {
     assert(is_in_loop_thread());
+    assert(!isLooping_.load());
 
     isLooping_ = true;
     while (!isQuit_) {
         const auto& activeChannels = poller_->poll(pollTimeoutMs_);
-
         for (Channel* channel : activeChannels) {
             channel->handle_events();
         }
+
         do_pending_functors();
     }
     isLooping_ = false;
+}
+
+void EventLoop::quit() {
+    isQuit_ = true;
+    // 如果调用 quit() 的线程不是 EventLoop 所在线程，必须通过 wakeup 唤醒它，让 loop() 能够及时感知 isQuit_ 的变化并退出。
+    if (!is_in_loop_thread()) {
+        wakeup();
+    }
 }
 
 void EventLoop::update_channel(Channel* channel) const {
@@ -85,14 +97,6 @@ void EventLoop::remove_channel(Channel* channel) const {
 bool EventLoop::has_channel(Channel* channel) const {
     assert(is_in_loop_thread());
     return poller_->has_channel(channel);
-}
-
-void EventLoop::quit() {
-    isQuit_ = true;
-    // 如果调用 quit() 的线程不是 EventLoop 所在线程，必须通过 wakeup 唤醒它，让 loop() 能够及时感知 isQuit_ 的变化并退出。
-    if (!is_in_loop_thread()) {
-        wakeup();
-    }
 }
 
 bool EventLoop::is_in_loop_thread() const {
