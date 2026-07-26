@@ -1,119 +1,69 @@
 # Acceptor fd 耗尽恢复：idle fd 技巧与 busy-loop 防护
 
-在网络服务器开发中，文件描述符（fd）耗尽（`EMFILE`/`ENFILE`）是一个容易被忽略但后果严重的问题。本文基于 **STAR 法则** 记录 Tudou 网络库 Acceptor 组件中该问题的发现、分析与解决过程。
+`Acceptor` 负责从监听 socket 接收新连接。本文说明进程遇到 `EMFILE` / `ENFILE` 时，为什么会出现 busy-loop，以及如何使用 idle fd 解除这一状态。
 
----
+# Situation — 情境
 
-## 1. Situation（情境）
+正常情况下，`accept4()` 从内核 accept 队列取出一个连接，队列变短，`epoll_wait` 会等待下一批连接。
 
-Tudou 的 `Acceptor` 负责监听 listen fd 上的新连接事件，通过 `accept4` 系统调用取出连接并交给上层 `TcpServer` 处理。原始实现中，`accept4` 失败时统一 log + return：
+当进程文件描述符耗尽时，`accept4()` 返回 `EMFILE`，但连接仍留在 accept 队列中。监听 fd 继续保持可读，事件循环会反复被唤醒：
+
+```text
+epoll_wait 返回 listen fd 可读
+  → accept4() 返回 EMFILE
+  → 连接仍在 accept 队列
+  → epoll_wait 立即再次返回
+  → 重复失败，CPU 空转
+```
+
+# Task — 任务
+
+需要在不影响普通瞬态错误处理的前提下：
+
+1. 打破 `EMFILE` / `ENFILE` 导致的 busy-loop；
+2. 取走至少一个挂起连接，让监听 fd 不再持续触发；
+3. 恢复后继续接受新连接；
+4. 不增加常驻线程或复杂同步机制。
+
+# Action — 方案与实现
+
+### idle fd 技巧
+
+Acceptor 启动时预留一个不使用的 fd，例如 `/dev/null`：
 
 ```cpp
-void Acceptor::on_read(Channel& channel) {
-    Socket connSocket = listenSocket_.accept(&clientAddr);
-    if (connSocket.fd() < 0) {
-        return;  // 所有错误都静默跳过
-    }
-    ...
-}
-```
-
-这种处理在大多数瞬态错误（`ECONNABORTED`、`EPROTO`、`EINTR`）下没有问题——下一次 `epoll_wait` 会重新触发 `on_read`，重试即可。但当进程 fd 耗尽时，会触发一个**CPU busy-loop**。
-
-## 2. Task（任务）
-
-识别 fd 耗尽场景下的 busy-loop 根因，并实现一种零额外开销的恢复机制，确保：
-
-1. fd 耗尽时不会导致 CPU 空转。
-2. 恢复后 Acceptor 能正常继续接受新连接。
-3. 不影响其他瞬态错误的正常处理路径。
-
-## 3. Action（行动）
-
-### 3.1 根因分析
-
-Linux 内核的 accept 队列工作方式：
-
-```
-客户端 A 发 SYN → 三次握手完成 → 放入 accept 队列
-客户端 B 发 SYN → 三次握手完成 → 放入 accept 队列
-```
-
-**只要 accept 队列非空，listen fd 在 epoll 中就是可读的。**
-
-正常情况下：`on_read` → `accept4` 取出一个连接 → 队列变短 → 下次 `epoll_wait` 才返回。
-
-fd 耗尽时的 busy-loop：
-
-```
-accept 队列: [A, B]   ← 非空
-
-epoll_wait 返回（listen fd 可读）
-  → on_read
-    → accept4() → -1, EMFILE    ← 失败！连接 A 仍在队列中
-    → return
-
-epoll_wait 立刻返回（listen fd 仍可读，队列非空）
-  → on_read
-    → accept4() → -1, EMFILE    ← 又失败
-    → return
-
-epoll_wait 立刻返回...    ← 死循环，CPU 100%
-```
-
-**根因**：`accept4` 失败意味着连接没有从队列中取出，队列永远非空，`epoll_wait` 永远立刻返回。
-
-### 3.2 解决方案：idle fd 技巧
-
-这是 nginx、leveldb、libevent 等成熟网络库处理 `EMFILE` 的标准模式。
-
-**核心思路**：预先持有一个不使用的空闲 fd，fd 耗尽时关闭它腾出一个名额，重试 `accept4` 拉走挂起连接，然后将 accepted fd 直接作为新的 idle fd。
-
-```cpp
-// 构造时通过 open("/dev/null") 预留，只占 1 个 fd，无多余端点
 idleFd_ = Socket(::open("/dev/null", O_RDONLY | O_CLOEXEC));
 ```
 
-恢复流程：
+发生 `EMFILE` / `ENFILE` 时执行以下步骤：
 
-```
-fd 表: [0,1,...,1023]  ← 全满，EMFILE。idleFd_ = fd=1000
+1. 关闭 `idleFd_`，腾出一个 fd 名额；
+2. 重试 `accept4()`，取走 accept 队列中的一个连接；
+3. 不把这个连接交给业务，而是直接将其 fd 作为新的 `idleFd_`；
+4. 连接通常会被关闭，对端可能收到连接重置。
 
-1. close(idleFd_)             → 腾出 1 个 fd 名额
-   fd 表: [0,1,...,1022]（1 个空闲）
+关键点是“关闭一个，再接管一个”，fd 占用数基本保持不变，同时成功消耗一个挂起连接。
 
-2. accept4() → 成功，返回 fd=1000  → 拉走挂起连接，队列变短
-   不关闭 accepted fd，直接作为新的 idleFd_
-   fd 表: [0,1,...,1023]（又满了，但队列短了 1 个）
-```
-
-关键设计：**fd 占用数在整个恢复过程中不变**（关 1 个旧 idle → 开 1 个 accepted → 直接接管为新 idle），因此始终只需要 1 个空闲槽位，不存在分配失败的可能。对端会收到连接重置，但在 fd 耗尽状态下这是不可避免的。
-
-### 3.3 最终实现
+### 关键代码
 
 ```cpp
 void Acceptor::on_read(Channel& channel) {
     sockaddr_in clientAddr{};
     Socket connSocket = listenSocket_.accept(&clientAddr);
     if (connSocket.fd() < 0) {
-        // EMFILE/ENFILE：fd 耗尽，内核队列中的挂起连接无法取出，会导致 epoll 持续触发 busy-loop。
-        // 通过关闭预留的 idle fd 腾出名额、重试 accept 拉走挂起连接来打破循环。
         if (errno == EMFILE || errno == ENFILE) {
             accept_idle_connection();
         }
-        return;  // 其他瞬态错误：忽略，等下次 epoll 触发
+        return;
     }
-    ...
+
+    // 正常连接交给 TcpServer 处理
+    handle_new_connection(std::move(connSocket), clientAddr);
 }
 
 void Acceptor::accept_idle_connection() {
-    spdlog::error("Acceptor: fd exhausted (EMFILE/ENFILE), entering recovery");
-
-    // 1. 关闭 idle fd 腾出 1 个 fd 名额。
     idleFd_ = Socket(-1);
 
-    // 2. 重试 accept 拉走内核队列中的挂起连接，直接接管其 fd 作为新的 idle fd。
-    //    fd 占用数不变（关 1 个 + 开 1 个），对端会收到连接重置，fd 耗尽状态下不可避免。
     sockaddr_in clientAddr{};
     Socket connSocket = listenSocket_.accept(&clientAddr);
     if (connSocket.fd() >= 0) {
@@ -122,17 +72,34 @@ void Acceptor::accept_idle_connection() {
 }
 ```
 
-## 4. Result（结果）
+其他错误（例如 `EINTR`、`ECONNABORTED`）仍沿用普通重试路径，不应误用 idle fd 恢复。
 
-| 指标 | 修复前 | 修复后 |
-|------|--------|--------|
-| fd 耗尽时 CPU | 100% busy-loop | 立即恢复，零空转 |
-| 队列中挂起连接 | 无法取出，持续触发 epoll | 被拉走，队列清空 |
-| 恢复后状态 | 无恢复机制 | accepted fd 直接接管为新 idle fd，正常继续监听 |
-| 额外系统调用 | 无 | 恢复时仅 1 次 accept4（关旧 idle + 接管新 idle 无额外开销） |
+# Result — 结果
 
-### 参考
+- fd 耗尽时不再因为监听队列持续可读而 busy-loop；
+- 挂起连接可以被取走，事件循环恢复正常等待；
+- 不需要额外线程；
+- idle fd 只在异常路径使用，正常情况下没有额外处理成本。
 
-- nginx: `src/event/ngx_event_accept.c` 中的 `ngx_close_idle_connections` 机制
-- leveldb: `util/env_posix.cc` 中的 `posixConnect` EMFILE 处理
-- libevent: `evutil.c` 中的 `evutil_ersocket_emfile` 函数
+# 核心设计要点提炼
+
+| 设计点 | 说明 |
+| :--- | :--- |
+| 问题根因 | `accept4()` 失败但连接仍在 accept 队列，监听 fd 持续可读。 |
+| idle fd | 预留一个 fd，在耗尽时关闭并腾出名额。 |
+| 恢复动作 | 重试 `accept4()` 取走挂起连接，并将其接管为新的 idle fd。 |
+| 错误边界 | 只对 `EMFILE` / `ENFILE` 使用该机制，其他错误按普通路径处理。 |
+
+# 面试核心问答总结
+
+## Q1：为什么 fd 耗尽会造成 busy-loop？
+
+因为 `accept4()` 失败后，连接仍然留在 accept 队列，监听 fd 仍然可读，`epoll_wait` 会立即重复返回。
+
+## Q2：idle fd 技巧解决了什么？
+
+它先关闭预留 fd，再成功 `accept4()` 取走一个挂起连接，从而让 accept 队列变短，打破持续唤醒。
+
+## Q3：为什么不直接忽略 `EMFILE`？
+
+只返回会让监听 fd 一直保持可读，事件循环持续失败。必须实际取走一个连接，才能恢复等待状态。
