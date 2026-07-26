@@ -38,7 +38,7 @@ private:
     void create_io_threads(); // 批量创建并启动后台 IO 线程。
 
 private:
-    std::unique_ptr<EventLoop> mainLoop_;                               // 主线程内创建并发布的 EventLoop。使用指针可以延迟创建，避免在构造时自动创建
+    std::unique_ptr<EventLoop> mainLoop_;                               // 主线程内创建并发布的 EventLoop，非 EventLoopThread 类型。使用智能指针可以延迟创建，避免在构造时自动创建
     std::vector<std::unique_ptr<EventLoopThread>> ioLoopThreads_;       // 后台 IO 线程集合。
     size_t ioLoopsIndex_;                                               // 轮询选择 IO loop 时使用的当前索引。EventLoopThread 包含锁等不可复制，所以这里使用 unique_ptr 存储。
 

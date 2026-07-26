@@ -1,7 +1,6 @@
 // ============================================================================
-// TimerQueue.cpp
-// 定时器事件处理管道：读事件 → 收集到期 → 执行回调 → 同步下次唤醒。
-// 所有索引操作均在 EventLoop 线程执行，无需加锁。
+// TimerQueue 将 timerfd 事件转换为定时器回调，并维护下一次唤醒时间。
+// 所有定时器索引操作均在 EventLoop 线程执行。
 // ============================================================================
 
 #include "tudou/timer/TimerQueue.h"
@@ -38,21 +37,16 @@ timespec to_timespec(std::chrono::steady_clock::duration duration) {
 
 TimerQueue::TimerQueue(EventLoop* loop)
     : loop_(loop)
+    , timerFd_(create_timerfd())
+    , timerChannel_(std::make_unique<Channel>(loop, timerFd_.fd()))
     , nextTimerId_(1)
     , expireSet_()
-    , timersById_()
-    , timerFd_(create_timerfd()) {
-    timerChannel_ = std::make_unique<Channel>(loop, timerFd_.fd());
-
-    timerChannel_->set_read_callback( // timerfd 到期 → Channel 可读 → on_timerfd_read 接管后续管道
-        [this](Channel&) { on_timerfd_read(); }
-    );
+    , timersById_() {
+    timerChannel_->set_read_callback([this](Channel&) { on_timerfd_read(); });
     timerChannel_->enable_reading();
 }
 
-TimerQueue::~TimerQueue() {
-    // 成员按声明逆序自动析构：timerChannel_（epoll 注销）→ timerFd_（close fd）。
-}
+TimerQueue::~TimerQueue() = default;
 
 TimerId TimerQueue::add_timer(std::function<void()> callback, Timestamp when, std::chrono::milliseconds interval) {
     TimerId id = TimerId(nextTimerId_.fetch_add(1, std::memory_order_relaxed));
@@ -83,13 +77,16 @@ void TimerQueue::erase_timer(TimerId timerId) {
     );
 }
 
-// 管道四步：消费 → 收集 → 执行 → 同步
 void TimerQueue::on_timerfd_read() {
     read_timerfd(timerFd_.fd());
 
-    // 收集到期定时器：只从排序容器 expireSet_ 中移除，保留在 timersById_ 中用于取消校验。只有 erase_timer 才能删除定时器
-    const Timestamp now = std::chrono::steady_clock::now();
-    std::vector<std::shared_ptr<Timer>> expiredTimers;
+    auto expiredTimers = collect_expired_timers(std::chrono::steady_clock::now());
+    process_expired_timers(expiredTimers);
+    sync_timerfd();
+}
+
+TimerQueue::ExpiredTimers TimerQueue::collect_expired_timers(Timestamp now) {
+    ExpiredTimers expiredTimers;
     while (!expireSet_.empty()) {
         auto it = expireSet_.begin();
         if (it->first > now) {
@@ -98,8 +95,10 @@ void TimerQueue::on_timerfd_read() {
         expiredTimers.push_back(it->second);
         expireSet_.erase(it);
     }
+    return expiredTimers;
+}
 
-    // 执行阶段
+void TimerQueue::process_expired_timers(const ExpiredTimers& expiredTimers) {
     for (const auto& timer : expiredTimers) {
         // 执行前检查是否已被前置的回调取消
         if (timersById_.find(timer->get_id()) == timersById_.end()) {
@@ -124,8 +123,6 @@ void TimerQueue::on_timerfd_read() {
         timer->reschedule(t);
         expireSet_.insert({ timer->get_expiration(), timer });
     }
-
-    sync_timerfd();
 }
 
 void TimerQueue::sync_timerfd() {
