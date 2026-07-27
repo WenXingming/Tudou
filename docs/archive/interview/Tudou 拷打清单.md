@@ -39,7 +39,7 @@ Tudou 是一个面向 Linux 的 C++14 多线程 Reactor 网络框架。底层用
 
 能按下面路径讲清楚：
 
-`listen fd` 可读 -> `Acceptor::on_read()` -> `Socket::accept()` 得到连接 fd -> `TcpServer::on_connect()` 选择一个 IO loop -> 在 IO loop 中 `TcpConnection::create_connection()` -> 连接 `Channel` 监听读事件 -> `TcpConnection::on_read()` -> `Buffer::read_from_fd()` -> `TcpServer::on_message()` -> `HttpServer::on_message()` -> `conn->receive()` 取出字节 -> `HttpContext::parse()` 调 llhttp -> `Router::dispatch()` -> `HttpResponse::package_to_string()` -> `conn->send()` -> `TcpConnection::send_in_loop()` 直接写或进入写缓冲 -> `EPOLLOUT` 触发 `on_write()` 继续发送。
+`listen fd` 可读 -> `Acceptor::on_read()` -> `Socket::accept()` 得到连接 fd -> `TcpServer::on_connect()` 选择一个 IO loop -> 在 IO loop 中 `TcpConnection::create_connection()` -> 连接 `Channel` 监听读事件 -> `TcpConnection::on_read()` -> `Buffer::read_from_fd()` -> `TcpServer::on_message()` -> `HttpServer::on_message()` -> `conn->receive()` 取出字节 -> `HttpContext::parse()` 调 llhttp -> `Router::dispatch()` -> `HttpResponse::serialize_to_string()` -> `conn->send()` -> `TcpConnection::send_in_loop()` 直接写或进入写缓冲 -> `EPOLLOUT` 触发 `on_write()` 继续发送。
 
 **追问点：**
 
@@ -338,4 +338,3 @@ HTTP 解析边界多，分片输入、header 分段、body、错误请求、版�
 - `ConnectionHeartbeat` 当前主要根据读消息刷新活跃时间，不要说成完整 TCP keepalive 替代品。
 - `Acceptor` 的 idle fd 实现要按当前代码讲：fd 耗尽后接受一个挂起连接并接管为新的 idle fd。
 - benchmark 只能说明特定场景下的吞吐和延迟，不能泛化成所有生产场景。
-

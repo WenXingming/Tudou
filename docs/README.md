@@ -1,6 +1,6 @@
 # 面试讲解入口
 
-面试资料以各模块 `README.md` 为当前实现的唯一来源，不再直接依赖旧的综合问答文件。
+面试资料以各模块目录下的主题设计文档为当前实现来源，不再直接依赖旧的综合问答文件。
 
 ## 推荐讲解顺序
 
@@ -29,3 +29,10 @@ Tudou 是一个基于 Linux epoll 和 C++ 的高性能网络框架。底层用 E
 4. 一个明确的限制或未实现能力。
 
 旧版综合问答和历史重构记录位于 `docs/archive/`，只用于了解演进，不作为当前实现答案。
+
+## HTTP/TLS
+
+- [HttpContext：llhttp 增量解析与 HTTP 拆包粘包](<http/HttpContext 设计：llhttp 增量解析与 HTTP 拆包粘包.md>)
+- [llhttp 选型](<http/HTTP 解析库选型：为什么选择 llhttp.md>)
+- [Router 设计](<http/路由模块设计：精确路由、前缀兜底与 404.md>)
+- [TLS 设计](<http/HTTPS 安全传输设计：TlsConfig 与 TlsConnection.md>)

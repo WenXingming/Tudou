@@ -22,7 +22,8 @@
 发送响应后检查关闭标记：
 
 ```cpp
-if (resp.get_close_connection()) {
+const auto connectionHeader = resp.get_headers().find("Connection");
+if (connectionHeader != resp.get_headers().end() && connectionHeader->second == "close") {
     conn->force_close();
 }
 ```

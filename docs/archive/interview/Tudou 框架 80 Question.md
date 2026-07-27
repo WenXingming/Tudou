@@ -916,7 +916,7 @@ llhttp 的回调必须是 `static` 函数（C 语言风格的函数指针），�
 
 ---
 
-### Q70：HttpResponse 的 `package_to_string` 序列化了哪些部分？
+### Q70：HttpResponse 的 `serialize_to_string` 序列化了哪些部分？
 
 **口述答案：**
 

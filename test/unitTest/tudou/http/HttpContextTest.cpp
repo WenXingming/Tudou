@@ -101,6 +101,32 @@ TEST(HttpContextTest, ParseRequestAcrossMultipleChunks) {
     EXPECT_EQ(req.get_body(), "hello world");
 }
 
+TEST(HttpContextTest, BuildsRequestHeadBeforeBodyCompletes) {
+    HttpContext ctx;
+
+    const std::string requestHead =
+        "POST /orders?dry_run=1 HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Content-Length: 5\r\n"
+        "\r\n";
+
+    EXPECT_EQ(ctx.parse(requestHead.data(), requestHead.size()), HttpContext::ParseResult::NeedMoreData);
+
+    const HttpRequest& request = ctx.get_request();
+    EXPECT_EQ(request.get_method(), "POST");
+    EXPECT_EQ(request.get_url(), "/orders?dry_run=1");
+    EXPECT_EQ(request.get_path(), "/orders");
+    EXPECT_EQ(request.get_query(), "dry_run=1");
+    EXPECT_EQ(request.get_version(), "HTTP/1.1");
+    EXPECT_EQ(request.get_header("Host"), "example.com");
+    EXPECT_EQ(request.get_header("Content-Length"), "5");
+    EXPECT_TRUE(request.get_body().empty());
+
+    const std::string body = "hello";
+    EXPECT_EQ(ctx.parse(body.data(), body.size()), HttpContext::ParseResult::Complete);
+    EXPECT_EQ(ctx.get_request().get_body(), body);
+}
+
 TEST(HttpContextTest, ResetDropsPreviousRequestState) {
     HttpContext ctx;
 

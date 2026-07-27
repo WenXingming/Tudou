@@ -16,7 +16,6 @@
 
 namespace {
 
-constexpr char kContentLengthHeader[] = "Content-Length";
 constexpr char kBadRequestMessage[] = "Bad Request";
 
 } // namespace
@@ -68,14 +67,6 @@ void HttpServer::add_head_route(const std::string& path, Handler handler) {
 
 void HttpServer::add_prefix_route(const std::string& prefix, Handler handler) {
     router_.add_prefix_route(prefix, std::move(handler));
-}
-
-void HttpServer::set_not_found_handler(Handler handler) {
-    router_.set_not_found_handler(std::move(handler));
-}
-
-void HttpServer::set_method_not_allowed_handler(Handler handler) {
-    router_.set_method_not_allowed_handler(std::move(handler));
 }
 
 bool HttpServer::set_tls_mode(TlsMode mode) {
@@ -188,11 +179,17 @@ void HttpServer::on_message(const TcpConnectionPtr& conn) {
         case HttpContext::ParseResult::NeedMoreData:
             spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, fd={}", conn ? conn->get_fd() : -1);
             break;
-        case HttpContext::ParseResult::Rejected:
+        case HttpContext::ParseResult::Rejected: {
             // 直接就地回复 400 Bad Request，并重置当前连接的 HTTP 上下文
-            send_http_response(conn, *state, HttpResponse::plain_text(400, kBadRequestMessage, kBadRequestMessage));
+            HttpResponse response;
+            response.set_status(400, kBadRequestMessage);
+            response.set_header("Content-Type", "text/plain");
+            response.set_body(kBadRequestMessage);
+            response.set_header("Connection", "close");
+            send_http_response(conn, *state, response);
             state->httpContext.reset();
             return;
+        }
         case HttpContext::ParseResult::Complete:
             reply_complete_request(conn, *state);
 
@@ -281,8 +278,8 @@ void HttpServer::reply_complete_request(const TcpConnectionPtr& conn,
 
 HttpResponse HttpServer::build_http_response(const HttpRequest& req) const {
     HttpResponse response;
-    // 路由分发与默认 404/405 统一收口在 HttpServer 内部，应用层只负责注册 handler。
-    (void)router_.dispatch(req, response);
+    // 路由分发与默认 404 统一收口在 HttpServer 内部，应用层只负责注册 handler。
+    router_.dispatch(req, response);
     return response;
 }
 
@@ -293,15 +290,14 @@ void HttpServer::send_http_response(const TcpConnectionPtr& conn,
         return;
     }
 
-    // 1. Content-Length 是网络契约的一部分，统一在基础设施层补齐，避免业务回调重复关注协议细节。
-    if (!resp.has_header(kContentLengthHeader)) {
-        resp.set_header(kContentLengthHeader, std::to_string(resp.get_body().size()));
-    }
+    const auto connectionHeader = resp.get_headers().find("Connection");
+    const bool closeConnection = connectionHeader != resp.get_headers().end()
+        && connectionHeader->second == "close";
 
-    // 2. 序列化 DTO 状态转换为完整协议报文
-    std::string response = resp.package_to_string();
+    // 1. 序列化 DTO 状态转换为完整协议报文
+    std::string response = resp.serialize_to_string();
 
-    // 3. 执行发送。TLS 模式显式分发，避免后续 kTLS 与 Memory BIO 逻辑混在一起。
+    // 2. 执行发送。TLS 模式显式分发，避免后续 kTLS 与 Memory BIO 逻辑混在一起。
     switch (tls_mode_of(state)) {
     case TlsMode::None:
         if (is_ssl_enabled()) {
@@ -325,8 +321,8 @@ void HttpServer::send_http_response(const TcpConnectionPtr& conn,
         break;
     }
 
-    // 4. 解决 Connection: close 连接泄漏漏洞（局限性：对于极其巨大的响应，若内核发送缓冲满导致未完全发送，调用 force_close() 可能会阶段性截断数据）
-    if (resp.get_close_connection()) {
+    // 3. Connection: close 是响应协议语义，发送后由连接层执行关闭。
+    if (closeConnection) {
         conn->force_close();
     }
 }

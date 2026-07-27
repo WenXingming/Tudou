@@ -1,6 +1,6 @@
 // ============================================================================
-// HttpRequest.cpp
-// HTTP 请求 DTO 实现，只处理字段读写与状态清空。
+// HTTP 请求 DTO，保存解析后的请求行、Header 与 Body。
+// 由 HttpContext 构建，供 Router 和业务 Handler 读取；不参与解析或路由。
 // ============================================================================
 
 #include "tudou/http/HttpRequest.h"
@@ -46,4 +46,3 @@ void HttpRequest::clear() {
     headers_.clear();
     body_.clear();
 }
-

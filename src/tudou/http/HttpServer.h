@@ -39,8 +39,6 @@
 //     ├── add_post_route(path, handler)          # [公有] 注册 POST 精确路由
 //     ├── add_head_route(path, handler)          # [公有] 注册 HEAD 精确路由
 //     ├── add_prefix_route(prefix, handler)      # [公有] 注册前缀兜底路由
-//     ├── set_not_found_handler(handler)         # [公有] 覆盖默认 404 响应
-//     ├── set_method_not_allowed_handler(handler) # [公有] 覆盖默认 405 响应
 //     ├── enable_ssl(certFile, keyFile)          # [公有] 启用 HTTPS 支持
 //     ├── is_ssl_enabled() const                 # [公有] 判断 TLS 是否已启用
 // ============================================================================
@@ -77,8 +75,6 @@ public:
     void add_post_route(const std::string& path, Handler handler);
     void add_head_route(const std::string& path, Handler handler);
     void add_prefix_route(const std::string& prefix, Handler handler);
-    void set_not_found_handler(Handler handler);
-    void set_method_not_allowed_handler(Handler handler);
     bool set_tls_mode(TlsMode mode); // 目前仅支持 MemoryBio；KernelTls 后续接入。
     bool enable_ssl(const std::string& certFile, const std::string& keyFile); // 在 start 前启用 HTTPS。
 
@@ -120,7 +116,7 @@ private:
     std::unordered_map<TcpConnection*, std::shared_ptr<ConnectionState>> connectionStates_;     // 每条连接持有独立解析/TLS 状态，查找后可安全脱锁使用。
     std::mutex contextsMutex_;                                                                  // 保护连接级状态映射。
 
-    HttpRouter router_;                                                                             // HTTP 路由器，统一持有精确路由、前缀路由与默认 404/405 策略。
+    HttpRouter router_;                                                                         // HTTP 路由器，统一持有精确路由、前缀路由与默认 404 策略。
 
     TlsMode tlsMode_;                                                                           // HTTPS 连接使用的 TLS 传输模式。
     std::unique_ptr<TlsConfig> tlsConfig_;                                                      // 全局 TLS 配置，持有证书与私钥。

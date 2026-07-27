@@ -41,7 +41,7 @@
 | RPC 能力     | JSON-RPC 2.0 文本协议；Protobuf 反射驱动的二进制 RPC；`UnifiedRpcServer` 可将同一 Service 同时暴露为两种协议     |
 | RPC 并发模型 | `BinaryRpcChannel` 以 `sequenceId` 匹配响应，支持单 TCP 长连接多线程多路复用；提供 Boost.Coroutine2 协程调用路径 |
 | I/O 优化     | `readv` + 64 KiB 栈缓冲接收；积压数据通过 `writev` 合并发送；明文静态文件通过 `sendfile` 发送                    |
-| 路由能力     | 支持 method + path 精确匹配、前缀路由兜底、自定义 404 / 405 处理器                                               |
+| 路由能力     | 支持 method + path 精确匹配、前缀路由兜底与默认 404 响应                                                         |
 | 定时与保活   | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连                                       |
 | 工程配套     | CMake 构建、单元测试、集成测试可执行程序、示例配置、架构与设计文档                                               |
 
@@ -462,7 +462,7 @@ python3 examples/JsonRpcServer/client.py
 - [docs/Channel 的 tie 机制：回调期间的生命周期护栏.md](./docs/Channel%20%E7%9A%84%20tie%20%E6%9C%BA%E5%88%B6%EF%BC%9A%E5%9B%9E%E8%B0%83%E6%9C%9F%E9%97%B4%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E6%8A%A4%E6%A0%8F.md)：Channel 与 TcpConnection 的生命周期护栏。
 - [docs/定时器队列设计：基于 Linux timerfd 和 std::map.md](./docs/%E5%AE%9A%E6%97%B6%E5%99%A8%E9%98%9F%E5%88%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E5%9F%BA%E4%BA%8E%20Linux%20timerfd%20%E5%92%8C%20std%3A%3Amap.md)：TimerQueue 的设计取舍。
 - [docs/心跳检测设计：三层防御体系与失活连接清理.md](./docs/%E5%BF%83%E8%B7%B3%E6%A3%80%E6%B5%8B%E8%AE%BE%E8%AE%A1%EF%BC%9A%E4%B8%89%E5%B1%82%E9%98%B2%E5%BE%A1%E4%BD%93%E7%B3%BB%E4%B8%8E%E5%A4%B1%E6%B4%BB%E8%BF%9E%E6%8E%A5%E6%B8%85%E7%90%86.md)：空闲检测与连接回收策略。
-- [docs/路由模块设计：高效的请求分发.md](./docs/%E8%B7%AF%E7%94%B1%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E9%AB%98%E6%95%88%E7%9A%84%E8%AF%B7%E6%B1%82%E5%88%86%E5%8F%91.md)：Router 的分发模型与约束。
+- [docs/http/路由模块设计：精确路由、前缀兜底与 404.md](./docs/http/%E8%B7%AF%E7%94%B1%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E7%B2%BE%E7%A1%AE%E8%B7%AF%E7%94%B1%E3%80%81%E5%89%8D%E7%BC%80%E5%85%9C%E5%BA%95%E4%B8%8E%20404.md)：Router 的分发模型与约束。
 - [docs/RPC 拆包粘包处理.md](./docs/RPC%20%E6%8B%86%E5%8C%85%E7%B2%98%E5%8C%85%E5%A4%84%E7%90%86.md)：二进制长度分帧与 JSON-RPC 换行定界。
 - [docs/RPC_multiplexing（binary）.md](./docs/RPC_multiplexing%EF%BC%88binary%EF%BC%89.md)：单连接多路复用、并发请求与响应匹配。
 - [docs/Buffer 设计：readv 栈缓冲、水平触发与一次读取策略.md](./docs/Buffer%20%E8%AE%BE%E8%AE%A1%EF%BC%9Areadv%20%E6%A0%88%E7%BC%93%E5%86%B2%E3%80%81%E6%B0%B4%E5%B9%B3%E8%A7%A6%E5%8F%91%E4%B8%8E%E4%B8%80%E6%AC%A1%E8%AF%BB%E5%8F%96%E7%AD%96%E7%95%A5.md)：readv/writev、LT 触发与发送路径。

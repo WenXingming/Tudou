@@ -27,7 +27,7 @@ TEST(HttpResponseTest, SetHeaderOverwritesExistingValue) {
     EXPECT_EQ(find_header(response, "Content-Type"), "application/json");
 }
 
-TEST(HttpResponseTest, PackageToStringSerializesStatusHeadersAndBody) {
+TEST(HttpResponseTest, SerializeToStringSerializesStatusHeadersAndBody) {
     HttpResponse response;
 
     response.set_http_version("HTTP/1.1");
@@ -36,7 +36,7 @@ TEST(HttpResponseTest, PackageToStringSerializesStatusHeadersAndBody) {
     response.set_header("Content-Length", "7");
     response.set_body("created");
 
-    const std::string packaged = response.package_to_string();
+    const std::string packaged = response.serialize_to_string();
 
     EXPECT_NE(packaged.find("HTTP/1.1 201 Created\r\n"), std::string::npos);
     EXPECT_NE(packaged.find("Content-Type: application/json\r\n"), std::string::npos);
@@ -44,27 +44,32 @@ TEST(HttpResponseTest, PackageToStringSerializesStatusHeadersAndBody) {
     EXPECT_NE(packaged.find("\r\n\r\ncreated"), std::string::npos);
 }
 
-TEST(HttpResponseTest, PackageToStringReflectsCloseConnectionContract) {
+TEST(HttpResponseTest, SerializeToStringReflectsCloseConnectionContract) {
     HttpResponse response;
 
     response.set_status(200, "OK");
-    response.set_close_connection(true);
+    response.set_header("Connection", "close");
     response.set_body("done");
 
-    const std::string packaged = response.package_to_string();
+    const std::string packaged = response.serialize_to_string();
 
     EXPECT_NE(packaged.find("Connection: close\r\n"), std::string::npos);
     EXPECT_NE(packaged.find("\r\n\r\ndone"), std::string::npos);
 }
 
-TEST(HttpResponseTest, PlainTextFactoryBuildsDefaultErrorShape) {
-    HttpResponse response = HttpResponse::plain_text(404, "Not Found", "Not Found");
+TEST(HttpResponseTest, ConnectionHeaderIsStoredAsRegularResponseHeader) {
+    HttpResponse response;
 
-    EXPECT_EQ(response.get_http_version(), "HTTP/1.1");
-    EXPECT_EQ(response.get_status_code(), 404);
-    EXPECT_EQ(response.get_status_message(), "Not Found");
-    EXPECT_EQ(response.get_body(), "Not Found");
-    EXPECT_EQ(find_header(response, "Content-Type"), "text/plain");
-    EXPECT_EQ(find_header(response, "Content-Length"), std::to_string(response.get_body().size()));
-    EXPECT_TRUE(response.get_close_connection());
+    response.set_header("Connection", "close");
+    EXPECT_EQ(find_header(response, "Connection"), "close");
+}
+
+TEST(HttpResponseTest, SerializeToStringAddsContentLengthWhenMissing) {
+    HttpResponse response;
+    response.set_body("created");
+
+    const std::string packaged = response.serialize_to_string();
+
+    EXPECT_FALSE(response.has_header("Content-Length"));
+    EXPECT_NE(packaged.find("Content-Length: 7\r\n"), std::string::npos);
 }

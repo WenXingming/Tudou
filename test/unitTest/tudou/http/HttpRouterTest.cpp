@@ -47,13 +47,13 @@ TEST(HttpRouterTest, DispatchUsesExactHandlerBeforePrefixFallback) {
     HttpRequest request = make_request("GET", "/users");
     HttpResponse response;
 
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::Matched);
+    router.dispatch(request, response);
     EXPECT_TRUE(exactCalled);
     EXPECT_FALSE(prefixCalled);
     EXPECT_EQ(response.get_body(), "exact");
 }
 
-TEST(HttpRouterTest, DispatchReturnsMethodNotAllowedBeforePrefixFallback) {
+TEST(HttpRouterTest, DispatchFallsBackToPrefixWhenExactPathUsesAnotherMethod) {
     HttpRouter router;
     bool prefixCalled = false;
 
@@ -67,15 +67,9 @@ TEST(HttpRouterTest, DispatchReturnsMethodNotAllowedBeforePrefixFallback) {
     HttpRequest request = make_request("DELETE", "/health");
     HttpResponse response;
 
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::MethodNotAllowed);
-    EXPECT_FALSE(prefixCalled);
-    EXPECT_EQ(response.get_status_code(), 405);
-    EXPECT_EQ(response.get_status_message(), "Method Not Allowed");
-    EXPECT_EQ(response.get_body(), "Method Not Allowed");
-    EXPECT_EQ(find_header(response, "Allow"), "GET, POST");
-    EXPECT_EQ(find_header(response, "Content-Type"), "text/plain");
-    EXPECT_EQ(find_header(response, "Content-Length"), std::to_string(response.get_body().size()));
-    EXPECT_TRUE(response.get_close_connection());
+    router.dispatch(request, response);
+    EXPECT_TRUE(prefixCalled);
+    EXPECT_EQ(response.get_status_code(), 200);
 }
 
 TEST(HttpRouterTest, DispatchUsesPrefixHandlerWhenExactRouteDoesNotExist) {
@@ -91,9 +85,20 @@ TEST(HttpRouterTest, DispatchUsesPrefixHandlerWhenExactRouteDoesNotExist) {
     HttpRequest request = make_request("GET", "/static/app.js");
     HttpResponse response;
 
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::Matched);
+    router.dispatch(request, response);
     EXPECT_TRUE(prefixCalled);
     EXPECT_EQ(response.get_body(), "asset");
+}
+
+TEST(HttpRouterTest, DispatchReturnsNotFoundWhenExactPathUsesAnotherMethod) {
+    HttpRouter router;
+    router.add_get_route("/health", [](const HttpRequest&, HttpResponse&) {});
+
+    HttpRequest request = make_request("DELETE", "/health");
+    HttpResponse response;
+
+    router.dispatch(request, response);
+    EXPECT_EQ(response.get_status_code(), 404);
 }
 
 TEST(HttpRouterTest, DispatchUsesFirstRegisteredPrefixHandlerWhenMultiplePrefixesMatch) {
@@ -114,7 +119,7 @@ TEST(HttpRouterTest, DispatchUsesFirstRegisteredPrefixHandlerWhenMultiplePrefixe
     HttpRequest request = make_request("GET", "/static/app.js");
     HttpResponse response;
 
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::Matched);
+    router.dispatch(request, response);
     EXPECT_EQ(matchedHandler, "first");
     EXPECT_EQ(response.get_body(), "first-prefix");
 }
@@ -125,52 +130,11 @@ TEST(HttpRouterTest, DispatchReturnsDefaultNotFoundResponseWhenNoRouteMatches) {
     HttpRequest request = make_request("GET", "/missing");
     HttpResponse response;
 
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::NotFound);
+    router.dispatch(request, response);
     EXPECT_EQ(response.get_http_version(), "HTTP/1.1");
     EXPECT_EQ(response.get_status_code(), 404);
     EXPECT_EQ(response.get_status_message(), "Not Found");
     EXPECT_EQ(response.get_body(), "Not Found");
     EXPECT_EQ(find_header(response, "Content-Type"), "text/plain");
-    EXPECT_EQ(find_header(response, "Content-Length"), std::to_string(response.get_body().size()));
-    EXPECT_TRUE(response.get_close_connection());
-}
-
-TEST(HttpRouterTest, DispatchUsesCustomNotFoundHandlerWhenProvided) {
-    HttpRouter router;
-    bool notFoundCalled = false;
-
-    router.set_not_found_handler([&](const HttpRequest&, HttpResponse& response) {
-        notFoundCalled = true;
-        response.set_status(410, "Gone");
-        response.set_body("custom-not-found");
-        });
-
-    HttpRequest request = make_request("GET", "/missing");
-    HttpResponse response;
-
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::NotFound);
-    EXPECT_TRUE(notFoundCalled);
-    EXPECT_EQ(response.get_status_code(), 410);
-    EXPECT_EQ(response.get_body(), "custom-not-found");
-}
-
-TEST(HttpRouterTest, DispatchUsesCustomMethodNotAllowedHandlerWhenProvided) {
-    HttpRouter router;
-    bool customHandlerCalled = false;
-
-    router.add_get_route("/health", [](const HttpRequest&, HttpResponse&) {});
-    router.set_method_not_allowed_handler([&](const HttpRequest&, HttpResponse& response) {
-        customHandlerCalled = true;
-        response.set_status(499, "Custom");
-        response.set_body("custom-method-not-allowed");
-        });
-
-    HttpRequest request = make_request("PATCH", "/health");
-    HttpResponse response;
-
-    EXPECT_EQ(router.dispatch(request, response), DispatchResult::MethodNotAllowed);
-    EXPECT_TRUE(customHandlerCalled);
-    EXPECT_EQ(response.get_status_code(), 499);
-    EXPECT_EQ(response.get_body(), "custom-method-not-allowed");
-    EXPECT_EQ(find_header(response, "Allow"), "");
+    EXPECT_EQ(find_header(response, "Connection"), "close");
 }

@@ -391,7 +391,7 @@ classDiagram
         -std::unordered_map~RouteKey, Handler~ exactRoutes_
         -std::vector~PrefixRoute~ prefixRoutes_
         
-        +dispatch(req, resp) DispatchResult
+        +dispatch(req, resp) void
         +add_route(method, path, handler)
         +add_prefix_route(prefix, handler)
         -find_exact_handler(req)

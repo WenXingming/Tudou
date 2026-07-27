@@ -1,17 +1,14 @@
 // ============================================================================
-// HTTP 响应 DTO 实现，线性执行“状态行 -> 头部 -> 空行 -> body”序列化。
+// HTTP 响应消息，保存状态行、Header、Body 并生成完整报文。
+// 由 Router/Handler 构建，HttpServer 经 TCP/TLS 发送；不管理套接字或 TLS。
 // ============================================================================
 
 #include "tudou/http/HttpResponse.h"
+#include "HttpResponse.h"
 
 namespace {
 
-constexpr char kConnectionHeader[] = "Connection";
-constexpr char kCloseConnectionValue[] = "close";
-constexpr char kHttpVersion[] = "HTTP/1.1";
-constexpr char kContentTypeHeader[] = "Content-Type";
 constexpr char kContentLengthHeader[] = "Content-Length";
-constexpr char kPlainTextContentType[] = "text/plain";
 
 } // namespace
 
@@ -20,39 +17,11 @@ HttpResponse::HttpResponse() :
     statusCode_(200),
     statusMessage_("OK"),
     headers_(),
-    body_(),
-    closeConnection_(false) {
-
+    body_() {
 }
 
-HttpResponse HttpResponse::plain_text(int statusCode,
-    const std::string& statusMessage,
-    const std::string& body) {
-    HttpResponse response;
-    response.set_http_version(kHttpVersion);
-    response.set_status(statusCode, statusMessage);
-    response.set_body(body);
-    response.set_header(kContentTypeHeader, kPlainTextContentType);
-    response.set_header(kContentLengthHeader, std::to_string(body.size()));
-    response.set_close_connection(true);
-    return response;
-}
-
-void HttpResponse::set_header(const std::string& field, const std::string& value) {
-    // 同名响应头以后写入值为准，保持 DTO 的覆盖语义稳定。
-    headers_[field] = value;
-}
-
-bool HttpResponse::has_header(const std::string& field) const {
-    return headers_.find(field) != headers_.end();
-}
-
-void HttpResponse::set_body(const std::string& body) {
-    body_ = body;
-}
-
-std::string HttpResponse::package_to_string() const {
-    // package_to_string 是响应 DTO 的唯一出口，负责把字段状态转换成完整协议报文。
+std::string HttpResponse::serialize_to_string() const {
+    // serialize_to_string 是响应对象的唯一出口，负责把字段状态转换成完整协议报文。
     std::string result;
     result.reserve(128 + body_.size());
 
@@ -60,6 +29,24 @@ std::string HttpResponse::package_to_string() const {
     append_headers(result);
     append_body(result);
     return result;
+}
+
+void HttpResponse::set_status(int _code, const std::string& _message) {
+    statusCode_ = _code;
+    statusMessage_ = _message;
+}
+
+void HttpResponse::set_header(const std::string& field, const std::string& value) {
+    // 同名响应头以后写入值为准，保持 DTO 的覆盖语义稳定。
+    headers_[field] = value;
+}
+
+void HttpResponse::set_body(const std::string& body) {
+    body_ = body;
+}
+
+bool HttpResponse::has_header(const std::string& field) const {
+    return headers_.find(field) != headers_.end();
 }
 
 void HttpResponse::append_status_line(std::string& output) const {
@@ -81,11 +68,10 @@ void HttpResponse::append_headers(std::string& output) const {
         output.append("\r\n");
     }
 
-    // closeConnection_ 是显式协议意图，不应该在序列化时悄悄丢失。
-    if (closeConnection_ && !has_header(kConnectionHeader)) {
-        output.append(kConnectionHeader);
+    if (!has_header(kContentLengthHeader)) {
+        output.append(kContentLengthHeader);
         output.append(": ");
-        output.append(kCloseConnectionValue);
+        output.append(std::to_string(body_.size()));
         output.append("\r\n");
     }
 }
