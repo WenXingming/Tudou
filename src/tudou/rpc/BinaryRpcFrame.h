@@ -1,5 +1,5 @@
 /**
- * @file Protocol.h
+ * @file BinaryRpcFrame.h
  * @brief Tudou 二进制 RPC 协议帧结构定义
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
@@ -24,6 +24,10 @@
  * |          Body Payload (Variable length, Body Length)          |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
+ * ┌─────────────────────────┬──────────────────────┬──────────────────────┐
+ * │  20 Byte Header         │  RpcMeta (Meta Data) │  Business Body（参数）│
+ * │ (sequenceId, sizes...)  │ (service_name/method)│ (Protobuf Request)   │
+ * └─────────────────────────┴──────────────────────┴──────────────────────┘
  * Note: High-fidelity image layout is saved in:
  * docs/tudou_rpc_protocol.jpg
  */

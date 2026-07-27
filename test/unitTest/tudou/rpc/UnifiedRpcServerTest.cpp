@@ -7,9 +7,9 @@
 
 #include <gtest/gtest.h>
 #include "tudou/rpc/UnifiedRpcServer.h"
-#include "tudou/rpc/binary/BinaryRpcChannel.h"
-#include "tudou/rpc/json/JsonRpcClient.h"
-#include "binary_rpc.pb.h"
+#include "tudou/rpc/BinaryRpcChannel.h"
+#include "tudou/rpc/JsonRpcClient.h"
+#include "BinaryRpc.pb.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>

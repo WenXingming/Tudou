@@ -1,13 +1,14 @@
-/**
- * @file BinaryRpcServer.cpp
- * @brief 基于二进制 RPC 协议的二进制 TCP 服务端实现
- * @author wenxingming
- * @project: https://github.com/WenXingming/Tudou
- */
+// ============================================================================
+// BinaryRpcServer 负责连接级字节流处理：追加到连接 Buffer、逐帧解码、路由
+// 完整请求，并把响应编码后写回。业务方法和 Protobuf 反射由 Router 负责。
+// ============================================================================
 
 #include "BinaryRpcServer.h"
-#include "tudou/rpc/binary/BinaryRpcCodec.h"
-#include "binary_rpc.pb.h"
+#include "tudou/rpc/BinaryRpcCodec.h"
+#include "BinaryRpc.pb.h"
+
+#include <utility>
+
 #include <spdlog/spdlog.h>
 
 namespace tudou {
@@ -15,17 +16,19 @@ namespace rpc {
 namespace binary {
 
 BinaryRpcServer::BinaryRpcServer(const std::string& ip, uint16_t port, int numThreads)
-    : tcpServer_(std::make_unique<TcpServer>(ip, port, numThreads > 0 ? numThreads - 1 : 0)) {
-    
-    tcpServer_->set_connection_callback([this](const TcpConnectionPtr& conn) {
+    : tcpServer_(ip, port, numThreads > 0 ? numThreads - 1 : 0),
+      router_(),
+      connectionMutex_(),
+      connectionBuffers_() {
+    tcpServer_.set_connection_callback([this](const TcpConnectionPtr& conn) {
         on_connection(conn);
     });
-    
-    tcpServer_->set_message_callback([this](const TcpConnectionPtr& conn) {
+
+    tcpServer_.set_message_callback([this](const TcpConnectionPtr& conn) {
         on_message(conn);
     });
-    
-    tcpServer_->set_close_callback([this](const TcpConnectionPtr& conn) {
+
+    tcpServer_.set_close_callback([this](const TcpConnectionPtr& conn) {
         on_close(conn);
     });
 }
@@ -33,16 +36,16 @@ BinaryRpcServer::BinaryRpcServer(const std::string& ip, uint16_t port, int numTh
 BinaryRpcServer::~BinaryRpcServer() = default;
 
 void BinaryRpcServer::start() {
-    tcpServer_->start();
-    spdlog::info("BinaryRpcServer: Started listening on {}:{}", tcpServer_->get_ip(), tcpServer_->get_port());
+    spdlog::info("BinaryRpcServer: Starting listener on {}:{}", tcpServer_.get_ip(), tcpServer_.get_port());
+    tcpServer_.start();
 }
 
 void BinaryRpcServer::stop() {
-    tcpServer_->stop();
+    tcpServer_.stop();
 }
 
 uint16_t BinaryRpcServer::get_listen_port() const {
-    return tcpServer_->get_port();
+    return tcpServer_.get_port();
 }
 
 void BinaryRpcServer::register_service(std::shared_ptr<google::protobuf::Service> service) {
@@ -60,13 +63,17 @@ void BinaryRpcServer::on_message(const TcpConnectionPtr& conn) {
         return;
     }
 
-    // 获取并追加新数据入连接关联缓存
-    std::string& cache = connectionBuffers_[conn.get()];
-    cache.append(data);
-
-    // 载入临时解包 Buffer
-    Buffer buf;
-    buf.write_to_buffer(cache.data(), cache.size());
+    // 连接表需要跨 IO 线程同步；同一连接的 Buffer 只在所属 IO 线程中解析。
+    std::shared_ptr<Buffer> buffer;
+    {
+        std::lock_guard<std::mutex> lock(connectionMutex_);
+        std::shared_ptr<Buffer>& connectionBuffer = connectionBuffers_[conn.get()];
+        if (!connectionBuffer) {
+            connectionBuffer = std::make_shared<Buffer>();
+        }
+        buffer = connectionBuffer;
+    }
+    buffer->write_to_buffer(data);
 
     RpcHeader header;
     std::string metaRaw;
@@ -74,7 +81,7 @@ void BinaryRpcServer::on_message(const TcpConnectionPtr& conn) {
     bool hasCorruptFrame = false;
 
     while (true) {
-        BinaryRpcCodec::DecodeResult result = BinaryRpcCodec::decode(&buf, header, metaRaw, bodyRaw);
+        BinaryRpcCodec::DecodeResult result = BinaryRpcCodec::decode(buffer.get(), header, metaRaw, bodyRaw);
         
         if (result == BinaryRpcCodec::DecodeResult::Success) {
             // 反序列化 RPC 元信息
@@ -113,16 +120,17 @@ void BinaryRpcServer::on_message(const TcpConnectionPtr& conn) {
     }
 
     if (hasCorruptFrame) {
+        {
+            std::lock_guard<std::mutex> lock(connectionMutex_);
+            connectionBuffers_.erase(conn.get());
+        }
         conn->force_close();
-        connectionBuffers_.erase(conn.get());
-    } else {
-        // 保存未消费的半包流数据
-        cache = buf.read_from_buffer();
     }
 }
 
 void BinaryRpcServer::on_close(const TcpConnectionPtr& conn) {
     spdlog::info("BinaryRpcServer: Client disconnected, fd={}", conn->get_fd());
+    std::lock_guard<std::mutex> lock(connectionMutex_);
     connectionBuffers_.erase(conn.get());
 }
 

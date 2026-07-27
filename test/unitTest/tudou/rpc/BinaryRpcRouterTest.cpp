@@ -6,7 +6,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/binary/BinaryRpcRouter.h"
+#include "tudou/rpc/BinaryRpcRouter.h"
 #include "test.pb.h"
 
 namespace tudou {

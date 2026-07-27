@@ -6,8 +6,8 @@
  */
 
 #include "UnifiedRpcServer.h"
-#include "tudou/rpc/binary/BinaryRpcServer.h"
-#include "tudou/rpc/json/JsonRpcServer.h"
+#include "tudou/rpc/BinaryRpcServer.h"
+#include "tudou/rpc/JsonRpcServer.h"
 #include <google/protobuf/util/json_util.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>

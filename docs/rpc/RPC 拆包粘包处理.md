@@ -20,7 +20,7 @@ TCP 没有消息边界，RPC 必须在应用层定义帧格式。Tudou 的二进
 
 ### Binary RPC：固定头部加长度字段
 
-每个二进制帧包含 20 字节固定头部：
+每个二进制帧由 **20 字节固定头部 + RpcMeta (元数据) + Business Body (业务载荷)** 组成：
 
 | 字段 | 长度 | 作用 |
 | :--- | :--- | :--- |
@@ -30,6 +30,11 @@ TCP 没有消息边界，RPC 必须在应用层定义帧格式。Tudou 的二进
 | `sequenceId` | 8 | 匹配一次调用 |
 | `metaLen` | 4 | Meta 长度 |
 | `bodyLen` | 4 | Body 长度 |
+
+- **RpcMeta (`BinaryRpc.proto`)**：包含 `service_name` 和 `method_name`，由服务端 `BinaryRpcRouter` 用于路由分发。
+- **Business Body (业务载荷)**：
+  - **请求包**：存放 RPC 函数的**输入参数**（Protobuf Request 序列化流）。
+  - **响应包**：存放 RPC 函数的**返回值**（Protobuf Response 序列化流）。
 
 服务端为每条连接保存输入缓冲区，解码器按以下顺序判断：
 
@@ -103,3 +108,7 @@ TCP 只提供字节流，不提供消息边界。RPC 必须通过长度字段或
 ## Q3：二进制协议和 JSON-RPC 为什么采用不同分帧方式？
 
 二进制协议适合固定头部和长度字段，解析高效；文本 JSON-RPC 使用换行符简单明确，便于调试和实现。
+
+## Q4：二进制 RPC 中 Protocol / Frame 头部的 RpcMeta 是必须的吗？
+
+是的。因为 Protobuf 序列化后的 Body 自身没有 `service` 和 `method` 标识。必须在应用层显式传输包含 `service_name` 和 `method_name` 的 `RpcMeta`，服务端才能完成反射反序列化与路由回调。采用 Protobuf 表达 `RpcMeta` 还能带来极佳的前向兼容性，方便后续平滑扩充 `trace_id`、`timeout_ms` 等元数据能力。

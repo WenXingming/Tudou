@@ -15,7 +15,7 @@
 #include <thread>
 #include <atomic>
 #include <memory>
-#include "tudou/rpc/Coroutine.h"
+#include "tudou/rpc/BinaryRpcCoroutine.h"
 #include "tudou/tcp/Buffer.h"
 
 class Channel;
@@ -61,7 +61,7 @@ private:
     struct ResponseContext {
         google::protobuf::Message* response;
         std::promise<void> promise;
-        std::shared_ptr<Coroutine> coroutine; // 关联的协程上下文
+        std::shared_ptr<BinaryRpcCoroutine> coroutine; // 关联的协程上下文
         std::exception_ptr exception;         // 缓存的异常指针
     };
 

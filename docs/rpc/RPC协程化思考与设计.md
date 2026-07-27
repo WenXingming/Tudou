@@ -100,11 +100,11 @@
 
 class EventLoop;
 
-class Coroutine : public std::enable_shared_from_this<Coroutine> {
+class BinaryRpcCoroutine : public std::enable_shared_from_this<BinaryRpcCoroutine> {
 public:
     using coro_t = boost::coroutines2::coroutine<void>;
 
-    Coroutine(EventLoop* loop, std::function<void()> func)
+    BinaryRpcCoroutine(EventLoop* loop, std::function<void()> func)
         : loop_(loop), func_(std::move(func)) {
       
         pull_ = std::make_unique<coro_t::pull_type>(
@@ -115,7 +115,7 @@ public:
                 // 确保外部有足够时间安全构建 std::shared_ptr 并允许后续安全使用 shared_from_this()
                 (*push_)();
               
-                Coroutine* saved = t_current_coroutine;
+                BinaryRpcCoroutine* saved = t_current_coroutine;
                 t_current_coroutine = this;
               
                 if (func_) {
@@ -129,7 +129,7 @@ public:
 
     void resume() {
         if (pull_ && *pull_) {
-            Coroutine* saved = t_current_coroutine;
+            BinaryRpcCoroutine* saved = t_current_coroutine;
             t_current_coroutine = this;
             (*pull_)();
             t_current_coroutine = saved;
@@ -138,7 +138,7 @@ public:
 
     void yield() {
         if (push_) {
-            Coroutine* saved = t_current_coroutine;
+            BinaryRpcCoroutine* saved = t_current_coroutine;
             t_current_coroutine = nullptr;
             (*push_)();
             t_current_coroutine = saved;
@@ -148,7 +148,7 @@ public:
     EventLoop* get_loop() const { return loop_; }
 
 public:
-    static thread_local Coroutine* t_current_coroutine;
+    static thread_local BinaryRpcCoroutine* t_current_coroutine;
 
 private:
     EventLoop* loop_;
@@ -158,7 +158,7 @@ private:
 };
 
 // 初始化静态线程局部变量
-thread_local Coroutine* Coroutine::t_current_coroutine = nullptr;
+thread_local BinaryRpcCoroutine* BinaryRpcCoroutine::t_current_coroutine = nullptr;
 ```
 
 ---
@@ -192,7 +192,7 @@ void BinaryRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* meth
     auto context = std::make_shared<ResponseContext>();
     context->response = response;
 
-    Coroutine* cur_coro = Coroutine::t_current_coroutine;
+    BinaryRpcCoroutine* cur_coro = BinaryRpcCoroutine::t_current_coroutine;
 
     if (cur_coro != nullptr && loop_ != nullptr) {
         // ───────────────── 【路径一：协程非阻塞模式】 ─────────────────
@@ -428,8 +428,8 @@ void BinaryRpcChannel::cleanup_pending_requests(const std::string& reason) {
    * 默认情况下，Boost 在 Linux x64 下分配 64KB/128KB 左右的栈。对于大部分 RPC 业务场景，这已经绰绰有余。
    * 可以通过 `boost::coroutines2::fixedsize_stack` 构造函数来自定义栈尺寸，例如在高并发小负载场景下设定为 `16KB`，以节约内存。
 2. **生命周期管理**：
-   * `Coroutine` 的生命周期由 `std::shared_ptr` 控制。
-   * 发起 RPC 时，`ResponseContext` 共享一份指向 `Coroutine` 的 `shared_ptr`，这防止了当协程挂起时，协程实例被过早销毁。
+   * `BinaryRpcCoroutine` 的生命周期由 `std::shared_ptr` 控制。
+   * 发起 RPC 时，`ResponseContext` 共享一份指向 `BinaryRpcCoroutine` 的 `shared_ptr`，这防止了当协程挂起时，协程实例被过早销毁。
 3. **平台寄存器保存**：
    * `Boost.Context` 在内核做切换时，只保存必不可少的 CPU 寄存器（在 x86_64 上为 8 个通用寄存器和 FPU 状态），开销大约为 **10~20 纳秒**。与系统级的线程切换（几微秒 + 核心态切入）相比，提升了 **2 个数量级**。
 
@@ -440,15 +440,15 @@ void BinaryRpcChannel::cleanup_pending_requests(const std::string& reason) {
 ```mermaid
 sequenceDiagram
     autonumber
-    participant App as 业务协程 (Coroutine)
+    participant App as 业务协程 (BinaryRpcCoroutine)
     participant Loop as 原属 Reactor 线程 (EventLoop)
     participant Channel as BinaryRpcChannel
     participant Epoll as 系统 Epoll / Reactor
 
-    Note over App, Loop: 1. 业务调用被包裹在 Coroutine 中执行
+    Note over App, Loop: 1. 业务调用被包裹在 BinaryRpcCoroutine 中执行
     App->>Channel: 调用 stub.Echo(request, &response)
     Note over Channel: 检测到当前处于协程上下文 (t_current_coroutine != nullptr)
-    Channel->>Channel: 保存 seq 并绑定该 Coroutine 到 context 映射表
+    Channel->>Channel: 保存 seq 并绑定该 BinaryRpcCoroutine 到 context 映射表
     Channel->>Epoll: 尝试非阻塞写入，并确保 fd 在 Epoll 注册了读事件
     Channel->>App: 调用 coro->yield() 挂起当前协程
     Note over App: 协程挂起，CPU 控制权交还给原属 EventLoop 线程
@@ -487,32 +487,32 @@ sequenceDiagram
 在设计中，我们定义了静态线程局部变量：
 
 ```cpp
-static thread_local Coroutine* t_current_coroutine;
+static thread_local BinaryRpcCoroutine* t_current_coroutine;
 ```
 
 有人会误以为“只有一个全局/线程局部变量，是不是只能在两个协程之间互相切换，不能支持任意多的协程并发？”。
 
 这是一个典型的认知混淆。`t_current_coroutine` **不是用来保存协程上下文的容器**，它仅仅是一个**“路标（Marker）”**：
 
-1. **路标的作用**：它永远指向“当前 CPU 正在执行的那个 `Coroutine` 对象实例”。当底层 RPC 框架在 `CallMethod` 中需要挂起自身时，它通过这个路标找到当前协程，将其存入映射表并执行挂起。
+1. **路标的作用**：它永远指向“当前 CPU 正在执行的那个 `BinaryRpcCoroutine` 对象实例”。当底层 RPC 框架在 `CallMethod` 中需要挂起自身时，它通过这个路标找到当前协程，将其存入映射表并执行挂起。
 2. **切换时的更新**：当协程挂起或切换时，这个路标会动态改写，指向新运行的协程（或在主线程运行非协程代码时置为 `nullptr`）。
 
 ---
 
 ### B. 真正的上下文存储：实例化的有栈协程空间
 
-每一个 `Coroutine` 实例对象，都在堆内存中保存着自己专属的执行上下文和栈空间：
+每一个 `BinaryRpcCoroutine` 实例对象，都在堆内存中保存着自己专属的执行上下文和栈空间：
 
-1. **独立的协程栈**：每当我们 `new Coroutine` 时，`Boost.Coroutine2` 都会在堆上为这个协程分配独立的内存栈空间（例如默认 64KB）。
+1. **独立的协程栈**：每当我们 `new BinaryRpcCoroutine` 时，`Boost.Coroutine2` 都会在堆上为这个协程分配独立的内存栈空间（例如默认 64KB）。
 2. **独立的寄存器上下文**：每个协程对象拥有自己独立的 `pull_type` 实例。当执行 `yield()` 挂起时，底层 `Boost.Context` 的汇编代码会把 CPU 当前的所有核心寄存器状态（在 x86_64 下为 RIP, RSP, RBP 及通用寄存器）直接压入**这个协程自己专属的栈顶**保存。
-3. **任意切换**：如果有 1000 个并发 of RPC 请求挂起，内存中就会有 1000 个独立的 `Coroutine` 实例。它们各自的寄存器和栈帧状态都处于隔离保存状态。当网络收到 `seq = 102` 的回包时，网络线程只需通过映射表提取 `Coroutine B`，并调用 `B->resume()`。此时 CPU 会把寄存器状态从 `B` 的独立栈中读出并覆盖到 CPU 寄存器上，执行流即刻无缝跳回 `B` 挂起点继续执行。其他 999 个协程继续在各自的内存中静止，互不干扰。
+3. **任意切换**：如果有 1000 个并发 of RPC 请求挂起，内存中就会有 1000 个独立的 `BinaryRpcCoroutine` 实例。它们各自的寄存器和栈帧状态都处于隔离保存状态。当网络收到 `seq = 102` 的回包时，网络线程只需通过映射表提取 `BinaryRpcCoroutine B`，并调用 `B->resume()`。此时 CPU 会把寄存器状态从 `B` 的独立栈中读出并覆盖到 CPU 寄存器上，执行流即刻无缝跳回 `B` 挂起点继续执行。其他 999 个协程继续在各自的内存中静止，互不干扰。
 
 ---
 
 ## 9. 原始同步阻塞多线程设计 vs 协程非阻塞 I/O 设计对比
 
 
-| 维度               | 原始同步阻塞多线程设计 (`future.get()`)                                                                       | 协程非阻塞 I/O 设计 (`Coroutine + Epoll`)                                                                                |
+| 维度               | 原始同步阻塞多线程设计 (`future.get()`)                                                                       | 协程非阻塞 I/O 设计 (`BinaryRpcCoroutine + Epoll`)                                                                                |
 | :------------------- | :-------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
 | **线程模型**       | 每个客户端信道强行拉起一个**后台专职接收解包线程**（`receiverThread_`），调用线程因 `future.get()` 挂起阻塞。 | **零额外工作线程**。客户端直接包装 Socket 为 `Channel`，注册到当前线程已有的 `EventLoop` 中，完全复用现有 Reactor 线程。 |
 | **网络 I/O 模型**  | 采用阻塞套接字（Blocking Socket），读/写操作均可能会在内核态卡死当前 OS 线程。                                | 采用非阻塞套接字（`SOCK_NONBLOCK`），由 Linux `epoll` 边缘触发驱动，读写完全异步。                                       |
@@ -535,7 +535,7 @@ static thread_local Coroutine* t_current_coroutine;
 
 ### 步骤 1：业务协程启动 (Coroutine Spawn)
 
-1. 业务层将核心调用逻辑打包至 `lambda`，并通过智能指针创建协程实例 `auto coro = std::make_shared<Coroutine>(&loop, lambda)`。
+1. 业务层将核心调用逻辑打包至 `lambda`，并通过智能指针创建协程实例 `auto coro = std::make_shared<BinaryRpcCoroutine>(&loop, lambda)`。
 2. **生命周期保护**：协程构造时会立刻调用 `(*push_)()` 挂起自己，向外返回 fully constructed 的 `shared_ptr`，彻底消除 `shared_from_this()` 的生命周期竞争隐患。
 3. 外部执行 `coro->resume()` 启动该协程，进入 lambda 业务逻辑跑在 `EventLoop` 线程上。
 

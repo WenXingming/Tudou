@@ -6,9 +6,9 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/binary/BinaryRpcServer.h"
-#include "tudou/rpc/binary/BinaryRpcCodec.h"
-#include "binary_rpc.pb.h"
+#include "tudou/rpc/BinaryRpcServer.h"
+#include "tudou/rpc/BinaryRpcCodec.h"
+#include "BinaryRpc.pb.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>

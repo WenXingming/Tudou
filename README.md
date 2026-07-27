@@ -446,7 +446,7 @@ cmake --build build-all --target jsonrpc-server -j2
 python3 examples/JsonRpcServer/client.py
 ```
 
-二进制 RPC 的协议定义位于 [binary_rpc.proto](./src/tudou/rpc/binary/binary_rpc.proto)。它以 `20 B` 固定头、Meta 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应；`UnifiedRpcServer` 可将同一 Protobuf Service 同时注册到 Binary RPC 与 JSON-RPC 路由。
+二进制 RPC 的协议定义位于 [BinaryRpc.proto](./src/tudou/rpc/BinaryRpc.proto)。它以 `20 B` 固定头、Meta 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应；`UnifiedRpcServer` 可将同一 Protobuf Service 同时注册到 Binary RPC 与 JSON-RPC 路由。
 
 <a id="文档导航"></a>
 

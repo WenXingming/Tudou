@@ -1,5 +1,5 @@
 /**
- * @file Coroutine.h
+ * @file BinaryRpcCoroutine.h
  * @brief 基于 Boost.Coroutine2 的有栈协程上下文封装
  * @author wenxingming
  * @project: https://github.com/WenXingming/Tudou
@@ -15,8 +15,9 @@ class EventLoop;
 
 namespace tudou {
 namespace rpc {
+namespace binary {
 
-class Coroutine : public std::enable_shared_from_this<Coroutine> {
+class BinaryRpcCoroutine : public std::enable_shared_from_this<BinaryRpcCoroutine> {
 public:
     using coro_t = boost::coroutines2::coroutine<void>;
 
@@ -25,16 +26,16 @@ public:
      * @param loop 协程所在的 EventLoop 线程指针
      * @param func 协程要运行的函数体
      */
-    Coroutine(EventLoop* loop, std::function<void()> func);
+    BinaryRpcCoroutine(EventLoop* loop, std::function<void()> func);
     
     /**
      * @brief 析构函数
      */
-    ~Coroutine();
+    ~BinaryRpcCoroutine();
 
     // 禁用拷贝构造和赋值
-    Coroutine(const Coroutine&) = delete;
-    Coroutine& operator=(const Coroutine&) = delete;
+    BinaryRpcCoroutine(const BinaryRpcCoroutine&) = delete;
+    BinaryRpcCoroutine& operator=(const BinaryRpcCoroutine&) = delete;
 
     /**
      * @brief 恢复运行该协程（从上一个 yield 挂起点继续向下）
@@ -53,7 +54,7 @@ public:
 
 public:
     // 线程局部变量：当前正在运行的协程实例指针
-    static thread_local Coroutine* t_current_coroutine;
+    static thread_local BinaryRpcCoroutine* t_current_coroutine;
 
 private:
     EventLoop* loop_;
@@ -62,5 +63,6 @@ private:
     coro_t::push_type* push_ = nullptr;
 };
 
+} // namespace binary
 } // namespace rpc
 } // namespace tudou

@@ -8,16 +8,17 @@ RPC 层在 TCP/Buffer 之上提供 JSON-RPC 和基于 Protobuf 的二进制 RPC�
 
 ```text
 src/tudou/rpc/
-  Coroutine.*
   UnifiedRpcServer.*
   binary/
+    BinaryRpcFrame.*
+    BinaryRpcCoroutine.*
   json/
 ```
 
 协议子模块入口：
 
 - [Binary RPC](<binary/README.md>)
-- [JSON RPC](<json/README.md>)
+- [JSON RPC](<JSON-RPC 设计与实现：分帧、粘包拆包与协议路由.md>)
 
 ## 核心流程
 

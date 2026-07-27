@@ -9,7 +9,7 @@
 
 #include <string>
 #include "tudou/tcp/Buffer.h"
-#include "Protocol.h"
+#include "tudou/rpc/BinaryRpcFrame.h"
 
 namespace tudou {
 namespace rpc {

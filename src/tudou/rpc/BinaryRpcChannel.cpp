@@ -6,10 +6,10 @@
  */
 
 #include "BinaryRpcChannel.h"
-#include "tudou/rpc/binary/BinaryRpcCodec.h"
+#include "tudou/rpc/BinaryRpcCodec.h"
 #include "tudou/reactor/Channel.h"
 #include "tudou/reactor/EventLoop.h"
-#include "binary_rpc.pb.h"
+#include "BinaryRpc.pb.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -117,7 +117,7 @@ void BinaryRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* meth
     auto context = std::make_shared<ResponseContext>();
     context->response = response;
 
-    Coroutine* cur_coro = Coroutine::t_current_coroutine;
+    BinaryRpcCoroutine* cur_coro = BinaryRpcCoroutine::t_current_coroutine;
 
     if (cur_coro != nullptr && loop_ != nullptr) {
         // ───────────────── 【路径一：协程非阻塞模式】 ─────────────────

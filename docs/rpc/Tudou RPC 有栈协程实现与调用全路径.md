@@ -36,7 +36,7 @@ use(response);
 ```cpp
 pendingRequests_[seq] = context;
 write_request_nonblocking();
-Coroutine::t_current_coroutine->yield(); // 只挂起用户态协程
+BinaryRpcCoroutine::t_current_coroutine->yield(); // 只挂起用户态协程
 use(response);                           // 回包后从这里继续
 ```
 
@@ -67,7 +67,7 @@ void business() {
 如果 `rpc_call()` 阻塞，整个线程都被卡住。有栈协程会给这段执行流一块独立的协程栈：
 
 ```text
-OS 线程栈                 Coroutine A 栈
+OS 线程栈                 BinaryRpcCoroutine A 栈
 ├─ EventLoop 回调帧       ├─ business() 的 x
 ├─ epoll 回调帧            ├─ rpc_call() 的返回位置
 └─ resume() 调用帧         └─ yield() 保存的执行现场
@@ -79,7 +79,7 @@ Tudou 使用 Boost.Coroutine2；Boost.Context 负责底层上下文切换，Tudo
 
 ---
 
-## 4. `Coroutine` 封装如何工作
+## 4. `BinaryRpcCoroutine` 封装如何工作
 
 ### 4.1 pull/push 的直觉
 
@@ -100,7 +100,7 @@ coro_t::push_type* push_ = nullptr;
 实际代码的关键部分：
 
 ```cpp
-Coroutine::Coroutine(EventLoop* loop, std::function<void()> func)
+BinaryRpcCoroutine::BinaryRpcCoroutine(EventLoop* loop, std::function<void()> func)
     : loop_(loop), func_(std::move(func)) {
     pull_ = std::make_unique<coro_t::pull_type>(
         [this](coro_t::push_type& yield) {
@@ -109,7 +109,7 @@ Coroutine::Coroutine(EventLoop* loop, std::function<void()> func)
             // 构造函数还未返回，先把控制权还回去
             (*push_)();
 
-            Coroutine* saved = t_current_coroutine;
+            BinaryRpcCoroutine* saved = t_current_coroutine;
             t_current_coroutine = this;
             if (func_) {
                 func_();
@@ -119,15 +119,15 @@ Coroutine::Coroutine(EventLoop* loop, std::function<void()> func)
 }
 ```
 
-创建 `pull_type` 会立即进入 lambda。此时 `Coroutine` 对象可能还没有完成构造，外部的 `shared_ptr` 也还没有稳定建立。如果直接运行 `func_()`，其中调用 `shared_from_this()` 就有风险。
+创建 `pull_type` 会立即进入 lambda。此时 `BinaryRpcCoroutine` 对象可能还没有完成构造，外部的 `shared_ptr` 也还没有稳定建立。如果直接运行 `func_()`，其中调用 `shared_from_this()` 就有风险。
 
 因此第一次 `(*push_)()` 的含义是：
 
 ```text
-make_shared<Coroutine>()
+make_shared<BinaryRpcCoroutine>()
   → 进入协程 lambda
   → push() 立即返回
-  → Coroutine 构造完成
+  → BinaryRpcCoroutine 构造完成
   → 外部第一次 resume()
   → 从 func_() 开始真正运行
 ```
@@ -135,18 +135,18 @@ make_shared<Coroutine>()
 ### 4.3 resume 和 yield
 
 ```cpp
-void Coroutine::resume() {
+void BinaryRpcCoroutine::resume() {
     if (pull_ && *pull_) {
-        Coroutine* saved = t_current_coroutine;
+        BinaryRpcCoroutine* saved = t_current_coroutine;
         t_current_coroutine = this;
         (*pull_)();                 // 从上次暂停点继续
         t_current_coroutine = saved;
     }
 }
 
-void Coroutine::yield() {
+void BinaryRpcCoroutine::yield() {
     if (push_) {
-        Coroutine* saved = t_current_coroutine;
+        BinaryRpcCoroutine* saved = t_current_coroutine;
         t_current_coroutine = nullptr;
         (*push_)();                 // 切回外部调用者
         t_current_coroutine = saved;
@@ -166,7 +166,7 @@ void Coroutine::yield() {
 EventLoop loop;
 BinaryRpcChannel channel(&loop, "127.0.0.1", port);
 
-auto coro = std::make_shared<Coroutine>(&loop, [&]() {
+auto coro = std::make_shared<BinaryRpcCoroutine>(&loop, [&]() {
     TestEchoService_Stub stub(&channel);
     EchoRequest req;
     req.set_message("hello coroutine");
@@ -257,7 +257,7 @@ EventLoop → coro->resume()
 struct ResponseContext {
     Message* response;
     std::promise<void> promise;       // 线程版使用
-    std::shared_ptr<Coroutine> coroutine; // 协程版使用
+    std::shared_ptr<BinaryRpcCoroutine> coroutine; // 协程版使用
     std::exception_ptr exception;
 };
 ```

@@ -6,7 +6,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/binary/BinaryRpcCodec.h"
+#include "tudou/rpc/BinaryRpcCodec.h"
 
 using namespace tudou;
 using namespace tudou::rpc::binary;

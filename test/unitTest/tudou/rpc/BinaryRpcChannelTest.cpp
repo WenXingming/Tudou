@@ -6,11 +6,11 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/binary/BinaryRpcServer.h"
-#include "tudou/rpc/binary/BinaryRpcChannel.h"
+#include "tudou/rpc/BinaryRpcServer.h"
+#include "tudou/rpc/BinaryRpcChannel.h"
 #include "tudou/reactor/EventLoop.h"
-#include "tudou/rpc/Coroutine.h"
-#include "binary_rpc.pb.h"
+#include "tudou/rpc/BinaryRpcCoroutine.h"
+#include "BinaryRpc.pb.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>
@@ -189,7 +189,7 @@ TEST_F(BinaryRpcChannelTest, ExecutesCoroutineRpcSuccessfully) {
     BinaryRpcChannel channel(&loop, "127.0.0.1", port);
 
     bool success = false;
-    auto coro = std::make_shared<Coroutine>(&loop, [&]() {
+    auto coro = std::make_shared<BinaryRpcCoroutine>(&loop, [&]() {
         TestEchoService_Stub stub(&channel);
         EchoRequest req;
         req.set_message("hello coroutine");
@@ -217,7 +217,7 @@ TEST_F(BinaryRpcChannelTest, ThrowsExceptionOnCoroutineNetworkFailure) {
     auto channel = std::make_unique<BinaryRpcChannel>(&loop, "127.0.0.1", port);
 
     bool exceptionThrown = false;
-    auto coro = std::make_shared<Coroutine>(&loop, [&]() {
+    auto coro = std::make_shared<BinaryRpcCoroutine>(&loop, [&]() {
         TestEchoService_Stub stub(channel.get());
         EchoRequest req;
         req.set_message("slow_call"); // 让服务器端延迟处理以确保在连接中途触发断开
