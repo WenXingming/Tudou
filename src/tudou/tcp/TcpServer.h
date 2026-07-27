@@ -80,7 +80,12 @@ private:
     std::unique_ptr<Acceptor> acceptor_;
     std::atomic<bool> accepting_;                    // 是否允许接收并创建新连接。避免在 stop() 过程中仍然创建新连接。
 
-    std::unordered_map<EventLoop*, std::unordered_map<TcpConnection*, TcpConnectionPtr>> connectionRecordsByLoop_;   // 外层映射在 start() 阶段初始化；每个内层连接表只由所属 EventLoop 线程访问。
+    // 外层 map 在 start() 阶段构建、线程池 join 后清理，运行期只读。
+    // 每个内层 map 只由所属 EventLoop 线程访问。
+    std::unordered_map<
+        EventLoop*,
+        std::unordered_map<TcpConnection*, TcpConnectionPtr>
+    >connectionRecordsByLoop_;
     double heartbeatCheckIntervalSeconds_;          // 每个连接的心跳检测间隔，单位秒。<=0 表示禁用心跳检测。
     double heartbeatIdleTimeoutSeconds_;            // 每个连接的心跳空闲超时，单位秒。<=0 表示禁用心跳检测。
 

@@ -166,7 +166,8 @@ classDiagram
     %% Tcp 内部关系
     TcpServer "1" *-- "1" Acceptor: owns
     TcpServer "1" *-- "n" TcpConnection: owns(shared_ptr)
-    ConnectionHeartbeat --> TcpConnection: monitors
+    TcpConnection "1" *-- "0..1" ConnectionHeartbeat: owns
+    ConnectionHeartbeat ..> TcpConnection: weak reference / force_close
     TcpConnection "1" *-- "2" Buffer: owns(read/write)
     TcpConnection "1" *-- "1" Socket: owns
     Acceptor "1" *-- "1" Socket: owns
@@ -340,7 +341,8 @@ classDiagram
     TcpServer "1" *-- "n" TcpConnection: owns(shared_ptr)
     TcpServer "1" --> "1" EventLoop: main_loop
     TcpServer "1" *-- "1" EventLoopThreadPool: owns
-    ConnectionHeartbeat --> TcpConnection: monitors
+    TcpConnection "1" *-- "0..1" ConnectionHeartbeat: owns
+    ConnectionHeartbeat ..> TcpConnection: weak reference / force_close
 ```
 
 ## 3. HTTP 模块核心类详细图

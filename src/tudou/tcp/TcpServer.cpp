@@ -287,7 +287,7 @@ void TcpServer::shutdown_connections() {
             pending.reserve(localRecords.size());
             for (auto it = localRecords.begin(); it != localRecords.end(); it = localRecords.erase(it)) {
                 activeConnectionCount_.fetch_sub(1);
-                    pending.push_back(std::move(it->second));
+                pending.push_back(std::move(it->second));
             }
             shutdownCondition_.notify_one();
 
