@@ -1,11 +1,8 @@
 // ============================================================================
-// HttpResponse.cpp
 // HTTP 响应 DTO 实现，线性执行“状态行 -> 头部 -> 空行 -> body”序列化。
 // ============================================================================
 
 #include "tudou/http/HttpResponse.h"
-
-#include "base/ScopedFd.h"
 
 namespace {
 
@@ -24,8 +21,6 @@ HttpResponse::HttpResponse() :
     statusMessage_("OK"),
     headers_(),
     body_(),
-    fileBody_(),
-    hasFileBody_(false),
     closeConnection_(false) {
 
 }
@@ -54,36 +49,15 @@ bool HttpResponse::has_header(const std::string& field) const {
 
 void HttpResponse::set_body(const std::string& body) {
     body_ = body;
-    hasFileBody_ = false;
-    fileBody_ = FileBody{};
-}
-
-void HttpResponse::set_file_body(std::shared_ptr<ScopedFd> file, size_t size, size_t offset) {
-    body_.clear();
-    fileBody_ = FileBody{ std::move(file), size, offset };
-    hasFileBody_ = true;
-}
-
-bool HttpResponse::has_file_body() const {
-    return hasFileBody_ && fileBody_.file && fileBody_.file->valid();
-}
-
-int HttpResponse::get_file_fd() const {
-    return has_file_body() ? fileBody_.file->fd() : -1;
 }
 
 std::string HttpResponse::package_to_string() const {
     // package_to_string 是响应 DTO 的唯一出口，负责把字段状态转换成完整协议报文。
     std::string result;
-    result.reserve(128 + (has_file_body() ? 0 : body_.size()));
+    result.reserve(128 + body_.size());
 
     append_status_line(result);
     append_headers(result);
-    if (has_file_body()) {
-        result.append("\r\n");
-        return result;
-    }
-
     append_body(result);
     return result;
 }

@@ -106,23 +106,9 @@ private:
         const ConnectionState& state,
         HttpResponse resp);
     TlsMode tls_mode_of(const ConnectionState& state) const;
-    void send_plain_response(const TcpConnectionPtr& conn,
-        const HttpResponse& resp,
-        const std::string& responseHead);
-    bool send_memory_bio_response(const TcpConnectionPtr& conn,
-        TlsConnection& tlsConnection,
-        const HttpResponse& resp,
-        const std::string& responseHead);
     bool send_memory_bio_plaintext(const TcpConnectionPtr& conn,
         TlsConnection& tlsConnection,
         const std::string& plaintext);
-    bool send_memory_bio_file_response(const TcpConnectionPtr& conn,
-        TlsConnection& tlsConnection,
-        const HttpResponse& resp,
-        const std::string& responseHead);
-    bool send_kernel_tls_response(const TcpConnectionPtr& conn,
-        const HttpResponse& resp,
-        const std::string& responseHead);
 
     void remove_connection_state(const TcpConnectionPtr& conn);
 

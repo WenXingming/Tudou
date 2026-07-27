@@ -1,50 +1,15 @@
 // ============================================================================
-// HttpResponse.h
 // HTTP 响应 DTO，负责持有协议字段并序列化为可发送报文。
-//
-// 成员函数调用树（[公有]/[私有] 标注接口层级）：
-//
-// HttpResponse.h
-// └── HttpResponse
-//     ├── HttpResponse()                         # [公有] 构造默认 200 OK 响应 DTO
-//     ├── ~HttpResponse()                        # [公有] 默认析构
-//     ├── package_to_string() const              # [公有] 序列化总入口：状态行 -> 头部 -> 空行 -> body
-//     │   ├── append_status_line(output) const   # [私有] 追加状态行
-//     │   ├── append_headers(output) const       # [私有] 追加响应头并按需补 Connection: close
-//     │   └── append_body(output) const          # [私有] 追加空行和响应体
-//     ├── set_http_version(version)              # [公有] 写入 HTTP 版本
-//     ├── get_http_version() const               # [公有] 读取 HTTP 版本
-//     ├── set_status(code, message)              # [公有] 写入状态码和状态描述
-//     ├── get_status_code() const                # [公有] 读取状态码
-//     ├── get_status_message() const             # [公有] 读取状态描述
-//     ├── set_header(field, value)               # [公有] 写入或覆盖一个响应头
-//     ├── has_header(field) const                # [公有] 判断响应头是否存在
-//     ├── get_headers() const                    # [公有] 读取全部响应头
-//     ├── set_body(body)                         # [公有] 写入响应体
-//     ├── get_body() const                       # [公有] 读取响应体
-//     ├── set_close_connection(on)               # [公有] 标记响应后是否关闭连接
-//     └── get_close_connection() const           # [公有] 读取关闭连接标记
 // ============================================================================
 
 #pragma once
-#include <cstddef>
-#include <memory>
 #include <string>
 #include <unordered_map>
-
-class ScopedFd;
 
 // HttpResponse 只负责表达协议结果，不参与底层发送流程。
 class HttpResponse {
 public:
     using Headers = std::unordered_map<std::string, std::string>;
-    struct FileBody {
-        std::shared_ptr<ScopedFd> file;
-        size_t size = 0;
-        size_t offset = 0;
-    };
-
-public:
     HttpResponse();
     ~HttpResponse() = default;
 
@@ -68,12 +33,6 @@ public:
     const Headers& get_headers() const { return headers_; }
     void set_body(const std::string& body);
     const std::string& get_body() const { return body_; }
-    void set_file_body(std::shared_ptr<ScopedFd> file, size_t size, size_t offset = 0);
-    bool has_file_body() const;
-    const FileBody& get_file_body() const { return fileBody_; }
-    int get_file_fd() const;
-    size_t get_file_size() const { return hasFileBody_ ? fileBody_.size : 0; }
-    size_t get_file_offset() const { return hasFileBody_ ? fileBody_.offset : 0; }
     void set_close_connection(bool _on) { closeConnection_ = _on; }
     bool get_close_connection() const { return closeConnection_; }
 
@@ -88,7 +47,5 @@ private:
     std::string statusMessage_;         // 响应状态描述。
     Headers headers_;                   // 响应头集合。
     std::string body_;                  // 响应体。
-    FileBody fileBody_;                 // 可选文件响应体，和 body_ 互斥。
-    bool hasFileBody_;                  // 标记 fileBody_ 是否承载响应体语义。
     bool closeConnection_;              // 标记响应后连接是否应关闭。
 };

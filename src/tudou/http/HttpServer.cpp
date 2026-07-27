@@ -11,10 +11,6 @@
 #include "tudou/http/TlsConnection.h"
 #include "tudou/http/TlsProbe.h"
 
-#include <algorithm>
-#include <cerrno>
-#include <unistd.h>
-
 #include "spdlog/spdlog.h"
 #include "tudou/tcp/TcpServer.h"
 
@@ -22,7 +18,6 @@ namespace {
 
 constexpr char kContentLengthHeader[] = "Content-Length";
 constexpr char kBadRequestMessage[] = "Bad Request";
-constexpr size_t kTlsFileChunkSize = 16 * 1024;
 
 } // namespace
 
@@ -294,11 +289,13 @@ HttpResponse HttpServer::build_http_response(const HttpRequest& req) const {
 void HttpServer::send_http_response(const TcpConnectionPtr& conn,
     const ConnectionState& state,
     HttpResponse resp) {
+    if (!conn) {
+        return;
+    }
 
     // 1. Content-Length 是网络契约的一部分，统一在基础设施层补齐，避免业务回调重复关注协议细节。
     if (!resp.has_header(kContentLengthHeader)) {
-        const size_t bodySize = resp.has_file_body() ? resp.get_file_size() : resp.get_body().size();
-        resp.set_header(kContentLengthHeader, std::to_string(bodySize));
+        resp.set_header(kContentLengthHeader, std::to_string(resp.get_body().size()));
     }
 
     // 2. 序列化 DTO 状态转换为完整协议报文
@@ -308,27 +305,23 @@ void HttpServer::send_http_response(const TcpConnectionPtr& conn,
     switch (tls_mode_of(state)) {
     case TlsMode::None:
         if (is_ssl_enabled()) {
-            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
+            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn->get_fd());
             return;
         }
-        send_plain_response(conn, resp, response);
+        conn->send(response);
         break;
     case TlsMode::MemoryBio:
-        if (!send_memory_bio_response(conn, *state.tlsConnection, resp, response)) {
-            spdlog::error("HttpServer: Memory BIO TLS response failed, fd={}", conn ? conn->get_fd() : -1);
+        if (!send_memory_bio_plaintext(conn, *state.tlsConnection, response)) {
+            spdlog::error("HttpServer: Memory BIO TLS response failed, fd={}", conn->get_fd());
             return;
         }
         break;
     case TlsMode::KernelTls:
-        if (state.isKtlsOffloaded) {
-            // kTLS 已经在内核层接管了加密，我们可以直接以明文方式发送响应报文和文件
-            send_plain_response(conn, resp, response);
-        } else {
-            if (!send_kernel_tls_response(conn, resp, response)) {
-                spdlog::error("HttpServer: Kernel TLS response failed, fd={}", conn ? conn->get_fd() : -1);
-                return;
-            }
+        if (!state.isKtlsOffloaded) {
+            spdlog::error("HttpServer: Kernel TLS is not active, fd={}", conn->get_fd());
+            return;
         }
+        conn->send(response);
         break;
     }
 
@@ -340,34 +333,6 @@ void HttpServer::send_http_response(const TcpConnectionPtr& conn,
 
 TlsMode HttpServer::tls_mode_of(const ConnectionState& state) const {
     return state.tlsMode;
-}
-
-void HttpServer::send_plain_response(const TcpConnectionPtr& conn,
-    const HttpResponse& resp,
-    const std::string& responseHead) {
-    if (!conn) {
-        return;
-    }
-
-    if (!resp.has_file_body()) {
-        conn->send(responseHead);
-        return;
-    }
-
-    const HttpResponse::FileBody& fileBody = resp.get_file_body();
-    conn->send(responseHead);
-    conn->send_file(fileBody.file, fileBody.size, fileBody.offset);
-}
-
-bool HttpServer::send_memory_bio_response(const TcpConnectionPtr& conn,
-    TlsConnection& tlsConnection,
-    const HttpResponse& resp,
-    const std::string& responseHead) {
-    if (resp.has_file_body()) {
-        return send_memory_bio_file_response(conn, tlsConnection, resp, responseHead);
-    }
-
-    return send_memory_bio_plaintext(conn, tlsConnection, responseHead);
 }
 
 bool HttpServer::send_memory_bio_plaintext(const TcpConnectionPtr& conn,
@@ -386,48 +351,6 @@ bool HttpServer::send_memory_bio_plaintext(const TcpConnectionPtr& conn,
         conn->send(encrypted);
     }
     return true;
-}
-
-bool HttpServer::send_memory_bio_file_response(const TcpConnectionPtr& conn,
-    TlsConnection& tlsConnection,
-    const HttpResponse& resp,
-    const std::string& responseHead) {
-    if (!send_memory_bio_plaintext(conn, tlsConnection, responseHead)) {
-        return false;
-    }
-
-    const HttpResponse::FileBody& fileBody = resp.get_file_body();
-    size_t offset = fileBody.offset;
-    size_t remaining = fileBody.size;
-
-    while (remaining > 0) {
-        std::string chunk(std::min(kTlsFileChunkSize, remaining), '\0');
-        const ssize_t n = ::pread(fileBody.file->fd(), &chunk[0], chunk.size(), static_cast<off_t>(offset));
-        if (n <= 0) {
-            spdlog::error("HttpServer: failed to read Memory BIO TLS file body, fd={}, errno={}", fileBody.file->fd(), errno);
-            return false;
-        }
-
-        chunk.resize(static_cast<size_t>(n));
-        if (!send_memory_bio_plaintext(conn, tlsConnection, chunk)) {
-            return false;
-        }
-
-        offset += static_cast<size_t>(n);
-        remaining -= static_cast<size_t>(n);
-    }
-
-    return true;
-}
-
-bool HttpServer::send_kernel_tls_response(const TcpConnectionPtr& conn,
-    const HttpResponse& resp,
-    const std::string& responseHead) {
-    (void)conn;
-    (void)resp;
-    (void)responseHead;
-    spdlog::error("HttpServer: Kernel TLS is not supported yet");
-    return false;
 }
 
 void HttpServer::remove_connection_state(const TcpConnectionPtr& conn) {

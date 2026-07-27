@@ -13,7 +13,6 @@
 #include <memory>
 #include <string>
 
-#include "base/ScopedFd.h"
 #include "tudou/http/TlsConfig.h"
 
 #define private public
@@ -405,66 +404,7 @@ TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsRes
     ::close(fds[1]);
 }
 
-TEST(HttpServerTest, ProcessPlainHttpRequestSendsFileBody) {
-    int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
-
-    char path[] = "/tmp/tudou-http-file-body-test-XXXXXX";
-    int fileFd = ::mkstemp(path);
-    ASSERT_GE(fileFd, 0);
-    ASSERT_EQ(::unlink(path), 0);
-
-    const std::string fileBody = "static file body";
-    ASSERT_EQ(::write(fileFd, fileBody.data(), fileBody.size()), static_cast<ssize_t>(fileBody.size()));
-    ASSERT_EQ(::lseek(fileFd, 0, SEEK_SET), 0);
-    auto file = std::make_shared<ScopedFd>(fileFd);
-
-    EventLoop loop(20);
-    HttpServer server("127.0.0.1", 8080, 0);
-    auto conn = make_connection(loop, fds[0]);
-
-    server.add_get_route("/file", [&](const HttpRequest& request, HttpResponse& response) {
-        EXPECT_EQ(request.get_path(), "/file");
-        response.set_status(200, "OK");
-        response.set_header("Content-Type", "text/plain");
-        response.set_file_body(file, fileBody.size());
-        });
-    server.on_connect(conn);
-
-    conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(activeConn);
-        });
-    conn->set_write_complete_callback([&](const std::shared_ptr<TcpConnection>&) {
-        loop.quit();
-        });
-    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(conn);
-        });
-
-    const std::string request =
-        "GET /file HTTP/1.1\r\n"
-        "Host: example.com\r\n"
-        "\r\n";
-    ASSERT_EQ(::write(fds[1], request.data(), request.size()), static_cast<ssize_t>(request.size()));
-
-    loop.run_after(0.2, [&]() {
-        loop.quit();
-        });
-    loop.loop();
-
-    const std::string response = read_available(fds[1]);
-    EXPECT_NE(response.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
-    EXPECT_NE(response.find("Content-Type: text/plain\r\n"), std::string::npos);
-    EXPECT_NE(response.find("Content-Length: " + std::to_string(fileBody.size()) + "\r\n"), std::string::npos);
-    EXPECT_NE(response.find("\r\n\r\n" + fileBody), std::string::npos);
-
-    conn->force_close();
-    EXPECT_TRUE(server.connectionStates_.empty());
-
-    ::close(fds[1]);
-}
-
-TEST(HttpServerTest, SendTlsFileBodyEncryptsHeaderAndFile) {
+TEST(HttpServerTest, SendTlsResponseEncryptsHeaderAndBody) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
 
@@ -481,19 +421,12 @@ TEST(HttpServerTest, SendTlsFileBodyEncryptsHeaderAndFile) {
     ClientTlsPeer client;
     ASSERT_TRUE(complete_handshake(client, *state.tlsConnection));
 
-    char path[] = "/tmp/tudou-http-tls-file-body-test-XXXXXX";
-    int fileFd = ::mkstemp(path);
-    ASSERT_GE(fileFd, 0);
-    ASSERT_EQ(::unlink(path), 0);
-
-    const std::string fileBody = "tls static file body";
-    ASSERT_EQ(::write(fileFd, fileBody.data(), fileBody.size()), static_cast<ssize_t>(fileBody.size()));
-    ASSERT_EQ(::lseek(fileFd, 0, SEEK_SET), 0);
+    const std::string body = "tls response body";
 
     HttpResponse response;
     response.set_status(200, "OK");
     response.set_header("Content-Type", "text/plain");
-    response.set_file_body(std::make_shared<ScopedFd>(fileFd), fileBody.size());
+    response.set_body(body);
 
     EventLoop loop;
     HttpServer server("127.0.0.1", 8080, 0);
@@ -509,8 +442,8 @@ TEST(HttpServerTest, SendTlsFileBodyEncryptsHeaderAndFile) {
     ASSERT_GT(client.read_plaintext(decryptedResponse), 0);
     EXPECT_NE(decryptedResponse.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
     EXPECT_NE(decryptedResponse.find("Content-Type: text/plain\r\n"), std::string::npos);
-    EXPECT_NE(decryptedResponse.find("Content-Length: " + std::to_string(fileBody.size()) + "\r\n"), std::string::npos);
-    EXPECT_NE(decryptedResponse.find("\r\n\r\n" + fileBody), std::string::npos);
+    EXPECT_NE(decryptedResponse.find("Content-Length: " + std::to_string(body.size()) + "\r\n"), std::string::npos);
+    EXPECT_NE(decryptedResponse.find("\r\n\r\n" + body), std::string::npos);
 
     ::close(fds[1]);
 }

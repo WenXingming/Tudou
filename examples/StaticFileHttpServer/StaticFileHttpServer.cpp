@@ -8,15 +8,14 @@
 #include "StaticFileHttpServer.h"
 
 #include <ctime>
+#include <fstream>
 #include <iomanip>
 #include <locale>
 #include <memory>
 #include <sstream>
 
-#include <fcntl.h>
 #include <sys/stat.h>
 
-#include "base/ScopedFd.h"
 #include "tudou/http/HttpServer.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
@@ -112,14 +111,13 @@ void set_head_ok(HttpResponse& resp, const std::string& contentType, std::time_t
 
 void set_file_ok(HttpResponse& resp,
     const std::string& contentType,
-    std::shared_ptr<ScopedFd> file,
-    long long size) {
+    const std::string& body) {
     resp.set_http_version("HTTP/1.1");
     resp.set_status(200, "OK");
     resp.set_header("Content-Type", contentType);
-    resp.set_header("Content-Length", std::to_string(size));
+    resp.set_header("Content-Length", std::to_string(body.size()));
     resp.set_header("Connection", "Keep-Alive");
-    resp.set_file_body(std::move(file), static_cast<size_t>(size));
+    resp.set_body(body);
     resp.set_close_connection(false);
 }
 
@@ -197,13 +195,19 @@ void StaticFileHttpServer::package_file_response(const std::string& realPath, Ht
         return;
     }
 
-    int fd = ::open(realPath.c_str(), O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
+    std::ifstream file(realPath, std::ios::binary);
+    if (!file) {
         set_not_found(resp);
         return;
     }
 
-    set_file_ok(resp, guess_content_type(realPath), std::make_shared<ScopedFd>(fd), fileSize);
+    std::string body(static_cast<size_t>(fileSize), '\0');
+    if (fileSize > 0 && !file.read(&body[0], static_cast<std::streamsize>(fileSize))) {
+        set_not_found(resp);
+        return;
+    }
+
+    set_file_ok(resp, guess_content_type(realPath), body);
 }
 
 // ---------------------------------------------------------------------------
