@@ -1,14 +1,14 @@
-# HTTP Router 设计：精确路由、前缀兜底与 404
+# HttpRouter 设计：精确路由、前缀兜底与 404
 
 `HttpRouter` 负责把解析完成的 `HttpRequest` 交给业务处理器。它只处理路由匹配和未命中响应，不读取 Socket、不解析字节流，也不管理连接生命周期。
 
-# Situation — 项目背景
+# Situation — 情境
 
 `HttpContext` 将 TCP 字节流解析为结构化请求后，服务器还需要根据 `method + path` 找到业务处理器。
 
 如果把这些判断直接写在 `HttpServer` 中，随着登录、文件、聊天等接口增加，服务器主流程会混入大量业务分支。因此项目使用独立的 Router，把“请求交给谁”从网络收发流程中分离出来。
 
-# Task — 任务目标
+# Task — 任务
 
 Router 只保留基本路由能力：
 
@@ -19,7 +19,7 @@ Router 只保留基本路由能力：
 
 项目没有在 Router 层自动区分 404 和 405。方法限制由具体业务处理器决定，这样不需要维护额外的允许方法索引，也不把未实现的 HTTP 错误语义扩展到路由核心。
 
-# Action — 技术方案与实现
+# Action — 设计与实现
 
 ## 1. 固定分发流程
 
@@ -139,7 +139,7 @@ void StaticFileServer::on_request(
 
 这是一项有意的简化：Router 不维护业务方法索引，业务模块自行决定不支持的方法如何响应。
 
-# Result — 重构效果
+# Result — 结果
 
 - `HttpServer` 只负责接收请求、调用 Router 和发送响应；
 - Router 的核心流程从四个分支收敛为三个阶段；
@@ -158,7 +158,7 @@ void StaticFileServer::on_request(
 | 错误策略 | 精确和前缀都未命中时返回 404；方法限制由业务 Handler 决定。 |
 | 单一数据源 | 精确路由只维护一张表，不需要同步额外索引。 |
 
-# 面试核心问答总结
+# 面试核心问答
 
 ## Q1：为什么设计独立 Router？
 
@@ -175,3 +175,5 @@ HTTP 解析和业务分发是两种不同职责。独立 Router 可以让 `HttpS
 ## Q4：为什么前缀路由使用 `vector`？
 
 前缀匹配不是完整字符串查找，而且当前注册顺序就是优先级。`vector` 能直接保存这个顺序，前缀路由只在精确匹配失败后执行，线性扫描成本可接受。
+
+相关主题：[HttpServer 设计](<HttpServer 设计：协议编排、连接状态与生命周期安全.md>)、[HttpConnection 设计](<HttpConnection 设计：粘包、HTTP Pipeline 与协议字节转换.md>)。

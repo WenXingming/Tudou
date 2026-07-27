@@ -167,7 +167,7 @@ TEST(TlsConnectionTest, HandshakeEncryptAndDecryptRoundTrip) {
     TlsConfig serverContext;
     ASSERT_TRUE(serverContext.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
 
-    SSL* serverSsl = serverContext.create_ssl();
+    SSL* serverSsl = serverContext.create_ssl_session();
     ASSERT_NE(serverSsl, nullptr);
 
     TlsConnection serverConnection(serverSsl);

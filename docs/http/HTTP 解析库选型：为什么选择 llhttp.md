@@ -4,7 +4,7 @@
 
 # Situation — 情境
 
-Tudou 已经有基于 Reactor 的非阻塞 TCP 网络层，但网络层收到的仍然只是字节流。HTTP 服务还需要一个解析器，把字节流转换为请求方法、路径、首部和消息体等结构化数据。
+Tudou 已经有基于 Reactor 的非阻塞 TCP 网络层，但网络层收到的仍然只是字节流。HTTP 服务还需要一个解析器，把解密后的 HTTP 明文转换为请求方法、路径、首部和消息体等结构化数据。
 
 如果自己实现完整的 HTTP 状态机，需要处理持久连接、分块传输、非法报文和大量边界条件，维护成本较高。
 
@@ -36,9 +36,10 @@ TcpConnection 负责读取字节，HTTP 上下文保存解析状态，`llhttp_ex
 ```text
 socket 可读
   → TcpConnection 读取字节到 Buffer
+  → HttpConnection 完成 HTTP 明文透传或 TLS 解密
   → HttpContext 调用 llhttp 增量解析
   → llhttp 回调填充 HttpRequest
-  → 请求完成后交给 Router
+  → HttpConnection 提取完整请求后交给 Router
 ```
 
 解析器不关心数据来自 socket、TLS 还是测试字符串，只处理传入的字节和回调。
@@ -48,7 +49,8 @@ socket 可读
 `llhttp` 解决的是 HTTP 语法解析，不负责路由、连接管理或业务处理。这样可以保持模块边界清晰：
 
 - `TcpConnection`：处理字节流和读写事件；
-- `HttpContext`：保存一次请求的解析状态；
+- `HttpConnection`：保存单连接协议状态，负责 HTTP/HTTPS 字节转换与 pipeline 请求提取；
+- `HttpContext`：保存一条请求的增量解析状态；
 - `llhttp`：识别 HTTP 报文并触发回调；
 - `Router`：分发完成的 `HttpRequest`。
 
@@ -81,3 +83,5 @@ HTTP 状态机需要处理大量边界条件。使用成熟解析器可以减少
 ## Q3：为什么 llhttp 适合非阻塞网络？
 
 它是流式状态机，可以多次输入不完整数据，等后续字节到达后继续解析，适合 TCP 拆包和非阻塞读取。
+
+相关主题：[HttpContext 设计](<HttpContext 设计：llhttp 增量解析与 HTTP 拆包.md>)、[HttpConnection 设计](<HttpConnection 设计：粘包、HTTP Pipeline 与协议字节转换.md>)。

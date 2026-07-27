@@ -3,6 +3,7 @@ protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS tudou/rpc/binary/binary_rpc.
 add_library(tudou STATIC
     tudou/tcp/InetAddress.cpp
     tudou/http/HttpContext.cpp
+    tudou/http/HttpConnection.cpp
     tudou/http/HttpRequest.cpp
     tudou/http/HttpResponse.cpp
     tudou/http/HttpServer.cpp
@@ -16,7 +17,6 @@ add_library(tudou STATIC
     tudou/rpc/UnifiedRpcServer.cpp
     tudou/rpc/Coroutine.cpp
     ${RPC_PROTO_SRCS}
-    tudou/http/TlsProbe.cpp
     tudou/http/HttpRouter.cpp
     tudou/http/TlsConfig.cpp
     tudou/http/TlsConnection.cpp

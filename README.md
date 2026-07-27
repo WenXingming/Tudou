@@ -466,7 +466,7 @@ python3 examples/JsonRpcServer/client.py
 - [docs/RPC 拆包粘包处理.md](./docs/RPC%20%E6%8B%86%E5%8C%85%E7%B2%98%E5%8C%85%E5%A4%84%E7%90%86.md)：二进制长度分帧与 JSON-RPC 换行定界。
 - [docs/RPC_multiplexing（binary）.md](./docs/RPC_multiplexing%EF%BC%88binary%EF%BC%89.md)：单连接多路复用、并发请求与响应匹配。
 - [docs/Buffer 设计：readv 栈缓冲、水平触发与一次读取策略.md](./docs/Buffer%20%E8%AE%BE%E8%AE%A1%EF%BC%9Areadv%20%E6%A0%88%E7%BC%93%E5%86%B2%E3%80%81%E6%B0%B4%E5%B9%B3%E8%A7%A6%E5%8F%91%E4%B8%8E%E4%B8%80%E6%AC%A1%E8%AF%BB%E5%8F%96%E7%AD%96%E7%95%A5.md)：readv/writev、LT 触发与发送路径。
-- [docs/HTTPS 零拷贝传输设计：基于 Linux kTLS 的 sendfile 加速.md](./docs/HTTPS%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E4%BC%A0%E8%BE%93%E8%AE%BE%E8%AE%A1%EF%BC%9A%E5%9F%BA%E4%BA%8E%20Linux%20kTLS%20%E7%9A%84%20sendfile%20%E5%8A%A0%E9%80%9F.md)：静态文件 `sendfile` 与 kTLS 卸载路径的边界。
+- [docs/http/HTTPS 安全传输设计：TlsConfig 与 TlsConnection.md](./docs/http/HTTPS%20%E5%AE%89%E5%85%A8%E4%BC%A0%E8%BE%93%E8%AE%BE%E8%AE%A1%EF%BC%9ATlsConfig%20%E4%B8%8E%20TlsConnection.md)：Memory BIO 如何将 OpenSSL 接入非阻塞 Reactor。
 
 ## 开源依赖与致谢 📦
 

@@ -26,7 +26,7 @@ public:
     HttpContext& operator=(HttpContext&&) = delete;
 
     ParseResult parse(const char* data, size_t len);
-    const HttpRequest& get_request() const { return request_; }
+    HttpRequest& get_request() { return request_; }
     size_t get_consumed_bytes() const { return consumedBytes_; }
     void reset(); // 丢弃当前请求并让 llhttp 为下一条请求重新就绪。
 

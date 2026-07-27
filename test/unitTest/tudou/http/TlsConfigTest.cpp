@@ -20,7 +20,7 @@ TEST(TlsConfigTest, InitWithValidCertificateCreatesServerSsl) {
     ASSERT_TRUE(context.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
     EXPECT_TRUE(context.is_initialized());
 
-    SSL* ssl = context.create_ssl();
+    SSL* ssl = context.create_ssl_session();
     ASSERT_NE(ssl, nullptr);
     SSL_free(ssl);
 }
@@ -33,5 +33,5 @@ TEST(TlsConfigTest, FailedReinitializationClearsPreviousContext) {
 
     EXPECT_FALSE(context.init(cert_path("missing-cert.pem"), cert_path("test-key.pem")));
     EXPECT_FALSE(context.is_initialized());
-    EXPECT_EQ(context.create_ssl(), nullptr);
+    EXPECT_EQ(context.create_ssl_session(), nullptr);
 }

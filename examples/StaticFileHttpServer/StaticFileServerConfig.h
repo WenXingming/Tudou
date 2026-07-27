@@ -16,11 +16,10 @@ struct StaticFileServerConfig {
     int         threadNum = 0;
     std::string baseDir   = "./assets/";
 
-    // SSL & kTLS Configuration
+    // HTTPS 配置
     bool        enableSsl = false;
     std::string sslCertPath;
     std::string sslKeyPath;
-    bool        enableKtls = false;
 
     // Paths resolved by ConfigLoader
     std::string serverRoot;   // ends with '/'

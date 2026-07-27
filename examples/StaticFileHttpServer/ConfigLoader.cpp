@@ -109,11 +109,10 @@ bool load_static_server_config(int argc, char* argv[],
     app.add_option("--port", out.port, "Bind listen port")->configurable();
     app.add_option("--threadNum", out.threadNum, "Worker reactor thread count")->configurable();
     
-    // SSL / kTLS 参数，并声明其为可配置
+    // HTTPS 参数，并声明其为可配置
     app.add_option("--enableSsl", out.enableSsl, "Enable SSL/HTTPS")->configurable();
     app.add_option("--sslCert", out.sslCertPath, "Path to SSL certificate PEM file")->configurable();
     app.add_option("--sslKey", out.sslKeyPath, "Path to SSL private key PEM file")->configurable();
-    app.add_option("--enableKtls", out.enableKtls, "Enable Kernel TLS (kTLS) zero-copy offloading")->configurable();
 
     // 指定 INI 配置文件默认值
     app.set_config("--config", configPath, "Path to server.conf INI config", false);

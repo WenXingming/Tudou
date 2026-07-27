@@ -1,15 +1,15 @@
 // ============================================================================
-// HttpServer.cpp
-// HTTP/HTTPS 服务门面，把连接事件拍平成读取、解析、执行业务、发送响应。
+// HTTP/HTTPS 服务门面实现，按读取、解密、解析、路由、发送的顺序处理连接事件。
+// TLS 仅使用 Memory BIO；Socket I/O 仍由 TcpConnection 和 EventLoop 负责。
 // ============================================================================
 
 #include "tudou/http/HttpServer.h"
-#include "tudou/http/HttpContext.h"
 #include "tudou/http/HttpRequest.h"
 #include "tudou/http/HttpResponse.h"
 #include "tudou/http/TlsConfig.h"
 #include "tudou/http/TlsConnection.h"
-#include "tudou/http/TlsProbe.h"
+
+#include <vector>
 
 #include "spdlog/spdlog.h"
 #include "tudou/tcp/TcpServer.h"
@@ -23,30 +23,33 @@ constexpr char kBadRequestMessage[] = "Bad Request";
 HttpServer::HttpServer(std::string ip, uint16_t port, int threadNum) :
     ip_(std::move(ip)),
     port_(port),
-    tcpServer_(std::make_unique<TcpServer>(this->ip_, this->port_, threadNum)),
-    connectionStates_(),
+    tcpServer_(ip_, port_, threadNum),
+    httpConnections_(),
     contextsMutex_(),
     router_(),
-    tlsMode_(TlsMode::MemoryBio),
     tlsConfig_(nullptr) {
 
-    bind_tcp_callbacks();
+    // 事件回调只负责把 TcpServer 事件转发到 HTTP 门面，不再在 lambda 里编排业务细节
+    tcpServer_.set_connection_callback([this](const TcpConnectionPtr& conn) {
+        on_connect(conn);
+        });
+    tcpServer_.set_message_callback([this](const TcpConnectionPtr& conn) {
+        on_message(conn);
+        });
+    tcpServer_.set_close_callback([this](const TcpConnectionPtr& conn) {
+        on_close(conn);
+        });
 }
 
 void HttpServer::start() {
-    if (tlsConfig_ && tlsConfig_->is_initialized()) {
+    if (tlsConfig_) {
         spdlog::info("HttpServer: Starting HTTPS server at {}:{}", ip_, port_);
     }
     else {
         spdlog::debug("HttpServer: Starting HTTP server at {}:{}", ip_, port_);
     }
 
-    if (!tcpServer_) {
-        spdlog::critical("HttpServer: tcpServer is nullptr, cannot start server.");
-        return;
-    }
-
-    tcpServer_->start();
+    tcpServer_.start();
 }
 
 void HttpServer::add_route(const std::string& method, const std::string& path, Handler handler) {
@@ -69,28 +72,6 @@ void HttpServer::add_prefix_route(const std::string& prefix, Handler handler) {
     router_.add_prefix_route(prefix, std::move(handler));
 }
 
-bool HttpServer::set_tls_mode(TlsMode mode) {
-    if (mode == TlsMode::MemoryBio) {
-        tlsMode_ = mode;
-        return true;
-    }
-
-    if (mode == TlsMode::KernelTls) {
-        if (TlsProbe::is_kernel_tls_supported()) {
-            tlsMode_ = mode;
-            if (tlsConfig_) {
-                tlsConfig_->restrict_to_tls12();
-            }
-            return true;
-        }
-        spdlog::error("HttpServer: Kernel TLS is not supported on this platform/environment");
-        return false;
-    }
-
-    spdlog::error("HttpServer: TlsMode::None is selected by not enabling SSL");
-    return false;
-}
-
 bool HttpServer::enable_ssl(const std::string& certFile, const std::string& keyFile) {
     tlsConfig_ = std::make_unique<TlsConfig>();
     if (!tlsConfig_->init(certFile, keyFile)) {
@@ -99,263 +80,120 @@ bool HttpServer::enable_ssl(const std::string& certFile, const std::string& keyF
         return false;
     }
 
-    if (tlsMode_ == TlsMode::KernelTls) {
-        tlsConfig_->restrict_to_tls12();
-    }
-
     spdlog::info("HttpServer: SSL enabled (cert={}, key={})", certFile, keyFile);
     return true;
 }
 
-bool HttpServer::is_ssl_enabled() const {
-    return tlsConfig_ && tlsConfig_->is_initialized();
-}
-
-void HttpServer::on_message(const TcpConnectionPtr& conn) {
-    const std::string receivedData = conn ? conn->receive() : std::string();
-    if (receivedData.empty()) {
-        return;
-    }
-
-    std::shared_ptr<ConnectionState> state = find_connection_state(conn);
-    if (!state) {
-        return;
-    }
-
-    // 1. 提取并归一化明文 payload（处理 TLS 解密与握手数据发回）
-    std::string payload;
-    if (state->tlsConnection && !state->isKtlsOffloaded) {
-        std::string plaintext;
-        std::string outboundCiphertext;
-        const TlsConnection::ReadResult tlsResult =
-            state->tlsConnection->read_plaintext(receivedData, plaintext, outboundCiphertext);
-
-        // 如果解密/握手过程中产生了待发送的网络密文，立即发送出去
-        if (!outboundCiphertext.empty()) {
-            conn->send(outboundCiphertext);
-        }
-
-        if (tlsResult == TlsConnection::ReadResult::Error) {
-            spdlog::error("HttpServer: TLS read failed for fd={}", conn ? conn->get_fd() : -1);
-            return;
-        }
-
-        // 握手就绪时，若为 kTLS 模式，立刻尝试将 socket 卸载至内核
-        if (state->tlsMode == TlsMode::KernelTls && state->tlsConnection->is_established()) {
-            if (state->tlsConnection->enable_ktls_offload(conn->get_fd())) {
-                state->isKtlsOffloaded = true;
-            } else {
-                spdlog::warn("HttpServer: kTLS offloading failed, falling back to Memory BIO, fd={}", conn ? conn->get_fd() : -1);
-                state->tlsMode = TlsMode::MemoryBio;
-            }
-        }
-
-        // 若 TLS 握手尚未完成或收到的是半包，静待下一波 TCP 可读事件
-        if (tlsResult != TlsConnection::ReadResult::Ready && !state->isKtlsOffloaded) {
-            return;
-        }
-
-        payload = std::move(plaintext);
-    } else {
-        // 安全校验：若服务器启用了 SSL 但并非 kTLS 卸载态，明文连接不应拥有缺失的 TlsConnection
-        if (is_ssl_enabled() && !state->isKtlsOffloaded) {
-            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn ? conn->get_fd() : -1);
-            return;
-        }
-        payload = receivedData;
-    }
-
-    // 2. 通过 while 循环逐个解析并消费粘包/管道化发送的 HTTP 请求，解决多请求丢弃漏洞。
-    size_t consumed = 0;
-    while (consumed < payload.size()) {
-        const char* currentData = payload.data() + consumed;
-        size_t currentLen = payload.size() - consumed;
-
-        HttpContext::ParseResult result = state->httpContext.parse(currentData, currentLen);
-        size_t lastConsumed = state->httpContext.get_consumed_bytes();
-        consumed += lastConsumed;
-
-        switch (result) {
-        case HttpContext::ParseResult::NeedMoreData:
-            spdlog::debug("HttpServer: HTTP request incomplete, waiting for more data, fd={}", conn ? conn->get_fd() : -1);
-            break;
-        case HttpContext::ParseResult::Rejected: {
-            // 直接就地回复 400 Bad Request，并重置当前连接的 HTTP 上下文
-            HttpResponse response;
-            response.set_status(400, kBadRequestMessage);
-            response.set_header("Content-Type", "text/plain");
-            response.set_body(kBadRequestMessage);
-            response.set_header("Connection", "close");
-            send_http_response(conn, *state, response);
-            state->httpContext.reset();
-            return;
-        }
-        case HttpContext::ParseResult::Complete:
-            reply_complete_request(conn, *state);
-
-            // 安全护栏：若响应中设置了 Connection: close 导致连接被 force_close() 关闭，
-            // 对应的 ConnectionState 已经在 on_close 里被从 HttpServer 清理，必须退出防止野指针崩溃。
-            if (!find_connection_state(conn)) {
-                return;
-            }
-            break;
-        }
-
-        // 防死循环保护：如果未消费任何字节且未完成，直接跳出
-        if (lastConsumed == 0 && result == HttpContext::ParseResult::NeedMoreData) {
-            break;
-        }
-    }
-}
-
-void HttpServer::bind_tcp_callbacks() {
-    // 事件回调只负责把 TcpServer 事件转发到 HTTP 门面，不再在 lambda 里编排业务细节。
-    tcpServer_->set_connection_callback([this](const TcpConnectionPtr& conn) {
-        on_connect(conn);
-        });
-    tcpServer_->set_message_callback([this](const TcpConnectionPtr& conn) {
-        on_message(conn);
-        });
-    tcpServer_->set_close_callback([this](const TcpConnectionPtr& conn) {
-        on_close(conn);
-        });
-}
-
 void HttpServer::on_connect(const TcpConnectionPtr& conn) {
-    std::shared_ptr<ConnectionState> state = create_connection_state(conn);
+    // 创建 HttpConnection，可能包含 TLS 状态
+    std::shared_ptr<HttpConnection> httpConnection;
+    if (tlsConfig_) {
+        SSL* ssl = tlsConfig_->create_ssl_session();
+        if (!ssl) {
+            spdlog::error("HttpServer: Failed to create SSL for fd={}", conn->get_fd());
+            conn->force_close();
+            return;
+        }
 
+        spdlog::debug("HttpServer: TlsConnection created for fd={}", conn->get_fd());
+        httpConnection = std::make_shared<HttpConnection>(std::make_unique<TlsConnection>(ssl));
+    }
+    else {
+        httpConnection = std::make_shared<HttpConnection>();
+    }
+    // 注册到全局数据结构
     {
         std::lock_guard<std::mutex> lock(contextsMutex_);
-        if (connectionStates_.find(conn.get()) != connectionStates_.end()) {
-            spdlog::warn("HttpServer: ConnectionState already exists for fd={}, overwriting.", conn ? conn->get_fd() : -1);
-        }
-        connectionStates_[conn.get()] = std::move(state);
+        httpConnections_.emplace(conn.get(), std::move(httpConnection));
     }
 
     spdlog::debug("HttpServer: New connection established, fd={}", conn ? conn->get_fd() : -1);
 }
 
-std::shared_ptr<HttpServer::ConnectionState> HttpServer::create_connection_state(const TcpConnectionPtr& conn) const {
-    auto state = std::make_shared<ConnectionState>();
-
-    if (!tlsConfig_) {
-        return state;
+void HttpServer::on_message(const TcpConnectionPtr& conn) {
+    // 取出 TcpConnection 本轮读到的网络字节；空数据无需进入协议层。
+    const std::string receivedData = conn ? conn->receive() : std::string();
+    if (receivedData.empty()) {
+        return;
     }
 
-    SSL* ssl = tlsConfig_->create_ssl();
-    if (!ssl) {
-        spdlog::error("HttpServer: Failed to create SSL for fd={}", conn ? conn->get_fd() : -1);
-        return state;
+    // 从共享连接表取出状态。复制 shared_ptr 后立即释锁，on_close() 不会在处理期间析构它。
+    std::shared_ptr<HttpConnection> httpConnection;
+    {
+        std::lock_guard<std::mutex> lock(contextsMutex_);
+        const auto it = httpConnections_.find(conn.get());
+        if (it == httpConnections_.end()) {
+            spdlog::error("HttpServer: No HttpConnection found for fd={}", conn ? conn->get_fd() : -1);
+            return;
+        }
+        httpConnection = it->second;
     }
 
-    spdlog::debug("HttpServer: TlsConnection created for fd={}", conn ? conn->get_fd() : -1);
-    state->tlsMode = tlsMode_;
-    state->tlsConnection = std::make_unique<TlsConnection>(ssl);
-    return state;
+    // 完成 TLS 解密、HTTP 增量解析与 pipeline 请求提取；TLS 握手回包须先写回客户端。
+    std::vector<HttpRequest> requests;
+    std::string outboundCiphertext;
+    const HttpConnection::ProcessResult processResult =
+        httpConnection->decode_requests(receivedData, requests, outboundCiphertext);
+    if (!outboundCiphertext.empty()) {
+        conn->send(outboundCiphertext);
+    }
+    if (processResult == HttpConnection::ProcessResult::TlsError) {
+        spdlog::error("HttpServer: TLS read failed for fd={}", conn ? conn->get_fd() : -1);
+        conn->force_close();
+        return;
+    }
+
+    // 按请求在字节流中的顺序路由并发送响应；任一响应要求关闭时停止后续处理。
+    for (const HttpRequest& request : requests) {
+        HttpResponse response;
+        router_.dispatch(request, response);
+        if (send_http_response(conn, *httpConnection, response)) {
+            return;
+        }
+    }
+
+    // 前面已解析成功的 pipeline 请求已完成响应；当前错误请求以 400 收口连接。
+    if (processResult == HttpConnection::ProcessResult::BadRequest) {
+        HttpResponse response;
+        response.set_status(400, kBadRequestMessage);
+        response.set_header("Content-Type", "text/plain");
+        response.set_body(kBadRequestMessage);
+        response.set_header("Connection", "close");
+        send_http_response(conn, *httpConnection, response);
+    }
 }
 
 void HttpServer::on_close(const TcpConnectionPtr& conn) {
-    remove_connection_state(conn);
+    {
+        std::lock_guard<std::mutex> lock(contextsMutex_);
+        httpConnections_.erase(conn.get());
+    }
     spdlog::debug("HttpServer: Connection closed, fd={}", conn ? conn->get_fd() : -1);
 }
 
-std::shared_ptr<HttpServer::ConnectionState> HttpServer::find_connection_state(const TcpConnectionPtr& conn) {
-    std::lock_guard<std::mutex> lock(contextsMutex_);
-    const auto it = connectionStates_.find(conn.get());
-    if (it == connectionStates_.end()) {
-        spdlog::error("HttpServer: No ConnectionState found for fd={}", conn ? conn->get_fd() : -1);
-        return nullptr;
-    }
-
-    return it->second;
-}
-
-void HttpServer::reply_complete_request(const TcpConnectionPtr& conn,
-    ConnectionState& state) {
-    send_http_response(conn, state, build_http_response(state.httpContext.get_request()));
-    state.httpContext.reset();
-}
-
-HttpResponse HttpServer::build_http_response(const HttpRequest& req) const {
-    HttpResponse response;
-    // 路由分发与默认 404 统一收口在 HttpServer 内部，应用层只负责注册 handler。
-    router_.dispatch(req, response);
-    return response;
-}
-
-void HttpServer::send_http_response(const TcpConnectionPtr& conn,
-    const ConnectionState& state,
-    HttpResponse resp) {
+bool HttpServer::send_http_response(const TcpConnectionPtr& conn, HttpConnection& httpConnection, HttpResponse resp) {
     if (!conn) {
-        return;
+        return false;
     }
 
     const auto connectionHeader = resp.get_headers().find("Connection");
     const bool closeConnection = connectionHeader != resp.get_headers().end()
         && connectionHeader->second == "close";
 
-    // 1. 序列化 DTO 状态转换为完整协议报文
-    std::string response = resp.serialize_to_string();
-
-    // 2. 执行发送。TLS 模式显式分发，避免后续 kTLS 与 Memory BIO 逻辑混在一起。
-    switch (tls_mode_of(state)) {
-    case TlsMode::None:
-        if (is_ssl_enabled()) {
-            spdlog::error("HttpServer: Missing TlsConnection for TLS-enabled server, fd={}", conn->get_fd());
-            return;
-        }
-        conn->send(response);
-        break;
-    case TlsMode::MemoryBio:
-        if (!send_memory_bio_plaintext(conn, *state.tlsConnection, response)) {
-            spdlog::error("HttpServer: Memory BIO TLS response failed, fd={}", conn->get_fd());
-            return;
-        }
-        break;
-    case TlsMode::KernelTls:
-        if (!state.isKtlsOffloaded) {
-            spdlog::error("HttpServer: Kernel TLS is not active, fd={}", conn->get_fd());
-            return;
-        }
-        conn->send(response);
-        break;
+    // 将响应编码为网络字节，再交给 TcpConnection 发送。
+    std::string networkData;
+    if (!httpConnection.encode_response(resp, networkData)) {
+        spdlog::error("HttpServer: Failed to encode HTTP response, fd={}", conn->get_fd());
+        conn->force_close();
+        return true;
+    }
+    if (!networkData.empty()) {
+        conn->send(networkData);
     }
 
-    // 3. Connection: close 是响应协议语义，发送后由连接层执行关闭。
+    // Connection: close 是响应协议语义，发送后由连接层执行关闭。
     if (closeConnection) {
         conn->force_close();
     }
-}
-
-TlsMode HttpServer::tls_mode_of(const ConnectionState& state) const {
-    return state.tlsMode;
-}
-
-bool HttpServer::send_memory_bio_plaintext(const TcpConnectionPtr& conn,
-    TlsConnection& tlsConnection,
-    const std::string& plaintext) {
-    if (!conn) {
-        return false;
-    }
-
-    std::string encrypted;
-    if (!tlsConnection.write_plaintext(plaintext, encrypted)) {
-        return false;
-    }
-
-    if (!encrypted.empty()) {
-        conn->send(encrypted);
-    }
-    return true;
-}
-
-void HttpServer::remove_connection_state(const TcpConnectionPtr& conn) {
-    std::lock_guard<std::mutex> lock(contextsMutex_);
-    const auto it = connectionStates_.find(conn.get());
-    if (it == connectionStates_.end()) {
-        spdlog::warn("HttpServer: No ConnectionState found for fd={} on close.", conn ? conn->get_fd() : -1);
-        return;
-    }
-
-    connectionStates_.erase(it);
+    return closeConnection;
 }

@@ -3,10 +3,7 @@
 #include <openssl/ssl.h>
 
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
-#include <cstring>
-#include <fcntl.h>
 
 #include <cstdlib>
 #include <cstdint>
@@ -18,7 +15,6 @@
 #define private public
 #include "tudou/http/HttpServer.h"
 #undef private
-#include "tudou/http/TlsProbe.h"
 
 #include "tudou/tcp/InetAddress.h"
 #include "tudou/reactor/EventLoop.h"
@@ -190,60 +186,9 @@ bool complete_handshake(ClientTlsPeer& client, TlsConnection& server) {
     return false;
 }
 
-bool create_tcp_socketpair(int fds[2]) {
-    int listenFd = ::socket(AF_INET, SOCK_STREAM, 0);
-    if (listenFd < 0) return false;
-
-    struct sockaddr_in addr;
-    std::memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
-    addr.sin_port = 0;
-
-    if (::bind(listenFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        ::close(listenFd);
-        return false;
-    }
-
-    if (::listen(listenFd, 1) < 0) {
-        ::close(listenFd);
-        return false;
-    }
-
-    socklen_t addrLen = sizeof(addr);
-    if (::getsockname(listenFd, (struct sockaddr*)&addr, &addrLen) < 0) {
-        ::close(listenFd);
-        return false;
-    }
-
-    int clientFd = ::socket(AF_INET, SOCK_STREAM, 0);
-    if (clientFd < 0) {
-        ::close(listenFd);
-        return false;
-    }
-
-    if (::connect(clientFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        ::close(listenFd);
-        ::close(clientFd);
-        return false;
-    }
-
-    int serverFd = ::accept(listenFd, nullptr, nullptr);
-    ::close(listenFd);
-
-    if (serverFd < 0) {
-        ::close(clientFd);
-        return false;
-    }
-
-    fds[0] = serverFd;
-    fds[1] = clientFd;
-    return true;
-}
-
 } // namespace
 
-TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesConnectionState) {
+TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesHttpConnection) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
@@ -253,104 +198,55 @@ TEST(HttpServerTest, OnConnectCreatesAndOnCloseRemovesConnectionState) {
 
     server.on_connect(conn);
 
-    ASSERT_EQ(server.connectionStates_.size(), 1U);
-    const auto stateIt = server.connectionStates_.find(conn.get());
-    ASSERT_NE(stateIt, server.connectionStates_.end());
-    ASSERT_NE(stateIt->second, nullptr);
-    EXPECT_EQ(stateIt->second->tlsMode, TlsMode::None);
-    EXPECT_EQ(stateIt->second->tlsConnection, nullptr);
+    ASSERT_EQ(server.httpConnections_.size(), 1U);
+    const auto httpConnectionIt = server.httpConnections_.find(conn.get());
+    ASSERT_NE(httpConnectionIt, server.httpConnections_.end());
+    ASSERT_NE(httpConnectionIt->second, nullptr);
 
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
         server.on_close(conn);
         });
     conn->force_close();
 
-    EXPECT_TRUE(server.connectionStates_.empty());
+    EXPECT_TRUE(server.httpConnections_.empty());
 
     ::close(fds[1]);
 }
 
-TEST(HttpServerTest, SslConnectionStateUsesMemoryBioMode) {
-    int fds[2] = { -1, -1 };
-    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
-
-    EventLoop loop;
-    HttpServer server("127.0.0.1", 8080, 0);
-    ASSERT_TRUE(server.enable_ssl(cert_path("test-cert.pem"), cert_path("test-key.pem")));
-
-    auto conn = make_connection(loop, fds[0]);
-    server.on_connect(conn);
-
-    ASSERT_EQ(server.connectionStates_.size(), 1U);
-    const auto stateIt = server.connectionStates_.find(conn.get());
-    ASSERT_NE(stateIt, server.connectionStates_.end());
-    ASSERT_NE(stateIt->second, nullptr);
-    EXPECT_EQ(stateIt->second->tlsMode, TlsMode::MemoryBio);
-    EXPECT_NE(stateIt->second->tlsConnection, nullptr);
-
-    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(conn);
-        });
-    conn->force_close();
-
-    EXPECT_TRUE(server.connectionStates_.empty());
-
-    ::close(fds[1]);
-}
-
-TEST(HttpServerTest, SetTlsModeAcceptsSupportedModes) {
-    HttpServer server("127.0.0.1", 8080, 0);
-
-    EXPECT_TRUE(server.set_tls_mode(TlsMode::MemoryBio));
-    EXPECT_EQ(server.tlsMode_, TlsMode::MemoryBio);
-
-    bool kTlsSupported = TlsProbe::is_kernel_tls_supported();
-    EXPECT_EQ(server.set_tls_mode(TlsMode::KernelTls), kTlsSupported);
-    if (kTlsSupported) {
-        EXPECT_EQ(server.tlsMode_, TlsMode::KernelTls);
-    } else {
-        EXPECT_EQ(server.tlsMode_, TlsMode::MemoryBio);
-    }
-
-    EXPECT_FALSE(server.set_tls_mode(TlsMode::None));
-    if (kTlsSupported) {
-        EXPECT_EQ(server.tlsMode_, TlsMode::KernelTls);
-    } else {
-        EXPECT_EQ(server.tlsMode_, TlsMode::MemoryBio);
-    }
-}
-
-TEST(HttpServerTest, KernelTlsConnectionStateUsesKernelTlsMode) {
-    if (!TlsProbe::is_kernel_tls_supported()) {
-        GTEST_SKIP() << "Kernel TLS is not supported on this platform, skipping test.";
-    }
-
+TEST(HttpServerTest, SslHttpConnectionCreatesTlsConnection) {
     int fds[2] = { -1, -1 };
     ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
 
     EventLoop loop;
     HttpServer server("127.0.0.1", 8080, 0);
     ASSERT_TRUE(server.enable_ssl(cert_path("test-cert.pem"), cert_path("test-key.pem")));
-    ASSERT_TRUE(server.set_tls_mode(TlsMode::KernelTls));
 
     auto conn = make_connection(loop, fds[0]);
     server.on_connect(conn);
 
-    ASSERT_EQ(server.connectionStates_.size(), 1U);
-    const auto stateIt = server.connectionStates_.find(conn.get());
-    ASSERT_NE(stateIt, server.connectionStates_.end());
-    ASSERT_NE(stateIt->second, nullptr);
-    EXPECT_EQ(stateIt->second->tlsMode, TlsMode::KernelTls);
-    EXPECT_NE(stateIt->second->tlsConnection, nullptr); // OpenSSL handshake peer still created first
+    ASSERT_EQ(server.httpConnections_.size(), 1U);
+    const auto httpConnectionIt = server.httpConnections_.find(conn.get());
+    ASSERT_NE(httpConnectionIt, server.httpConnections_.end());
+    ASSERT_NE(httpConnectionIt->second, nullptr);
+    ClientTlsPeer client;
+    ASSERT_TRUE(client.advance_handshake());
+
+    std::vector<HttpRequest> requests;
+    std::string outboundCiphertext;
+    EXPECT_EQ(httpConnectionIt->second->decode_requests(client.take_output(), requests, outboundCiphertext),
+        HttpConnection::ProcessResult::Success);
+    EXPECT_TRUE(requests.empty());
+    EXPECT_FALSE(outboundCiphertext.empty());
 
     conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
         server.on_close(conn);
         });
     conn->force_close();
+
+    EXPECT_TRUE(server.httpConnections_.empty());
+
     ::close(fds[1]);
 }
-
-
 
 TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsResponse) {
     int fds[2] = { -1, -1 };
@@ -399,7 +295,7 @@ TEST(HttpServerTest, ProcessPlainHttpRequestDispatchesRegisteredRouteAndSendsRes
     EXPECT_NE(response.find("\r\n\r\nok"), std::string::npos);
 
     conn->force_close();
-    EXPECT_TRUE(server.connectionStates_.empty());
+    EXPECT_TRUE(server.httpConnections_.empty());
 
     ::close(fds[1]);
 }
@@ -411,15 +307,15 @@ TEST(HttpServerTest, SendTlsResponseEncryptsHeaderAndBody) {
     TlsConfig tlsConfig;
     ASSERT_TRUE(tlsConfig.init(cert_path("test-cert.pem"), cert_path("test-key.pem")));
 
-    SSL* serverSsl = tlsConfig.create_ssl();
+    SSL* serverSsl = tlsConfig.create_ssl_session();
     ASSERT_NE(serverSsl, nullptr);
 
-    HttpServer::ConnectionState state;
-    state.tlsMode = TlsMode::MemoryBio;
-    state.tlsConnection = std::make_unique<TlsConnection>(serverSsl);
+    auto tlsConnection = std::make_unique<TlsConnection>(serverSsl);
 
     ClientTlsPeer client;
-    ASSERT_TRUE(complete_handshake(client, *state.tlsConnection));
+    ASSERT_TRUE(complete_handshake(client, *tlsConnection));
+
+    HttpConnection httpConnection(std::move(tlsConnection));
 
     const std::string body = "tls response body";
 
@@ -432,7 +328,7 @@ TEST(HttpServerTest, SendTlsResponseEncryptsHeaderAndBody) {
     HttpServer server("127.0.0.1", 8080, 0);
     auto conn = make_connection(loop, fds[0]);
 
-    server.send_http_response(conn, state, response);
+    EXPECT_FALSE(server.send_http_response(conn, httpConnection, response));
 
     const std::string encryptedResponse = read_all_available(fds[1]);
     ASSERT_FALSE(encryptedResponse.empty());
@@ -444,6 +340,78 @@ TEST(HttpServerTest, SendTlsResponseEncryptsHeaderAndBody) {
     EXPECT_NE(decryptedResponse.find("Content-Type: text/plain\r\n"), std::string::npos);
     EXPECT_NE(decryptedResponse.find("Content-Length: " + std::to_string(body.size()) + "\r\n"), std::string::npos);
     EXPECT_NE(decryptedResponse.find("\r\n\r\n" + body), std::string::npos);
+
+    ::close(fds[1]);
+}
+
+TEST(HttpServerTest, SendHttpResponseClosesConnectionWhenRequested) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    EventLoop loop;
+    HttpServer server("127.0.0.1", 8080, 0);
+    auto conn = make_connection(loop, fds[0]);
+    HttpConnection httpConnection;
+
+    HttpResponse response;
+    response.set_header("Connection", "close");
+
+    EXPECT_TRUE(server.send_http_response(conn, httpConnection, response));
+
+    ::close(fds[1]);
+}
+
+TEST(HttpServerTest, SendHttpResponseClosesConnectionWhenTlsEncodingFails) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    EventLoop loop;
+    HttpServer server("127.0.0.1", 8080, 0);
+    auto conn = make_connection(loop, fds[0]);
+    bool closeCalled = false;
+    conn->set_close_callback([&](const TcpConnectionPtr&) {
+        closeCalled = true;
+        });
+
+    HttpConnection httpConnection(std::make_unique<TlsConnection>(nullptr));
+    HttpResponse response;
+
+    EXPECT_TRUE(server.send_http_response(conn, httpConnection, response));
+    EXPECT_TRUE(closeCalled);
+
+    ::close(fds[1]);
+}
+
+TEST(HttpServerTest, TlsReadFailureClosesConnection) {
+    int fds[2] = { -1, -1 };
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    EventLoop loop(20);
+    HttpServer server("127.0.0.1", 8080, 0);
+    auto conn = make_connection(loop, fds[0]);
+    server.on_connect(conn);
+    server.httpConnections_[conn.get()] =
+        std::make_shared<HttpConnection>(std::make_unique<TlsConnection>(nullptr));
+
+    bool closeCalled = false;
+    conn->set_message_callback([&](const TcpConnectionPtr& activeConn) {
+        server.on_message(activeConn);
+        });
+    conn->set_close_callback([&](const TcpConnectionPtr&) {
+        closeCalled = true;
+        server.on_close(conn);
+        loop.quit();
+        });
+
+    const std::string invalidTls = "invalid TLS";
+    ASSERT_EQ(::write(fds[1], invalidTls.data(), invalidTls.size()), static_cast<ssize_t>(invalidTls.size()));
+    loop.run_after(0.2, [&]() {
+        loop.quit();
+        });
+    loop.loop();
+
+    EXPECT_TRUE(closeCalled);
+    EXPECT_TRUE(server.httpConnections_.empty());
 
     ::close(fds[1]);
 }
@@ -485,7 +453,7 @@ TEST(HttpServerTest, ProcessBadRequestSendsBadRequestAndResetsContext) {
     EXPECT_NE(response.find("\r\n\r\nBad Request"), std::string::npos);
 
     // 因 Connection: close 触发主动关闭，连接状态已在 on_close 回调中被物理清理
-    EXPECT_TRUE(server.connectionStates_.empty());
+    EXPECT_TRUE(server.httpConnections_.empty());
 
     ::close(fds[1]);
 }
@@ -546,131 +514,7 @@ TEST(HttpServerTest, ProcessPipelinedRequests) {
     EXPECT_NE(response.find("second_response"), std::string::npos);
 
     conn->force_close();
-    EXPECT_TRUE(server.connectionStates_.empty());
+    EXPECT_TRUE(server.httpConnections_.empty());
 
-    ::close(fds[1]);
-}
-
-TEST(HttpServerTest, KernelTlsOffloadEnablesPlaintextTransmission) {
-    if (!TlsProbe::is_kernel_tls_supported()) {
-        GTEST_SKIP() << "Kernel TLS is not supported on this platform, skipping test.";
-    }
-
-    int fds[2] = { -1, -1 };
-    ASSERT_TRUE(create_tcp_socketpair(fds));
-
-    // Ensure sockets are in non-blocking mode for our driving loop
-    ::fcntl(fds[0], F_SETFL, ::fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK);
-    ::fcntl(fds[1], F_SETFL, ::fcntl(fds[1], F_GETFL, 0) | O_NONBLOCK);
-
-    EventLoop loop;
-    HttpServer server("127.0.0.1", 8080, 0);
-    ASSERT_TRUE(server.enable_ssl(cert_path("test-cert.pem"), cert_path("test-key.pem")));
-    ASSERT_TRUE(server.set_tls_mode(TlsMode::KernelTls));
-
-    // Client Peer
-    ClientTlsPeer client;
-
-    auto conn = make_connection(loop, fds[0]);
-    server.on_connect(conn);
-
-    auto state = server.find_connection_state(conn);
-    ASSERT_NE(state, nullptr);
-
-    conn->set_message_callback([&](const std::shared_ptr<TcpConnection>& activeConn) {
-        server.on_message(activeConn);
-    });
-    conn->set_close_callback([&](const std::shared_ptr<TcpConnection>&) {
-        server.on_close(conn);
-    });
-
-    // Drive handshake by passing data back and forth using event loop timer
-    int rounds = 0;
-    std::function<void()> driveHandshake = [&]() {
-        rounds++;
-        if (rounds > 500) {
-            loop.quit();
-            return;
-        }
-
-        if (!client.is_established()) {
-            client.advance_handshake();
-        }
-
-        std::string clientOut = client.take_output();
-        if (!clientOut.empty()) {
-            (void)::write(fds[1], clientOut.data(), clientOut.size());
-        }
-
-        std::string toClient = read_available(fds[1]);
-        if (!toClient.empty()) {
-            client.feed_input(toClient);
-            client.advance_handshake();
-        }
-
-        // Exit loop once client is established and server has processed offloading (either succeeded or fell back)
-        if (client.is_established() && (state->isKtlsOffloaded || state->tlsMode == TlsMode::MemoryBio)) {
-            loop.quit();
-            return;
-        }
-
-        loop.run_after(0.005, driveHandshake);
-    };
-
-    loop.run_after(0.005, driveHandshake);
-    loop.loop();
-
-    ASSERT_TRUE(client.is_established());
-
-    // 4. Verify transmission depending on offload result
-    if (state->isKtlsOffloaded) {
-        // Read and discard the 1-byte space sent by OpenSSL to trigger kTLS configuration
-        ::usleep(10000);
-        std::string junkResponse = read_available(fds[1]);
-        ASSERT_FALSE(junkResponse.empty());
-        ASSERT_GT(client.feed_input(junkResponse), 0);
-        std::string junkPlaintext;
-        EXPECT_GT(client.read_plaintext(junkPlaintext), 0);
-        EXPECT_EQ(junkPlaintext, " ");
-
-        // Register a simple route for verifying the kTLS response
-        bool routeCalled = false;
-        server.add_get_route("/", [&](const HttpRequest& req, HttpResponse& resp) {
-            (void)req;
-            routeCalled = true;
-            resp.set_status(200, "OK");
-            resp.set_body("ktls response ok");
-        });
-
-        // Client sends an encrypted request
-        std::string request = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
-        std::string encryptedRequest;
-        ASSERT_TRUE(client.write_plaintext(request, encryptedRequest));
-        ASSERT_GT(::write(fds[1], encryptedRequest.data(), encryptedRequest.size()), 0);
-
-        // Run loop to let TcpConnection read, decrypt (via kernel RX), parse, and respond
-        loop.run_after(0.05, [&]() {
-            loop.quit();
-        });
-        loop.loop();
-
-        EXPECT_TRUE(routeCalled);
-
-        // Read response from client fd.
-        // Due to kTLS TX offload, the kernel encrypted it, so we read TLS ciphertext bytes.
-        std::string encryptedResponse = read_all_available(fds[1]);
-        ASSERT_FALSE(encryptedResponse.empty());
-
-        // Client decrypts the response bytes
-        ASSERT_GT(client.feed_input(encryptedResponse), 0);
-        std::string decryptedResponse;
-        EXPECT_GT(client.read_plaintext(decryptedResponse), 0);
-        EXPECT_NE(decryptedResponse.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
-        EXPECT_NE(decryptedResponse.find("ktls response ok"), std::string::npos);
-    } else {
-        SUCCEED() << "kTLS offloading is not fully supported in this restricted test environment (expected in sandbox containers). Skipping transmission check.";
-    }
-
-    conn->force_close();
     ::close(fds[1]);
 }

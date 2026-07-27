@@ -14,6 +14,11 @@ public:
     HttpRequest();
     ~HttpRequest() = default;
 
+    HttpRequest(const HttpRequest&) = default;
+    HttpRequest& operator=(const HttpRequest&) = default;
+    HttpRequest(HttpRequest&&) = default;
+    HttpRequest& operator=(HttpRequest&&) = default;
+
     void set_method(const std::string& m) { method_ = m; }
     void set_url(const std::string& u) { url_ = u; }
     void set_path(const std::string& p) { path_ = p; }

@@ -136,13 +136,6 @@ StaticFileHttpServer::StaticFileHttpServer(StaticFileServerConfig cfg)
             spdlog::critical("StaticFileHttpServer: Failed to enable SSL with cert={} and key={}", cfg_.sslCertPath, cfg_.sslKeyPath);
             throw std::runtime_error("SSL initialization failed");
         }
-        if (cfg_.enableKtls) {
-            if (!httpServer_->set_tls_mode(TlsMode::KernelTls)) {
-                spdlog::warn("StaticFileHttpServer: Kernel TLS requested but not supported, falling back to Memory BIO.");
-            } else {
-                spdlog::info("StaticFileHttpServer: kTLS offloading enabled.");
-            }
-        }
     }
 
     httpServer_->add_prefix_route("/", [this](const HttpRequest& req, HttpResponse& resp) {

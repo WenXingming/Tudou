@@ -1,7 +1,13 @@
+// ============================================================================
+// 服务端 TLS 配置实现：初始化可共享的 SSL_CTX，并从中派生每条连接的 SSL 会话。
+// 连接级握手和加解密由 TlsConnection 通过 Memory BIO 完成。
+// ============================================================================
+
 #include "tudou/http/TlsConfig.h"
-#include "spdlog/spdlog.h"
 
 #include <openssl/ssl.h>
+
+#include "spdlog/spdlog.h"
 
 TlsConfig::TlsConfig() : ctx_(nullptr) {}
 
@@ -10,7 +16,6 @@ TlsConfig::~TlsConfig() {
 }
 
 bool TlsConfig::init(const std::string& certFile, const std::string& keyFile) {
-    // init 是唯一编排入口；每次重建都先清空旧上下文，避免失败重试时遗留旧状态。
     reset_context();
 
     ctx_ = SSL_CTX_new(TLS_server_method());
@@ -21,10 +26,6 @@ bool TlsConfig::init(const std::string& certFile, const std::string& keyFile) {
 
     // TLS 1.2 是当前服务端的最低安全线，统一在上下文层配置。
     SSL_CTX_set_min_proto_version(ctx_, TLS1_2_VERSION);
-
-#ifdef SSL_OP_ENABLE_KTLS
-    SSL_CTX_set_options(ctx_, SSL_OP_ENABLE_KTLS);
-#endif
 
     if (SSL_CTX_use_certificate_file(ctx_, certFile.c_str(), SSL_FILETYPE_PEM) <= 0) {
         spdlog::critical("TlsConfig: Failed to load certificate file: {}", certFile);
@@ -48,13 +49,12 @@ bool TlsConfig::init(const std::string& certFile, const std::string& keyFile) {
     return true;
 }
 
-SSL* TlsConfig::create_ssl() const {
+SSL* TlsConfig::create_ssl_session() const {
     if (!ctx_) {
         spdlog::error("TlsConfig: Cannot create SSL, context not initialized");
         return nullptr;
     }
 
-    // 每个连接都从共享 SSL_CTX 派生一个独立 SSL 对象，后续握手和加解密状态都放在连接侧维护。
     SSL* ssl = SSL_new(ctx_);
     if (!ssl) {
         spdlog::error("TlsConfig: Failed to create SSL object");
@@ -69,11 +69,4 @@ void TlsConfig::reset_context() {
 
     SSL_CTX_free(ctx_);
     ctx_ = nullptr;
-}
-
-void TlsConfig::restrict_to_tls12() {
-    if (ctx_) {
-        ::SSL_CTX_set_max_proto_version(ctx_, TLS1_2_VERSION);
-        spdlog::debug("TlsConfig: Restricted max protocol version to TLS 1.2 for kTLS");
-    }
 }

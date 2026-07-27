@@ -1,11 +1,13 @@
+// ============================================================================
+// 服务端 TLS 配置：持有共享 SSL_CTX，加载证书、私钥和协议策略，并创建 SSL 连接会话。
+// 由 HttpServer 在启动前初始化；不负责单连接握手、加解密或 Socket I/O。
+// ============================================================================
+
 #pragma once
+
 #include <string>
 
-// TlsConfig 把 SSL_CTX 的初始化收敛成单向步骤，作为全局共享的安全传输配置工厂。
-
-// 前向声明 OpenSSL 类型，避免头文件污染
-typedef struct ssl_ctx_st SSL_CTX;
-typedef struct ssl_st SSL;
+#include <openssl/ssl.h>
 
 class TlsConfig {
 public:
@@ -15,15 +17,18 @@ public:
     TlsConfig(const TlsConfig&) = delete;
     TlsConfig& operator=(const TlsConfig&) = delete;
 
-    bool init(const std::string& certFile, const std::string& keyFile); // 初始化 SSL_CTX 并加载证书/私钥。
-    SSL* create_ssl() const; // 为一个新连接创建 SSL 会话对象。
+    // 重建服务端上下文；失败后对象处于未初始化状态。
+    bool init(const std::string& certFile, const std::string& keyFile);
+
+    // 创建独立的连接会话；调用者负责 SSL_free()。
+    SSL* create_ssl_session() const;
 
     bool is_initialized() const { return ctx_ != nullptr; }
-    void restrict_to_tls12();
 
 private:
+    // 释放当前服务端上下文，使对象回到未初始化状态。
     void reset_context();
 
 private:
-    SSL_CTX* ctx_;                      // 全局 TLS 服务端上下文，由 HttpServer 共享使用。
+    SSL_CTX* ctx_; // 由 HttpServer 共享的服务端 TLS 上下文。
 };

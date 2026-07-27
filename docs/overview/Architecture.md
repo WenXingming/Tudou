@@ -416,7 +416,7 @@ classDiagram
     class SslContext {
         -SSL_CTX* ctx_
         +init(certFile, keyFile) bool
-        +create_ssl() SSL*
+        +create_ssl_session() SSL*
         +is_initialized() bool
     }
 

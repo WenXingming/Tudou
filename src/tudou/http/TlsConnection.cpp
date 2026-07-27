@@ -1,21 +1,11 @@
 // ============================================================================
-// TlsConnection.cpp
-// 单连接 TLS 状态机实现，统一处理握手、加解密与错误态收敛。
+// 单连接 TLS 会话实现：通过 Memory BIO 推进握手、解密输入并加密输出。
+// 所有调用均由所属 EventLoop 串行执行，OpenSSL 不直接读写 Socket。
 // ============================================================================
 
 #include "tudou/http/TlsConnection.h"
+
 #include "spdlog/spdlog.h"
-
-#include <openssl/ssl.h>
-
-#if defined(__linux__) && defined(SSL_OP_ENABLE_KTLS)
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <unistd.h>
-#include <cerrno>
-#include <cstring>
-#endif
 
 namespace {
 
@@ -24,34 +14,27 @@ constexpr int kTlsBufferSize = 16384;
 } // namespace
 
 TlsConnection::TlsConnection(SSL* ssl)
-    : ssl_(ssl)
-    , rbio_(nullptr)
-    , wbio_(nullptr)
-    , state_(State::HANDSHAKING) {
+    : ssl_(ssl) {
 
     if (!ssl_) {
         mark_error("TlsConnection: Cannot initialize with null SSL handle");
         return;
     }
 
-    rbio_ = BIO_new(BIO_s_mem());
-    wbio_ = BIO_new(BIO_s_mem());
-    if (!rbio_ || !wbio_) {
-        if (rbio_) {
-            BIO_free(rbio_);
-            rbio_ = nullptr;
+    BIO* rbio = BIO_new(BIO_s_mem());
+    BIO* wbio = BIO_new(BIO_s_mem());
+    if (!rbio || !wbio) {
+        if (rbio) {
+            BIO_free(rbio);
         }
-        if (wbio_) {
-            BIO_free(wbio_);
-            wbio_ = nullptr;
+        if (wbio) {
+            BIO_free(wbio);
         }
         mark_error("TlsConnection: Failed to create Memory BIO pair");
         return;
     }
 
-    // SSL_set_bio 会接管 BIO 的释放职责；这里保留裸指针仅用于后续读写。
-    SSL_set_bio(ssl_, rbio_, wbio_);
-    // 当前对象始终扮演 TLS 服务端，客户端握手驱动由对端承担。
+    SSL_set_bio(ssl_, rbio, wbio);
     SSL_set_accept_state(ssl_);
 }
 
@@ -62,54 +45,36 @@ TlsConnection::~TlsConnection() {
     }
 }
 
-TlsConnection::ReadResult TlsConnection::read_plaintext(
-    const std::string& ciphertext,
-    std::string& plaintext,
-    std::string& outboundCiphertext) {
+TlsConnection::ReadResult TlsConnection::read_plaintext(const std::string& ciphertext, std::string& plaintext, std::string& outboundCiphertext) {
     plaintext.clear();
     outboundCiphertext.clear();
 
-    if (!ensure_tls_session("read_plaintext")) {
+    if (is_error()) {
+        spdlog::error("TlsConnection: Cannot read_plaintext, TLS session is in error state");
         return ReadResult::Error;
     }
 
-    // 1. 将接收到的网络密文写入输入缓冲（rbio_）
+    // 1. 先把本次 socket 收到的密文交给 OpenSSL。
     if (!ciphertext.empty()) {
-        const int written = BIO_write(rbio_, ciphertext.data(), static_cast<int>(ciphertext.size()));
+        const int written = BIO_write(SSL_get_rbio(ssl_), ciphertext.data(), static_cast<int>(ciphertext.size()));
         if (written <= 0) {
             mark_error("TlsConnection: BIO_write failed");
             return ReadResult::Error;
         }
     }
 
-    // 2. 尝试推进 TLS 握手状态
-    if (state_ == State::HANDSHAKING) {
-        const int result = SSL_do_handshake(ssl_);
-        if (result == 1) {
-            state_ = State::ESTABLISHED;
-            spdlog::debug("TlsConnection: TLS handshake completed successfully");
-        } else {
-            const int err = SSL_get_error(ssl_, result);
-            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
-                state_ = State::ERROR;
-                spdlog::error("TlsConnection: TLS handshake failed, SSL_get_error={}", err);
-                return ReadResult::Error;
-            }
-        }
-    }
-
-    // 先把握手阶段产生的待发密文交给调用方，再决定本轮是否已有可读明文。
-    outboundCiphertext = drain_ciphertext();
-    if (state_ == State::HANDSHAKING) {
-        return ReadResult::NeedMoreData;
-    }
-
-    if (!is_established()) {
-        spdlog::error("TlsConnection: TLS session left handshake without entering ESTABLISHED");
+    // 2. 握手未完成时只推进握手，不把握手字节误当作 HTTP 数据。
+    if (!is_established() && !advance_handshake()) {
         return ReadResult::Error;
     }
 
-    // 3. 从 SSL 会话中持续读取并解密应用层明文
+    // 3. 无论握手是否完成，先取出 OpenSSL 本轮产生的待发密文。
+    outboundCiphertext = drain_ciphertext();
+    if (!is_established()) {
+        return ReadResult::NeedMoreData;
+    }
+
+    // 4. 握手完成后，读尽当前已经解出的 HTTP 明文。
     char buf[kTlsBufferSize];
     while (true) {
         const int n = SSL_read(ssl_, buf, sizeof(buf));
@@ -141,46 +106,55 @@ bool TlsConnection::write_plaintext(const std::string& plaintext, std::string& c
         return true;
     }
 
-    if (!ensure_tls_session("write_plaintext")) {
+    if (is_error()) {
+        spdlog::error("TlsConnection: Cannot write_plaintext, TLS session is in error state");
         return false;
     }
 
-    if (state_ != State::ESTABLISHED) {
+    if (!is_established()) {
         spdlog::warn("TlsConnection: Cannot encrypt, TLS not established");
         return false;
     }
 
-    // 明文写入 SSL 后，加密结果统一滞留在 wbio，等待 HttpServer 拉取后发送。
     const int written = SSL_write(ssl_, plaintext.data(), static_cast<int>(plaintext.size()));
     if (written <= 0) {
         const int err = SSL_get_error(ssl_, written);
-        if (err != SSL_ERROR_WANT_WRITE) {
-            mark_error("TlsConnection: SSL_write failed");
-            spdlog::error("TlsConnection: SSL_write error, SSL_get_error={}", err);
-            return false;
-        }
-        return true;
+        mark_error("TlsConnection: SSL_write failed");
+        spdlog::error("TlsConnection: SSL_write error, SSL_get_error={}", err);
+        return false;
     }
 
     ciphertext = drain_ciphertext();
-    return !ciphertext.empty();
+    return true;
+}
+
+bool TlsConnection::advance_handshake() {
+    const int result = SSL_do_handshake(ssl_);
+    if (result == 1) {
+        spdlog::debug("TlsConnection: TLS handshake completed successfully");
+        return true;
+    }
+
+    const int err = SSL_get_error(ssl_, result);
+    if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+        return true;
+    }
+
+    mark_error("TlsConnection: TLS handshake failed");
+    return false;
 }
 
 std::string TlsConnection::drain_ciphertext() {
     std::string output;
 
-    if (!ssl_ || !wbio_) {
-        return output;
-    }
-
-    // OpenSSL 把待发送密文积压在写 BIO 里，这里统一抽干交给调用方发送。
-    const int pending = BIO_ctrl_pending(wbio_);
+    BIO* wbio = SSL_get_wbio(ssl_);
+    const int pending = BIO_ctrl_pending(wbio);
     if (pending <= 0) {
         return output;
     }
 
     output.resize(pending);
-    int n = BIO_read(wbio_, &output[0], pending);
+    int n = BIO_read(wbio, &output[0], pending);
     if (n <= 0) {
         output.clear();
         return output;
@@ -190,63 +164,10 @@ std::string TlsConnection::drain_ciphertext() {
     return output;
 }
 
-bool TlsConnection::ensure_tls_session(const char* action) const {
-    if (!ssl_ || !rbio_ || !wbio_) {
-        spdlog::error("TlsConnection: Cannot {}, TLS session not initialized", action);
-        return false;
-    }
-
-    if (state_ == State::ERROR) {
-        spdlog::error("TlsConnection: Cannot {}, TLS session already in error state", action);
-        return false;
-    }
-
-    return true;
-}
-
 void TlsConnection::mark_error(const char* message) {
-    state_ = State::ERROR;
     spdlog::error("{}", message);
-}
-
-bool TlsConnection::enable_ktls_offload(int fd) {
-#if defined(__linux__) && defined(SSL_OP_ENABLE_KTLS) && defined(BIO_get_ktls_send)
-    // 1. Enable TCP ULP (Upper Layer Protocol) "tls"
-    int ret = ::setsockopt(fd, IPPROTO_TCP, 31, "tls", sizeof("tls"));
-    if (ret < 0 && errno != EEXIST) {
-        spdlog::error("TlsConnection: Failed to set TCP_ULP to tls, fd={}, error={}", fd, std::strerror(errno));
-        return false;
+    if (ssl_) {
+        SSL_free(ssl_);
+        ssl_ = nullptr;
     }
-
-    // 2. Wrap fd into a Socket BIO
-    BIO* s_bio = BIO_new_socket(fd, BIO_NOCLOSE);
-    if (!s_bio) {
-        spdlog::error("TlsConnection: Failed to create socket BIO, fd={}", fd);
-        return false;
-    }
-
-    // 3. Bind the Socket BIO to the SSL session (wbio & rbio)
-    // SSL_set_bio takes ownership of the socket BIO.
-    // The previous memory BIOs (rbio_, wbio_) are automatically freed.
-    SSL_set_bio(ssl_, s_bio, s_bio);
-    rbio_ = nullptr;
-    wbio_ = nullptr;
-
-    // 4. Trigger OpenSSL to write session keys into the kernel
-    // A 1-byte write forces OpenSSL to run the internal kTLS setup.
-    ::SSL_write(ssl_, " ", 1);
-
-    // 5. Verify that kTLS has been successfully offloaded for sending
-    if (!BIO_get_ktls_send(s_bio)) {
-        spdlog::error("TlsConnection: OpenSSL failed to offload TX keys to kernel, fd={}", fd);
-        return false;
-    }
-
-    spdlog::info("TlsConnection: Successfully offloaded TX keys to kTLS kernel space, fd={}", fd);
-    return true;
-#else
-    (void)fd;
-    spdlog::warn("TlsConnection: kTLS is not supported/enabled in this compilation, offload ignored.");
-    return false;
-#endif
 }

@@ -4,7 +4,6 @@
 // ============================================================================
 
 #include "tudou/http/HttpResponse.h"
-#include "HttpResponse.h"
 
 namespace {
 
