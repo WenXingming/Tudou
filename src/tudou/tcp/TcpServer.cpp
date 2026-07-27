@@ -1,6 +1,6 @@
 // ============================================================================
-// TcpServer.cpp
-// TcpServer 的实现：Socket 沿回调链传递到 TcpConnection，沿途配置 socket 选项。
+// TcpServer 负责监听端口、分配连接到 IO 线程，并转发 TcpConnection 事件。
+// 停止时先停止接收，再由各 IO 线程收口现有连接。
 // ============================================================================
 
 #include "tudou/tcp/TcpServer.h"
@@ -11,7 +11,6 @@
 #include "tudou/tcp/InetAddress.h"
 #include "spdlog/spdlog.h"
 #include "tudou/tcp/Acceptor.h"
-#include "tudou/tcp/ConnectionHeartbeat.h"
 #include "tudou/reactor/EventLoop.h"
 #include "tudou/tcp/TcpConnection.h"
 #include "tudou/reactor/EventLoopThread.h"
@@ -24,26 +23,28 @@ constexpr size_t kDefaultHighWaterMark = 64 * 1024 * 1024; // 64 MB
 } // namespace
 
 TcpServer::TcpServer(std::string ip, uint16_t port, size_t ioLoopNum) :
-    loopThreadPool_(nullptr),
-    ioLoopNum_(ioLoopNum),
     ip_(std::move(ip)),
     port_(port),
+    ioLoopNum_(ioLoopNum),
+    loopThreadPool_(nullptr),
     acceptor_(nullptr),
+    accepting_(false),
     connectionRecordsByLoop_(),
+    heartbeatCheckIntervalSeconds_(0.0),
+    heartbeatIdleTimeoutSeconds_(0.0),
     activeConnectionCount_(0),
-    state_(ServerState::Created),
+    shutdownMutex_(),
+    shutdownCondition_(),
     connectionCallback_(nullptr),
     messageCallback_(nullptr),
     closeCallback_(nullptr),
     errorCallback_(nullptr),
     writeCompleteCallback_(nullptr),
-    highWaterMarkCallback_(nullptr),
     highWaterMark_(kDefaultHighWaterMark),
-    connectionHeartbeatOptions_() {
+    highWaterMarkCallback_(nullptr) {
 }
 
-TcpServer::~TcpServer() {
-}
+TcpServer::~TcpServer() = default;
 
 void TcpServer::start() {
     spdlog::debug("TcpServer::start() called, starting server at {}:{}", ip_, port_);
@@ -57,16 +58,16 @@ void TcpServer::start() {
     );
     loopThreadPool_->start();
 
-    // 连接记录哈希表的外层以 EventLoop* 为键，start() 阶段一次性初始化完毕，运行期为纯只读结构，多线程并发查找（find）天然安全。
+    // 连接表按所属 EventLoop 分片，start() 阶段一次性创建各分片。
     const std::vector<EventLoop*> loops = loopThreadPool_->get_all_loops();
     assert(connectionRecordsByLoop_.empty());
     assert(!loops.empty());
     connectionRecordsByLoop_.reserve(loops.size());
     for (EventLoop* loop : loops) {
         assert(loop != nullptr);
-        connectionRecordsByLoop_.emplace(loop, ConnectionRecords());
+        connectionRecordsByLoop_.emplace(loop, std::unordered_map<TcpConnection*, TcpConnectionPtr>());
     }
-    state_.store(ServerState::Running);
+    accepting_.store(true);
 
     // 在 main loop 所在线程创建 acceptor，监听 fd 的事件回调由 main loop 调度执行，保证线程安全。
     EventLoop& mainLoop = *loopThreadPool_->get_main_loop();
@@ -78,17 +79,17 @@ void TcpServer::start() {
 
     mainLoop.loop();
 
-    // main loop 收到 quit() 请求退出后，先进入 Draining 状态，停止接受新连接，等待所有现有连接关闭完成后真正停止。
+    // main loop 退出后，等待所有现有连接完成收口。
+    accepting_.store(false);
     shutdown_connections();
     acceptor_.reset();
     loopThreadPool_.reset();
     connectionRecordsByLoop_.clear();
-    state_.store(ServerState::Stopped);
 }
 
 void TcpServer::stop() {
-    ServerState expected = ServerState::Running;
-    if (!state_.compare_exchange_strong(expected, ServerState::Draining)) {
+    bool expected = true;
+    if (!accepting_.compare_exchange_strong(expected, false)) {
         return;
     }
 
@@ -137,14 +138,13 @@ void TcpServer::set_connection_heartbeat(double checkIntervalSeconds, double idl
             checkIntervalSeconds,
             idleTimeoutSeconds);
         // 非法配置直接退化为关闭该功能，避免残留半初始化策略影响后续新连接。
-        connectionHeartbeatOptions_ = ConnectionHeartbeatOptions();
+        heartbeatCheckIntervalSeconds_ = 0.0;
+        heartbeatIdleTimeoutSeconds_ = 0.0;
         return;
     }
 
-    // TcpServer 只保存默认策略参数，真正的 ConnectionHeartbeat 在每条连接创建时单独实例化。
-    connectionHeartbeatOptions_.enabled = true;
-    connectionHeartbeatOptions_.checkIntervalSeconds = checkIntervalSeconds;
-    connectionHeartbeatOptions_.idleTimeoutSeconds = idleTimeoutSeconds;
+    heartbeatCheckIntervalSeconds_ = checkIntervalSeconds;
+    heartbeatIdleTimeoutSeconds_ = idleTimeoutSeconds;
 }
 
 void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
@@ -155,7 +155,7 @@ void TcpServer::on_connect(Socket connSocket, const InetAddress& peerAddr) {
     const int fd = connSocket.fd();
     spdlog::info("TcpServer: New connection from {} on fd {}", peerAddr.get_ip_port(), fd);
 
-    if (state_.load() != ServerState::Running) {
+    if (!accepting_.load()) {
         // connSocket 仍持有刚 accept 到的 fd；提前返回会通过 Socket 析构关闭它。
         return;
     }
@@ -188,9 +188,9 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     assert(ioLoop.is_in_loop_thread());
     auto recordsIt = connectionRecordsByLoop_.find(&ioLoop);
     assert(recordsIt != connectionRecordsByLoop_.end());
-    ConnectionRecords& localRecords = recordsIt->second;
+    auto& localRecords = recordsIt->second;
 
-    if (state_.load() != ServerState::Running) {
+    if (!accepting_.load()) {
         // connSocket 还未移交给 TcpConnection；返回时 Socket 析构会关闭 fd。
         return nullptr;
     }
@@ -198,7 +198,11 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
     // 接入策略由 TcpServer 决定，再将已配置的 Socket 交给连接管理。
     connSocket.set_tcp_no_delay(true);
     connSocket.set_keep_alive(true);
-    auto conn = TcpConnection::create_connection(&ioLoop, std::move(connSocket), peerAddr);
+    auto conn = TcpConnection::create_connection(&ioLoop,
+        std::move(connSocket),
+        peerAddr,
+        heartbeatCheckIntervalSeconds_,
+        heartbeatIdleTimeoutSeconds_);
 
     // 配置 TcpConnection 回调，TcpServer 把 6 种 callback 从用户设置转发到每个 TcpConnection
     conn->set_message_callback([this](const TcpConnectionPtr& activeConn) {
@@ -222,39 +226,19 @@ TcpConnectionPtr TcpServer::create_connection(EventLoop& ioLoop,
             }, highWaterMark_);
     }
 
-    // 根据服务器级默认配置，为这条连接按需创建独立的空闲检测器。
-    std::shared_ptr<ConnectionHeartbeat> heartbeat = create_connection_heartbeat(conn);
-
-    if (state_.load() != ServerState::Running) {
+    if (!accepting_.load()) {
         // conn 持有 Socket/Channel；丢弃 shared_ptr 会按 RAII 收口底层 fd。
         return nullptr;
     }
 
-    // 连接和该连接的可选心跳策略一起注册和清理，真实连接表只由所属 loop 线程访问。
-    localRecords[conn.get()] = ConnectionRecord{ conn, heartbeat };
+    // 连接表只保存连接本身；连接的附属资源由 TcpConnection 自己管理。
+    localRecords[conn.get()] = conn;
     activeConnectionCount_.fetch_add(1);
-
-    if (heartbeat) {
-        heartbeat->start();
-    }
 
     return conn;
 }
 
-std::shared_ptr<ConnectionHeartbeat> TcpServer::create_connection_heartbeat(const TcpConnectionPtr& conn) const {
-    if (!connectionHeartbeatOptions_.enabled) {
-        return nullptr;
-    }
-
-    // 策略对象只依赖 TcpConnection 的公共动作：refresh 通过 on_message 驱动，超时后调用 force_close。
-    return std::make_shared<ConnectionHeartbeat>(conn,
-        connectionHeartbeatOptions_.checkIntervalSeconds,
-        connectionHeartbeatOptions_.idleTimeoutSeconds);
-}
-
 void TcpServer::on_message(const TcpConnectionPtr& conn) {
-    // 任何成功上浮到 TcpServer 的读事件都视为连接仍然活跃，因此先刷新空闲窗口再继续协议分发。
-    refresh_connection_heartbeat(conn);
     if (messageCallback_) {
         messageCallback_(conn);
         return;
@@ -279,81 +263,38 @@ void TcpServer::remove_connection(const TcpConnectionPtr& conn) {
     const int fd = conn->get_fd();
     auto recordsIt = connectionRecordsByLoop_.find(conn->get_loop());
     assert(recordsIt != connectionRecordsByLoop_.end());
-    ConnectionRecords& localRecords = recordsIt->second;
+    auto& localRecords = recordsIt->second;
 
-    std::shared_ptr<ConnectionHeartbeat> heartbeat;
     auto it = localRecords.find(conn.get());
     if (it == localRecords.end()) {
         spdlog::error("TcpServer::remove_connection(). connection not found, fd={}", fd);
     }
     else {
-        heartbeat = it->second.heartbeat;
         localRecords.erase(it);
         activeConnectionCount_.fetch_sub(1);
-    }
-
-    if (heartbeat) {
-        heartbeat->stop();
-    }
-}
-
-void TcpServer::refresh_connection_heartbeat(const TcpConnectionPtr& conn) {
-    if (!connectionHeartbeatOptions_.enabled) {
-        return;
-    }
-
-    assert(conn);
-    assert(conn->get_loop()->is_in_loop_thread());
-    auto recordsIt = connectionRecordsByLoop_.find(conn->get_loop());
-    assert(recordsIt != connectionRecordsByLoop_.end());
-    ConnectionRecords& localRecords = recordsIt->second;
-
-    std::shared_ptr<ConnectionHeartbeat> heartbeat;
-    auto it = localRecords.find(conn.get());
-    if (it != localRecords.end()) {
-        heartbeat = it->second.heartbeat;
-    }
-
-    if (heartbeat) {
-        heartbeat->refresh();
     }
 }
 
 void TcpServer::shutdown_connections() {
-    // 关闭所有连接：向每个 IO loop 投递清理任务，然后等待 activeConnectionCount_ 归零。
-    // 调用时机：main loop 退出后，销毁线程池之前。
-    //
-    // 清理策略：lambda 分三步执行——
-    //   1. [锁内] 从 localRecords 中摘出所有连接并递减计数，纯内存操作，快进快出。
-    //   2. [锁外] 停心跳、清回调、force_close，涉及定时器取消和 socket I/O，不持有锁。
-    //   3. 通知主线程检查计数。
-    // 这样避免 force_close → on_close → remove_connection 回调链中的冗余查找与重复减计数。
+    // 每个 IO loop 摘出本线程的连接记录并主动关闭连接，最后等待全部记录收口。
+    // 连接自身负责停止心跳，清空 close 回调则避免关闭时重复访问服务器连接表。
 
-    state_.store(ServerState::Draining);
     for (auto& entry : connectionRecordsByLoop_) {
         EventLoop* loop = entry.first;
-        ConnectionRecords& localRecords = entry.second;
+        auto& localRecords = entry.second;
         loop->run_in_loop([this, &localRecords]() {
-            std::vector<ConnectionRecord> pending;
-            {
-                std::lock_guard<std::mutex> lock(shutdownMutex_);
-                pending.reserve(localRecords.size());
-                for (auto it = localRecords.begin(); it != localRecords.end(); it = localRecords.erase(it)) {
-                    activeConnectionCount_.fetch_sub(1);
+            std::vector<TcpConnectionPtr> pending;
+            pending.reserve(localRecords.size());
+            for (auto it = localRecords.begin(); it != localRecords.end(); it = localRecords.erase(it)) {
+                activeConnectionCount_.fetch_sub(1);
                     pending.push_back(std::move(it->second));
-                }
             }
             shutdownCondition_.notify_one();
 
-            for (auto& record : pending) {
-                if (record.heartbeat) {
-                    record.heartbeat->stop();
-                }
-                if (record.connection) {
-                    record.connection->set_close_callback(nullptr);
-                    record.connection->set_message_callback(nullptr);
-                    record.connection->force_close();
-                }
+            for (auto& connection : pending) {
+                connection->set_close_callback(nullptr);
+                connection->set_message_callback(nullptr);
+                connection->force_close();
             }
             });
     }

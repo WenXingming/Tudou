@@ -16,6 +16,7 @@
 #include "tudou/tcp/Socket.h"
 
 class EventLoop;
+class ConnectionHeartbeat;
 class TcpConnection;
 
 using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
@@ -28,10 +29,14 @@ public:
     using WriteCompleteCallback = std::function<void(const TcpConnectionPtr&)>;
     using HighWaterMarkCallback = std::function<void(const TcpConnectionPtr&)>;
 
-    // shared_ptr 建立后绑定 Channel 并启用读事件。
-    static TcpConnectionPtr create_connection(EventLoop* loop, Socket connSocket, const InetAddress& peerAddr);
+    // 创建连接并绑定 Channel；两个心跳参数都大于 0 时启用空闲检测。
+    static TcpConnectionPtr create_connection(EventLoop* loop,
+        Socket connSocket,
+        const InetAddress& peerAddr,
+        double heartbeatCheckIntervalSeconds = 0.0,
+        double heartbeatIdleTimeoutSeconds = 0.0);
 
-    ~TcpConnection() = default;
+    ~TcpConnection();
 
     // 连接收发和主动关闭。
     void send(std::string msg);
@@ -73,7 +78,7 @@ private:
     EventLoop* loop_;                                   // 所属 EventLoop，所有回调均在此线程执行。
 
     Socket connSocket_;                                 // 连接 socket 的 RAII 句柄，析构时自动关闭 fd（必须在 channel_ 之前声明）
-    std::unique_ptr<Channel> channel_;                  // 连接 fd 对应的 Channel，负责 epoll 事件回调。
+    Channel channel_;                                   // 连接 fd 对应的 Channel，负责 epoll 事件回调。
 
     InetAddress peerAddr_;                              // 对端地址快照。
 
@@ -81,7 +86,7 @@ private:
     Buffer writeBuffer_;                                // 应用层写缓冲。
 
     size_t highWaterMark_;                              // 发送缓冲高水位阈值（字节）。
- 
+
     MessageCallback messageCallback_;                   // 消息到达时触发（必选）。
     CloseCallback closeCallback_;                       // 连接关闭时触发（必选）。
     ErrorCallback errorCallback_;                       // 读写错误时触发（可选）。
@@ -89,4 +94,6 @@ private:
     HighWaterMarkCallback highWaterMarkCallback_;       // 写缓冲越过高水位时触发（可选）。
 
     bool isClosed_;                                     // 是否已关闭，保证 close_connection 幂等。
+
+    std::unique_ptr<ConnectionHeartbeat> heartbeat_;     // 可选的连接空闲检测器，生命周期跟随连接。智能指针根据传入参数延迟创建
 };

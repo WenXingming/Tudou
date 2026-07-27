@@ -14,20 +14,31 @@
 #include "spdlog/spdlog.h"
 
 #include "tudou/tcp/Buffer.h"
+#include "tudou/tcp/ConnectionHeartbeat.h"
 #include "tudou/reactor/Channel.h"
 #include "tudou/reactor/EventLoop.h"
 
-std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop, Socket connSocket, const InetAddress& peerAddr) {
+std::shared_ptr<TcpConnection> TcpConnection::create_connection(EventLoop* loop,
+    Socket connSocket,
+    const InetAddress& peerAddr,
+    double heartbeatCheckIntervalSeconds,
+    double heartbeatIdleTimeoutSeconds) {
     std::shared_ptr<TcpConnection> conn(new TcpConnection(loop, std::move(connSocket), peerAddr));
-    conn->channel_->tie_to_object(conn);
-    conn->channel_->enable_reading(); // 避免还未创建好触发 epoll 和回调
+    conn->channel_.tie_to_object(conn);
+    conn->channel_.enable_reading(); // 避免还未创建好触发 epoll 和回调
+    if (heartbeatCheckIntervalSeconds > 0.0 && heartbeatIdleTimeoutSeconds > 0.0) {
+        conn->heartbeat_ = std::make_unique<ConnectionHeartbeat>(conn,
+            heartbeatCheckIntervalSeconds,
+            heartbeatIdleTimeoutSeconds);
+        conn->heartbeat_->start();
+    }
     return conn;
 }
 
 TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddress& peerAddr)
     : loop_(loop)
     , connSocket_(std::move(connSocket))
-    , channel_(std::make_unique<Channel>(loop, connSocket_.fd()))
+    , channel_(loop, connSocket_.fd())
     , peerAddr_(peerAddr)
     , readBuffer_()
     , writeBuffer_()
@@ -39,10 +50,16 @@ TcpConnection::TcpConnection(EventLoop* loop, Socket connSocket, const InetAddre
     , highWaterMarkCallback_(nullptr)
     , isClosed_(false) {
 
-    channel_->set_read_callback([this](Channel&) { on_read(); });
-    channel_->set_write_callback([this](Channel&) { on_write(); });
-    channel_->set_close_callback([this](Channel&) { on_close(); });
-    channel_->set_error_callback([this](Channel&) { on_error(); });
+    channel_.set_read_callback([this](Channel&) { on_read(); });
+    channel_.set_write_callback([this](Channel&) { on_write(); });
+    channel_.set_close_callback([this](Channel&) { on_close(); });
+    channel_.set_error_callback([this](Channel&) { on_error(); });
+}
+
+TcpConnection::~TcpConnection() {
+    if (heartbeat_) {
+        heartbeat_->stop();
+    }
 }
 
 // 线程屏障。与用户业务代码交互，用户可能会在业务线程池中调用 send()。
@@ -68,7 +85,7 @@ void TcpConnection::send_in_loop(const std::string& msg) {
     const size_t oldLen = writeBuffer_.readable_bytes();
 
     // 场景 1：当前无积压，直接 write 写入新数据
-    if (oldLen == 0 && !channel_->is_writing()) {
+    if (oldLen == 0 && !channel_.is_writing()) {
         const ssize_t n = ::write(connSocket_.fd(), msg.data(), msg.size());
 
         // 非瞬态写错误：记录日志并关闭连接
@@ -115,7 +132,7 @@ void TcpConnection::send_in_loop(const std::string& msg) {
 
                 if (writtenLen == msg.size()) {
                     // 新旧数据全发完
-                    channel_->disable_writing();
+                    channel_.disable_writing();
                     handle_write_complete_callback();
                     return;
                 }
@@ -131,7 +148,7 @@ void TcpConnection::send_in_loop(const std::string& msg) {
     if (writtenLen < msg.size()) {
         writeBuffer_.write_to_buffer(msg.data() + writtenLen, msg.size() - writtenLen);
     }
-    channel_->enable_writing();
+    channel_.enable_writing();
 
     // 只有当高水位回调存在且刚好从未越过高水位变为越过高水位时才触发回调，避免重复触发。
     const size_t newLen = writeBuffer_.readable_bytes();
@@ -184,6 +201,9 @@ void TcpConnection::on_read() {
     int savedErrno = 0;
     const ssize_t n = readBuffer_.read_from_fd(connSocket_.fd(), savedErrno);
     if (n > 0) {
+        if (heartbeat_) {
+            heartbeat_->refresh();
+        }
         handle_message_callback();
         return;
     }
@@ -229,7 +249,7 @@ void TcpConnection::on_write() {
         }
     }
 
-    channel_->disable_writing();
+    channel_.disable_writing();
     handle_write_complete_callback();
 }
 
@@ -253,8 +273,11 @@ void TcpConnection::close_connection() {
     }
 
     isClosed_ = true;
+    if (heartbeat_) {
+        heartbeat_->stop();
+    }
     connSocket_.shutdown_write(); // 先向对端发送 FIN，保证对端看到正常 EOF 而非 RST。
-    channel_->disable_all();
+    channel_.disable_all();
     handle_close_callback();
 }
 
