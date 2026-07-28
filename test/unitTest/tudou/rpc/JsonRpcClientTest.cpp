@@ -6,8 +6,8 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/JsonRpcServer.h"
-#include "tudou/rpc/JsonRpcClient.h"
+#include "tudou/rpc/json/Server.h"
+#include "tudou/rpc/json/Client.h"
 
 #include <thread>
 #include <chrono>

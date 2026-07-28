@@ -6,7 +6,9 @@
  */
 
 #include <gtest/gtest.h>
-#include "tudou/rpc/JsonRpcRouter.h"
+#include "tudou/rpc/json/Router.h"
+
+using namespace tudou::rpc;
 
 class JsonRpcRouterTest : public ::testing::Test {
 protected:

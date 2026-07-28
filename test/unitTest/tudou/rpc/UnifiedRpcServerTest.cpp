@@ -7,9 +7,8 @@
 
 #include <gtest/gtest.h>
 #include "tudou/rpc/UnifiedRpcServer.h"
-#include "tudou/rpc/BinaryRpcChannel.h"
-#include "tudou/rpc/JsonRpcClient.h"
-#include "BinaryRpc.pb.h"
+#include "tudou/rpc/binary/Channel.h"
+#include "tudou/rpc/json/Client.h"
 #include "test.pb.h"
 
 #include <sys/socket.h>
@@ -22,7 +21,6 @@
 
 namespace tudou {
 namespace rpc {
-namespace binary {
 namespace test {
 
 namespace {
@@ -97,7 +95,7 @@ protected:
 
 // 1. 验证统一服务端上的二进制 RPC 通道是否工作正常
 TEST_F(UnifiedRpcServerTest, AccessesViaBinaryRpcChannel) {
-    BinaryRpcChannel channel("127.0.0.1", binaryPort);
+    binary::Channel channel("127.0.0.1", binaryPort);
     TestEchoService_Stub stub(&channel);
 
     EchoRequest request;
@@ -116,13 +114,12 @@ TEST_F(UnifiedRpcServerTest, AccessesViaJsonRpcClient) {
     params["message"] = "hello json";
     
     // 动态调用生成的反射方法名
-    auto result = client.call("tudou.rpc.binary.test.TestEchoService.Echo", params);
+    auto result = client.call("tudou.rpc.test.TestEchoService.Echo", params);
     
     EXPECT_TRUE(result.contains("message"));
     EXPECT_EQ(result["message"].get<std::string>(), "UnifiedEcho: hello json");
 }
 
 } // namespace test
-} // namespace binary
 } // namespace rpc
 } // namespace tudou

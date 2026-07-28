@@ -325,75 +325,38 @@ void BinaryRpcChannel::write_request_nonblocking(const std::string& data) {
 当网络可读时，回调触发 `on_read` 从套接字流式消费数据并解析：
 
 ```cpp
-void BinaryRpcChannel::on_read() {
-    char temp[1024];
-    bool socketErrorOrEOF = false;
+void CoroutineChannel::on_read() {
+    char bytes[64 * 1024];
 
-    // 1. 流式循环读取直至无数据可读 (EAGAIN)
-    while (running_) {
-        ssize_t nr = ::read(clientFd_, temp, sizeof(temp));
-        if (nr < 0) {
-            if (errno == EINTR) continue;
-            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            socketErrorOrEOF = true;
-            break;
+    while (multiplexer_.is_open()) {
+        const ssize_t count = ::read(socket_.fd(), bytes, sizeof(bytes));
+        if (count > 0) {
+            std::vector<Frame> frames;
+            const std::string data(bytes, static_cast<size_t>(count));
+            if (!responseConnection_.decode(data, frames)
+                || !complete_responses(frames)) {
+                fail_pending_calls("CoroutineChannel: Invalid response frame");
+                return;
+            }
+            continue;
         }
-        if (nr == 0) {
-            socketErrorOrEOF = true; // 对端关闭连接
-            break;
+        if (count == 0) {
+            fail_pending_calls("CoroutineChannel: Connection closed");
+            return;
         }
-        readBuf_.write_to_buffer(temp, nr);
-    }
-
-    if (socketErrorOrEOF) {
-        cleanup_pending_requests("BinaryRpcChannel: Connection closed or read error");
-        running_ = false;
-        if (channel_) channel_->disable_all();
+        if (errno == EINTR) {
+            continue;
+        }
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return;
+        }
+        fail_pending_calls("CoroutineChannel: Read failed");
         return;
-    }
-
-    // 2. 循环解码并唤醒业务执行流
-    RpcHeader respHeader;
-    std::string respMetaRaw, respBodyRaw;
-    while (running_) {
-        BinaryRpcCodec::DecodeResult result = BinaryRpcCodec::decode(&readBuf_, respHeader, respMetaRaw, respBodyRaw);
-        if (result == BinaryRpcCodec::DecodeResult::Success) {
-            std::shared_ptr<ResponseContext> context;
-            {
-                std::lock_guard<std::mutex> lock(mapMutex_);
-                auto it = pendingRequests_.find(respHeader.sequenceId);
-                if (it != pendingRequests_.end()) {
-                    context = it->second;
-                    pendingRequests_.erase(it);
-                }
-            }
-
-            if (context) {
-                if (context->response->ParseFromString(respBodyRaw)) {
-                    if (context->coroutine) {
-                        // 跨线程安全调度：通过 run_in_loop 投递回原属 EventLoop 线程执行唤醒，保持线程局部性
-                        EventLoop* origin_loop = context->coroutine->get_loop();
-                        origin_loop->run_in_loop([coro = context->coroutine]() {
-                            coro->resume(); // 恢复协程
-                        });
-                    } else {
-                        context->promise.set_value(); // 传统阻塞模式唤醒
-                    }
-                } else {
-                    // 处理反序列化失败的异常传递...
-                }
-            }
-        } else if (result == BinaryRpcCodec::DecodeResult::HalfPack || result == BinaryRpcCodec::DecodeResult::Empty) {
-            break;
-        } else if (result == BinaryRpcCodec::DecodeResult::Error) {
-            cleanup_pending_requests("BinaryRpcChannel: Protocol decode error");
-            running_ = false;
-            if (channel_) channel_->disable_all();
-            break;
-        }
     }
 }
 ```
+
+这里 `Connection::decode()` 保存半包并循环调用 `FrameCodec::try_decode()`；`complete_responses()` 再根据完整帧中的 `sequenceId` 交给 `Multiplexer` 匹配挂起调用。`CoroutineChannel` 因此只保留网络读取与结果编排，不直接操作帧头游标。
 
 #### 3. 网络故障与生命周期销毁时的异常安全流转 (`cleanup_pending_requests`)
 
@@ -558,7 +521,7 @@ static thread_local BinaryRpcCoroutine* t_current_coroutine;
 
 1. 服务端处理完 RPC 请求，回包通过网络到达客户端网卡。
 2. **读事件就绪**：客户端的 Epoll 监听到该 `clientFd_` 的可读事件，触发 `BinaryRpcChannel::on_read()` 回调。
-3. **非阻塞流式读取与解包**：`on_read` 在 `while` 循环里非阻塞读取字节并追加到缓冲区中。一旦调用 `BinaryRpcCodec::decode` 成功解出完整的数据帧，便提取 `sequenceId` 并在哈希表中查到当初绑定的 `ResponseContext`。
+3. **非阻塞流式读取与解包**：`on_read` 接收网络字节后交给 `Connection` 累积；`Connection` 循环调用 `FrameCodec::try_decode()` 提取完整帧，再根据 `sequenceId` 匹配对应的挂起请求。
 4. **跨线程派发**：为了防止在当前网络事件处理线程上运行重型业务，我们通过 `origin_loop->run_in_loop()` 将唤醒任务投递到该协程原属的 `EventLoop` 队列。
 5. 主循环在处理待办任务队列（`do_pending_functors`）时执行该任务，调用 `coro->resume()`。
 

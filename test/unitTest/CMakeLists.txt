@@ -2,7 +2,7 @@ file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 )
 
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS tudou/rpc/test.proto)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS tudou/rpc/binary/test.proto)
 
 add_executable(TudouUnitTest ${test_sources} ${PROTO_SRCS})
 target_include_directories(TudouUnitTest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

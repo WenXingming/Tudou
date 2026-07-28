@@ -202,7 +202,7 @@ coro->resume()
 ```cpp
 void BinaryRpcChannel::on_read() {
     // 1. 非阻塞 read 到 readBuf_
-    // 2. BinaryRpcCodec::decode 拆出完整帧
+    // 2. Connection 累积字节，并通过 FrameCodec 拆出完整帧
     uint64_t seq = respHeader.sequenceId;
 
     std::shared_ptr<ResponseContext> context;
