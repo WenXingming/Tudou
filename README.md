@@ -447,6 +447,13 @@ python3 examples/JsonRpcServer/client.py
 
 二进制 RPC 的协议定义位于 [binary_rpc.proto](./src/tudou/rpc/binary/binary_rpc.proto)。它以 `20 B` 固定头、CallHead 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应。
 
+```bash
+cmake -S . -B build -DTUDOU_BUILD_EXAMPLES=ON
+cmake --build build --target binary-rpc-server binary-rpc-client -j2
+./build/examples/BinaryRpc/binary-rpc-server
+./build/examples/BinaryRpc/binary-rpc-client  # 在另一终端运行
+```
+
 <a id="文档导航"></a>
 
 ## 文档导航 📚
