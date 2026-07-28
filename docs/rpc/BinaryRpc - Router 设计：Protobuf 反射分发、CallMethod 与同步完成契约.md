@@ -112,7 +112,7 @@ server.register_service(std::make_shared<EchoService>());
 server.start();
 ```
 
-当前仓库中的具体二进制 RPC 业务实现主要位于 `BinaryRpcServerTest`、`BinaryRpcChannelTest` 和 `UnifiedRpcServerTest`。框架源码不内置业务逻辑，实际应用应自行实现并注册 Service。
+当前仓库中的具体二进制 RPC 业务实现主要位于 `BinaryRpcServerTest` 和 `BinaryRpcChannelTest`。框架源码不内置业务逻辑，实际应用应自行实现并注册 Service。
 
 ## 3. 注册表使用完整 Service 名称
 
@@ -138,7 +138,7 @@ services_[descriptor->full_name()] = std::move(service);
 tudou.rpc.test.TestEchoService -> shared_ptr<EchoService>
 ```
 
-Router 持有基类指针，但实际对象仍是用户实现的 `EchoService`。使用 `shared_ptr` 是因为 Router 必须保证 Service 存活，而且 UnifiedRpcServer 会把同一个 Service 同时注册到二进制 Router 和 JSON 桥接 Router。
+Router 持有基类指针，但实际对象仍是用户实现的 `EchoService`。使用 `shared_ptr` 是因为 Router 必须保证注册的 Service 在所有请求处理期间存活。
 
 ## 4. dispatch() 的完整反射流程
 
@@ -343,7 +343,7 @@ Router 会认为该调用没有同步完成并抛出异常，Server 随后关闭
 
 ### 9. Router 为什么保存 `shared_ptr<Service>`？
 
-Router 必须保证注册的 Service 在请求期间存活，而且 UnifiedRpcServer 会让二进制和 JSON 桥接 Router 共享同一个 Service。这里确实存在共享所有权。
+Router 必须保证注册的 Service 在请求处理期间存活，因此这里使用 `shared_ptr` 表达 Router 与业务层之间的共享所有权。
 
 ### 10. Router 可以并发 dispatch 吗？
 

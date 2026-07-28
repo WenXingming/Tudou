@@ -16,7 +16,6 @@ add_library(tudou STATIC
     tudou/rpc/binary/Server.cpp
     tudou/rpc/binary/Coroutine.cpp
     tudou/rpc/binary/CoroutineChannel.cpp
-    tudou/rpc/UnifiedRpcServer.cpp
     ${RPC_PROTO_SRCS}
     tudou/http/HttpRouter.cpp
     tudou/http/TlsConfig.cpp

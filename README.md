@@ -38,7 +38,7 @@
 | TCP 核心     | EventLoop、EpollPoller、Channel、Acceptor、TcpServer、TcpConnection、Buffer                                      |
 | HTTP 能力    | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册                           |
 | HTTPS 能力   | HttpServer 在`start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态             |
-| RPC 能力     | JSON-RPC 2.0 文本协议；Protobuf 反射驱动的二进制 RPC；`UnifiedRpcServer` 可将同一 Service 同时暴露为两种协议     |
+| RPC 能力     | JSON-RPC 2.0 文本协议；Protobuf 反射驱动的二进制 RPC                                                       |
 | RPC 并发模型 | `binary::CoroutineChannel` 基于 Reactor 与有栈协程，以 `sequenceId` 在单连接上匹配并发请求和乱序响应 |
 | I/O 优化     | `readv` + 64 KiB 栈缓冲接收；积压数据通过 `writev` 合并发送；明文静态文件通过 `sendfile` 发送                    |
 | 路由能力     | 支持 method + path 精确匹配、前缀路由兜底与默认 404 响应                                                         |
@@ -146,8 +146,7 @@ flowchart LR
     HttpServer --> TcpServer[TcpServer]
 
     App --> JsonRpc[JsonRpcServer / Client]
-    App --> UnifiedRpc[UnifiedRpcServer]
-    UnifiedRpc --> BinaryRpc[binary::Server / Channel]
+    App --> BinaryRpc[binary::Server / CoroutineChannel]
     JsonRpc --> TcpServer
     BinaryRpc --> TcpServer
 
@@ -446,7 +445,7 @@ cmake --build build-all --target jsonrpc-server -j2
 python3 examples/JsonRpcServer/client.py
 ```
 
-二进制 RPC 的协议定义位于 [binary_rpc.proto](./src/tudou/rpc/binary/binary_rpc.proto)。它以 `20 B` 固定头、CallHead 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应；`UnifiedRpcServer` 可将同一 Protobuf Service 同时注册到 Binary RPC 与 JSON-RPC 路由。
+二进制 RPC 的协议定义位于 [binary_rpc.proto](./src/tudou/rpc/binary/binary_rpc.proto)。它以 `20 B` 固定头、CallHead 和 Body 进行长度分帧，客户端通过 `sequenceId` 在单 TCP 连接上匹配并发请求的响应。
 
 <a id="文档导航"></a>
 
