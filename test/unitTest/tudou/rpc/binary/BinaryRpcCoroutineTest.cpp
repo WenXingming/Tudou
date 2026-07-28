@@ -41,6 +41,27 @@ TEST(BinaryRpcCoroutineTest, RestoresCurrentCoroutineAfterException) {
     EXPECT_EQ(binary::Coroutine::current(), nullptr);
 }
 
+TEST(BinaryRpcCoroutineTest, RestoresOuterCoroutineAfterNestedResume) {
+    std::shared_ptr<binary::Coroutine> inner;
+    inner = std::make_shared<binary::Coroutine>(nullptr, [&inner]() {
+        EXPECT_EQ(binary::Coroutine::current(), inner.get());
+        inner->yield();
+        EXPECT_EQ(binary::Coroutine::current(), inner.get());
+    });
+
+    std::shared_ptr<binary::Coroutine> outer;
+    outer = std::make_shared<binary::Coroutine>(nullptr, [&outer, &inner]() {
+        EXPECT_EQ(binary::Coroutine::current(), outer.get());
+        inner->resume();
+        EXPECT_EQ(binary::Coroutine::current(), outer.get());
+        inner->resume();
+        EXPECT_EQ(binary::Coroutine::current(), outer.get());
+    });
+
+    outer->resume();
+    EXPECT_EQ(binary::Coroutine::current(), nullptr);
+}
+
 } // namespace test
 } // namespace rpc
 } // namespace tudou

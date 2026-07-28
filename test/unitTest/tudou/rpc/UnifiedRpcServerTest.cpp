@@ -7,7 +7,9 @@
 
 #include <gtest/gtest.h>
 #include "tudou/rpc/UnifiedRpcServer.h"
-#include "tudou/rpc/binary/Channel.h"
+#include "tudou/reactor/EventLoop.h"
+#include "tudou/rpc/binary/Coroutine.h"
+#include "tudou/rpc/binary/CoroutineChannel.h"
 #include "tudou/rpc/json/Client.h"
 #include "test.pb.h"
 
@@ -95,15 +97,24 @@ protected:
 
 // 1. 验证统一服务端上的二进制 RPC 通道是否工作正常
 TEST_F(UnifiedRpcServerTest, AccessesViaBinaryRpcChannel) {
-    binary::Channel channel("127.0.0.1", binaryPort);
-    TestEchoService_Stub stub(&channel);
+    EventLoop loop;
+    binary::CoroutineChannel channel(loop, "127.0.0.1", binaryPort);
 
-    EchoRequest request;
-    request.set_message("hello binary");
-    EchoResponse response;
+    bool completed = false;
+    auto coroutine = std::make_shared<binary::Coroutine>(&loop, [&]() {
+        TestEchoService_Stub stub(&channel);
+        EchoRequest request;
+        request.set_message("hello binary");
+        EchoResponse response;
+        stub.Echo(nullptr, &request, &response, nullptr);
 
-    stub.Echo(nullptr, &request, &response, nullptr);
-    EXPECT_EQ(response.message(), "UnifiedEcho: hello binary");
+        completed = response.message() == "UnifiedEcho: hello binary";
+        loop.quit();
+    });
+
+    coroutine->resume();
+    loop.loop();
+    EXPECT_TRUE(completed);
 }
 
 // 2. 验证统一服务端上的 JSON-RPC 动态反射转换通道是否工作正常

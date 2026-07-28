@@ -214,7 +214,7 @@ void Server::send_response(const TcpConnectionPtr& conn,
 }
 ```
 
-客户端允许在一条 TCP 连接上同时存在多个 pending call。响应到达后，客户端 `Multiplexer` 使用这个 `sequenceId` 找回对应等待者，因此响应不需要严格按照请求发起顺序完成。
+客户端允许在一条 TCP 连接上同时存在多个 pending call。响应到达后，`CoroutineChannel` 使用这个 `sequenceId` 从 pending map 找回对应协程，因此响应不需要严格按照请求发起顺序完成。
 
 Server 只负责原样回传 ID；pending call 的存储和唤醒属于客户端，不进入服务端连接状态。
 

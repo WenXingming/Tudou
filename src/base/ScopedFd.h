@@ -1,5 +1,4 @@
 // ============================================================================
-// ScopedFd.h
 // 拥有文件描述符（fd）所有权的 RAII 包装类。
 // ============================================================================
 
@@ -12,14 +11,14 @@ class ScopedFd : public NonCopyable {
 public:
     ScopedFd() noexcept : fd_(-1) {}
     explicit ScopedFd(int fd) noexcept : fd_(fd) {}
-    
+
     ~ScopedFd() {
         reset();
     }
 
     // 支持移动语义
     ScopedFd(ScopedFd&& other) noexcept : fd_(other.release()) {}
-    
+
     ScopedFd& operator=(ScopedFd&& other) noexcept {
         if (this != &other) {
             reset(other.release());

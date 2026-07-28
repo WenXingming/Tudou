@@ -39,7 +39,7 @@
 | HTTP 能力    | 基于 llhttp 的 HTTP 解析；HttpRequest / HttpResponse；内部 Router 直接支持业务路由注册                           |
 | HTTPS 能力   | HttpServer 在`start()` 前通过 `enable_ssl(cert, key)` 启用 TLS；底层使用 OpenSSL 维护单连接 TLS 状态             |
 | RPC 能力     | JSON-RPC 2.0 文本协议；Protobuf 反射驱动的二进制 RPC；`UnifiedRpcServer` 可将同一 Service 同时暴露为两种协议     |
-| RPC 并发模型 | `binary::Channel` 与 `binary::CoroutineChannel` 以 `sequenceId` 匹配响应，分别提供阻塞多线程与 Reactor 协程调用路径 |
+| RPC 并发模型 | `binary::CoroutineChannel` 基于 Reactor 与有栈协程，以 `sequenceId` 在单连接上匹配并发请求和乱序响应 |
 | I/O 优化     | `readv` + 64 KiB 栈缓冲接收；积压数据通过 `writev` 合并发送；明文静态文件通过 `sendfile` 发送                    |
 | 路由能力     | 支持 method + path 精确匹配、前缀路由兜底与默认 404 响应                                                         |
 | 定时与保活   | 内置 TimerQueue / Timer；提供 ConnectionHeartbeat 做连接空闲检测与超时断连                                       |
@@ -464,7 +464,7 @@ python3 examples/JsonRpcServer/client.py
 - [docs/心跳检测设计：三层防御体系与失活连接清理.md](./docs/%E5%BF%83%E8%B7%B3%E6%A3%80%E6%B5%8B%E8%AE%BE%E8%AE%A1%EF%BC%9A%E4%B8%89%E5%B1%82%E9%98%B2%E5%BE%A1%E4%BD%93%E7%B3%BB%E4%B8%8E%E5%A4%B1%E6%B4%BB%E8%BF%9E%E6%8E%A5%E6%B8%85%E7%90%86.md)：空闲检测与连接回收策略。
 - [docs/http/路由模块设计：精确路由、前缀兜底与 404.md](./docs/http/%E8%B7%AF%E7%94%B1%E6%A8%A1%E5%9D%97%E8%AE%BE%E8%AE%A1%EF%BC%9A%E7%B2%BE%E7%A1%AE%E8%B7%AF%E7%94%B1%E3%80%81%E5%89%8D%E7%BC%80%E5%85%9C%E5%BA%95%E4%B8%8E%20404.md)：Router 的分发模型与约束。
 - [docs/rpc/BinaryRpc - Connection 设计.md](./docs/rpc/BinaryRpc%20-%20Connection%20%E8%AE%BE%E8%AE%A1%EF%BC%9A%E8%BF%9E%E6%8E%A5%E7%BA%A7%20Buffer%E3%80%81%E5%8D%8A%E5%8C%85%E4%BF%9D%E7%95%99%E4%B8%8E%E7%B2%98%E5%8C%85%E6%8B%86%E5%88%86.md)：连接级 Buffer 如何统一处理二进制 RPC 半包与粘包。
-- [docs/rpc/BinaryRpcChannel 设计.md](./docs/rpc/BinaryRpcChannel%20%E8%AE%BE%E8%AE%A1%EF%BC%9A%E5%8D%95%E8%BF%9E%E6%8E%A5%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8%E4%B8%8E%E5%B9%B6%E5%8F%91%E8%AF%B7%E6%B1%82%E5%85%B3%E8%81%94.md)：单连接多路复用、并发请求与响应匹配。
+- [docs/rpc/RPC 单连接多路复用.md](<./docs/rpc/RPC 单连接多路复用.md>)：帧协议、异步响应匹配与有栈协程等待。
 - [docs/Buffer 设计：readv 栈缓冲、水平触发与一次读取策略.md](./docs/Buffer%20%E8%AE%BE%E8%AE%A1%EF%BC%9Areadv%20%E6%A0%88%E7%BC%93%E5%86%B2%E3%80%81%E6%B0%B4%E5%B9%B3%E8%A7%A6%E5%8F%91%E4%B8%8E%E4%B8%80%E6%AC%A1%E8%AF%BB%E5%8F%96%E7%AD%96%E7%95%A5.md)：readv/writev、LT 触发与发送路径。
 - [docs/http/HTTPS 安全传输设计：TlsConfig 与 TlsConnection.md](./docs/http/HTTPS%20%E5%AE%89%E5%85%A8%E4%BC%A0%E8%BE%93%E8%AE%BE%E8%AE%A1%EF%BC%9ATlsConfig%20%E4%B8%8E%20TlsConnection.md)：Memory BIO 如何将 OpenSSL 接入非阻塞 Reactor。
 

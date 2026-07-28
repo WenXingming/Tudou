@@ -39,7 +39,7 @@ Buffer inputBuffer_;
 
 > 不同 TCP 连接的字节绝不能进入同一个解析 Buffer。
 
-服务端为每个 `TcpConnection` 创建一个 Connection；阻塞客户端和协程客户端分别拥有自己的响应 Connection：
+服务端为每个 `TcpConnection` 创建一个 Connection；协程客户端也拥有自己的响应 Connection：
 
 ```text
 Server:             TcpConnection* -> shared_ptr<Connection>
@@ -122,14 +122,14 @@ frames.clear();
 
 因此输出参数没有“调用前必须为空”的隐藏约束。函数返回时，`frames` 只保存本轮追加数据后新形成的完整帧，不会混入调用者上一次遗留的结果。
 
-如果一批数据先包含合法帧、随后出现非法帧，Connection 会返回 `false`。当前 Server、Channel 和 CoroutineChannel 都会立即关闭或终止该连接，不处理这批输出，采用 fail-closed 策略。
+如果一批数据先包含合法帧、随后出现非法帧，Connection 会返回 `false`。当前 Server 和 CoroutineChannel 都会立即关闭或终止该连接，不处理这批输出，采用 fail-closed 策略。
 
 ## 6. 为什么拥有 Buffer，而不是引用 TcpConnection 的 Buffer
 
 当前 TCP 层通过 `TcpConnection::receive()` 取出本轮网络字节，HTTP 和 RPC 协议层各自管理增量解析状态。让 Connection 直接拥有 Buffer 有三个好处：
 
 - 不依赖 `TcpConnection` 内部 Buffer 的生命周期；
-- 服务端、阻塞客户端和协程客户端可以复用同一实现；
+- 服务端和协程客户端可以复用同一实现；
 - TCP 层不需要向应用协议暴露可修改的读索引。
 
 代价是服务端收包路径多一次字节复制。当前没有性能数据证明这里是瓶颈，因此不为消除一次复制而扩大 TCP 层接口和生命周期约束。
@@ -178,7 +178,7 @@ frames.clear();
 
 ### 7. 为什么不直接引用 TcpConnection 的读 Buffer？
 
-那会让 RPC 层依赖 TCP 层内部 Buffer 的生命周期和读索引，并且阻塞客户端、协程客户端仍需另外拥有 Buffer。当前值成员虽然多一次复制，但所有权和复用关系更简单。
+那会让 RPC 层依赖 TCP 层内部 Buffer 的生命周期和读索引，并且客户端仍需另外拥有 Buffer。当前值成员虽然多一次复制，但所有权和复用关系更简单。
 
 ### 8. 类只有一个函数，为什么不删除？
 

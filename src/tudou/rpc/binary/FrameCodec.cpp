@@ -36,6 +36,7 @@ std::string FrameCodec::encode(const Frame& frame) {
         throw std::invalid_argument("FrameCodec: Frame header does not match payload");
     }
 
+    // 只转换副本，Frame 对象始终保持主机字节序，避免调用方看到混合状态。
     FrameHeader header = frame.header;
     header.magic = htons(header.magic);
     header.sequenceId = htobe64(header.sequenceId);
@@ -53,6 +54,7 @@ FrameCodec::DecodeResult FrameCodec::try_decode(Buffer& buffer, Frame& frame) {
         return DecodeResult::NeedMoreData;
     }
 
+    // 先窥探帧头；只有确认整帧到齐后才推进 Buffer 读索引。
     FrameHeader header;
     std::memcpy(&header, buffer.readable_start_ptr(), kHeaderSize);
 
@@ -73,7 +75,7 @@ FrameCodec::DecodeResult FrameCodec::try_decode(Buffer& buffer, Frame& frame) {
         return DecodeResult::NeedMoreData;
     }
 
-    // 有完整包
+    // 从这里开始消费 Buffer，半包路径在此前返回且不会丢失任何字节。
     buffer.advance_read_index(kHeaderSize);
     const uint64_t sequenceId = be64toh(header.sequenceId);
     std::string head = buffer.read_from_buffer(headLength);

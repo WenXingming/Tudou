@@ -16,12 +16,9 @@ namespace binary {
 
 namespace {
 
-class SynchronousCompletion : public google::protobuf::Closure {
+// Router 在栈上持有请求和响应消息，因此 Service 必须在 CallMethod 返回前调用 done->Run()。
+class SynchronousCompletion final : public google::protobuf::Closure {
 public:
-    SynchronousCompletion()
-        : completed_(false) {
-    }
-
     void Run() override {
         completed_ = true;
     }
@@ -31,7 +28,7 @@ public:
     }
 
 private:
-    bool completed_;
+    bool completed_ = false;
 };
 
 } // namespace
@@ -52,6 +49,7 @@ void Router::register_service(std::shared_ptr<google::protobuf::Service> service
 }
 
 std::string Router::dispatch(const Request& request) const {
+    // 先定位已注册 Service，再利用 Descriptor 找到 protoc 生成的方法入口。
     const auto serviceIt = services_.find(request.serviceName);
     if (serviceIt == services_.end()) {
         throw std::invalid_argument("Router: Service not found: " + request.serviceName);
@@ -64,6 +62,7 @@ std::string Router::dispatch(const Request& request) const {
         throw std::invalid_argument("Router: Method not found: " + request.serviceName + "." + request.methodName);
     }
 
+    // Prototype 根据方法描述符创建真实的业务消息类型，Router 不需要知道具体 .proto 类。
     std::unique_ptr<google::protobuf::Message> protobufRequest(service->GetRequestPrototype(method).New());
     if (!protobufRequest->ParseFromString(request.body)) {
         throw std::invalid_argument("Router: Invalid request body: " + request.serviceName + "." + request.methodName);
@@ -71,6 +70,7 @@ std::string Router::dispatch(const Request& request) const {
 
     std::unique_ptr<google::protobuf::Message> protobufResponse(service->GetResponsePrototype(method).New());
 
+    // CallMethod 最终进入用户实现的 Service 方法；完成标记明确拒绝异步 Service。
     SynchronousCompletion completion;
     service->CallMethod(method, nullptr, protobufRequest.get(), protobufResponse.get(), &completion);
     if (!completion.completed()) {

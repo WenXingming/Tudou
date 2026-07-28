@@ -1,5 +1,5 @@
 // ============================================================================
-// 分别验证阻塞 binary::Channel 与 EventLoop binary::CoroutineChannel。
+// 验证 CoroutineChannel 在 EventLoop 中完成非阻塞 RPC 调用。
 // ============================================================================
 
 #include <gtest/gtest.h>
@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <atomic>
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -17,7 +16,6 @@
 
 #include "test.pb.h"
 #include "tudou/reactor/EventLoop.h"
-#include "tudou/rpc/binary/Channel.h"
 #include "tudou/rpc/binary/Coroutine.h"
 #include "tudou/rpc/binary/CoroutineChannel.h"
 #include "tudou/rpc/binary/Server.h"
@@ -94,43 +92,6 @@ protected:
     uint16_t port_ = 0;
 };
 
-TEST_F(BinaryRpcChannelTest, BlockingChannelExecutesCall) {
-    binary::Channel channel("127.0.0.1", port_);
-    TestEchoService_Stub stub(&channel);
-
-    EchoRequest request;
-    request.set_message("blocking");
-    EchoResponse response;
-    stub.Echo(nullptr, &request, &response, nullptr);
-
-    EXPECT_EQ(response.message(), "Echo: blocking");
-}
-
-TEST_F(BinaryRpcChannelTest, BlockingChannelMultiplexesConcurrentCalls) {
-    binary::Channel channel("127.0.0.1", port_);
-    TestEchoService_Stub stub(&channel);
-
-    constexpr int kCallCount = 10;
-    std::atomic<int> completed{0};
-    std::vector<std::thread> callers;
-    for (int index = 0; index < kCallCount; ++index) {
-        callers.emplace_back([&stub, &completed, index]() {
-            EchoRequest request;
-            request.set_message("call_" + std::to_string(index));
-            EchoResponse response;
-            stub.Echo(nullptr, &request, &response, nullptr);
-            if (response.message() == "Echo: call_" + std::to_string(index)) {
-                ++completed;
-            }
-        });
-    }
-
-    for (auto& caller : callers) {
-        caller.join();
-    }
-    EXPECT_EQ(completed.load(), kCallCount);
-}
-
 TEST_F(BinaryRpcChannelTest, CoroutineChannelExecutesCall) {
     EventLoop loop;
     binary::CoroutineChannel channel(loop, "127.0.0.1", port_);
@@ -150,6 +111,59 @@ TEST_F(BinaryRpcChannelTest, CoroutineChannelExecutesCall) {
     coroutine->resume();
     loop.loop();
     EXPECT_TRUE(completed);
+}
+
+TEST_F(BinaryRpcChannelTest, CoroutineChannelMultiplexesCalls) {
+    EventLoop loop;
+    binary::CoroutineChannel channel(loop, "127.0.0.1", port_);
+
+    constexpr int kCallCount = 10;
+    int completed = 0;
+    std::vector<std::shared_ptr<binary::Coroutine>> coroutines;
+    for (int index = 0; index < kCallCount; ++index) {
+        coroutines.push_back(std::make_shared<binary::Coroutine>(&loop, [&, index]() {
+            TestEchoService_Stub stub(&channel);
+            EchoRequest request;
+            request.set_message("call_" + std::to_string(index));
+            EchoResponse response;
+            stub.Echo(nullptr, &request, &response, nullptr);
+
+            if (response.message() == "Echo: call_" + std::to_string(index)) {
+                ++completed;
+            }
+            if (completed == kCallCount) {
+                loop.quit();
+            }
+        }));
+    }
+
+    for (const auto& coroutine : coroutines) {
+        coroutine->resume();
+    }
+    loop.loop();
+    EXPECT_EQ(completed, kCallCount);
+}
+
+TEST_F(BinaryRpcChannelTest, ReleasesPendingCoroutineWhenEventLoopIsDestroyed) {
+    std::weak_ptr<binary::Coroutine> weakCoroutine;
+    {
+        EventLoop loop;
+        {
+            binary::CoroutineChannel channel(loop, "127.0.0.1", port_);
+            auto coroutine = std::make_shared<binary::Coroutine>(&loop, [&]() {
+                TestEchoService_Stub stub(&channel);
+                EchoRequest request;
+                EchoResponse response;
+                stub.Echo(nullptr, &request, &response, nullptr);
+            });
+
+            weakCoroutine = coroutine;
+            coroutine->resume();
+            coroutine.reset();
+        }
+    }
+
+    EXPECT_TRUE(weakCoroutine.expired());
 }
 
 TEST_F(BinaryRpcChannelTest, CoroutineChannelRequiresCoroutineContext) {

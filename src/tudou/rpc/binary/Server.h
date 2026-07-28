@@ -41,7 +41,6 @@ private:
     void on_close(const TcpConnectionPtr& conn);
 
     static bool parse_request(const Frame& frame, Request& request);
-    static void send_response(const TcpConnectionPtr& conn, uint64_t sequenceId, const std::string& responseBody);
 
 private:
     TcpServer tcpServer_;

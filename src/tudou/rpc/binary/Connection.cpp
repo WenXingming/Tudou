@@ -19,19 +19,23 @@ Connection::Connection()
 Connection::~Connection() = default;
 
 bool Connection::decode(const std::string& data, std::vector<Frame>& frames) {
-    inputBuffer_.write_to_buffer(data); // 将新数据追加到缓冲区（每条连接必须拥有独立的半包缓存，避免数据错乱和丢失。llhttp 因为会自动保存半包数据，所以不需要额外的半包缓存）
+    // inputBuffer_ 保留上次未组成完整帧的字节，新数据只需追加到末尾。
+    inputBuffer_.write_to_buffer(data);
     frames.clear();
+
+    // 一次读事件可能包含多个粘连帧，持续解析到半包或非法数据为止。
     while (true) {
         Frame frame;
         const auto result = FrameCodec::try_decode(inputBuffer_, frame);
-        if (result == FrameCodec::DecodeResult::Complete) {
+        switch (result) {
+        case FrameCodec::DecodeResult::Complete:
             frames.push_back(std::move(frame));
             continue;
-        }
-        if (result == FrameCodec::DecodeResult::NeedMoreData) {
+        case FrameCodec::DecodeResult::NeedMoreData:
             return true;
+        case FrameCodec::DecodeResult::Invalid:
+            return false;
         }
-        return false;
     }
 }
 
