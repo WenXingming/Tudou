@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Tudou VERSION 0.1.0 LANGUAGES C CXX)
+project(Tudou VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
