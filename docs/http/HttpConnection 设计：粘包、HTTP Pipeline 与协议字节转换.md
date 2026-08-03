@@ -11,7 +11,7 @@ GET /first HTTP/1.1\r\n...\r\n\r\nGET /second HTTP/1.1\r\n...\r\n\r\n
 └────────────── 第 1 条 ──────────────┘└────────────── 第 2 条 ──────────────┘
 ```
 
-这就是应用层常说的粘包，也是 HTTP/1.1 pipeline 的基础。如果只把数据交给 `HttpContext::parse()` 一次，第一条完成后，后面的有效字节无人继续消费。
+这就是应用层常说的粘包，也是 **HTTP/1.1 pipeline 的基础**。如果只把数据交给 `HttpContext::parse()` 一次，第一条完成后，后面的有效字节无人继续消费。
 
 HTTPS 又增加一层约束：TCP 层收到的是 TLS 密文，必须先解密；握手过程中还可能立刻产生需要反向发送的 TLS 密文，但此时尚未得到任何 HTTP 请求。
 
@@ -96,11 +96,12 @@ while (consumed < plaintext.size()) {
 
 ## 用结果类型表达后续动作
 
-| `ProcessResult` | 含义 | `HttpServer` 后续动作 |
-| :--- | :--- | :--- |
-| `Success` | 本轮处理完成；请求列表可为空或含多条请求 | 发送握手回包，依次路由列表中的请求。 |
-| `BadRequest` | HTTP 语法错误 | 已成功提取的前序请求仍先响应；随后返回 400 并关闭。 |
-| `TlsError` | TLS 会话不可继续使用 | 关闭 TCP 连接。 |
+
+| `ProcessResult` | 含义                                     | `HttpServer` 后续动作                               |
+| :---------------- | :----------------------------------------- | :---------------------------------------------------- |
+| `Success`       | 本轮处理完成；请求列表可为空或含多条请求 | 发送握手回包，依次路由列表中的请求。                |
+| `BadRequest`    | HTTP 语法错误                            | 已成功提取的前序请求仍先响应；随后返回 400 并关闭。 |
+| `TlsError`      | TLS 会话不可继续使用                     | 关闭 TCP 连接。                                     |
 
 这比把 TLS、llhttp 和 Socket 错误混在一个布尔返回值中更直接：调用方能据此决定是继续路由、回复 400，还是立即收口连接。
 
@@ -131,22 +132,24 @@ HTTP 直接输出序列化结果；HTTPS 交由 TLS 加密。`HttpServer` 只拿
 
 # 测试覆盖
 
-| 测试 | 验证点 |
-| :--- | :--- |
+
+| 测试                                                                            | 验证点                                      |
+| :-------------------------------------------------------------------------------- | :-------------------------------------------- |
 | `HttpConnectionTest.PlainConnectionExtractsPipelinedRequestsAndEncodesResponse` | 一批两个请求按顺序提取，HTTP 响应直接编码。 |
-| `HttpConnectionTest.PlainConnectionCompletesRequestAcrossNetworkChunks` | 拆包后下一次输入可完成原请求。 |
-| `HttpConnectionTest.PlainConnectionReportsBadRequest` | 非法 HTTP 返回 `BadRequest`。 |
-| `HttpServerTest.ProcessPipelinedRequests` | 两条粘连请求均被路由并产生响应。 |
+| `HttpConnectionTest.PlainConnectionCompletesRequestAcrossNetworkChunks`         | 拆包后下一次输入可完成原请求。              |
+| `HttpConnectionTest.PlainConnectionReportsBadRequest`                           | 非法 HTTP 返回`BadRequest`。                |
+| `HttpServerTest.ProcessPipelinedRequests`                                       | 两条粘连请求均被路由并产生响应。            |
 
 # 核心设计要点提炼
 
-| 设计点 | 说明 |
-| :--- | :--- |
-| 连接级状态 | 每条连接独占 `HttpContext` 与可选 TLS 会话。 |
-| 粘包处理 | 依据 `consumedBytes_` 循环，而不是假定一次读取只有一条请求。 |
-| pipeline 顺序 | 每条完成请求先 move、再 reset、再处理剩余字节。 |
-| HTTP/HTTPS 统一 | 输入先得到明文，输出统一得到网络字节。 |
-| 错误分流 | HTTP 语法错误与 TLS 致命错误由不同结果明确区分。 |
+
+| 设计点          | 说明                                                        |
+| :---------------- | :------------------------------------------------------------ |
+| 连接级状态      | 每条连接独占`HttpContext` 与可选 TLS 会话。                 |
+| 粘包处理        | 依据`consumedBytes_` 循环，而不是假定一次读取只有一条请求。 |
+| pipeline 顺序   | 每条完成请求先 move、再 reset、再处理剩余字节。             |
+| HTTP/HTTPS 统一 | 输入先得到明文，输出统一得到网络字节。                      |
+| 错误分流        | HTTP 语法错误与 TLS 致命错误由不同结果明确区分。            |
 
 # 面试核心问答
 

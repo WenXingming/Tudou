@@ -64,8 +64,10 @@ void Acceptor::accept_idle_connection() {
     idleFd_ = Socket(-1);
 
     // 2. 接收并立即关闭一个挂起连接，避免监听 fd 持续触发。
-    sockaddr_in clientAddr{};
-    Socket connSocket = listenSocket_.accept(clientAddr);
+    {
+        sockaddr_in clientAddr{};
+        Socket connSocket = listenSocket_.accept(clientAddr);
+    }
 
     // 3. 重新打开 /dev/null，恢复 fd 预留。
     idleFd_ = Socket(::open("/dev/null", O_RDONLY | O_CLOEXEC));
